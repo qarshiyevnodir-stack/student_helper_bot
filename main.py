@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 # Get Token from Environment Variable
 TOKEN = os.getenv("BOT_TOKEN")
@@ -17,42 +17,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Assalomu alaykum! Prezentatsiya yaratish uchun mavzu kiriting:")
 
 async def handle_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['topic'] = update.message.text
+    context.user_data["topic"] = update.message.text
     
     # Slide count selection with buttons (2 per row layout)
     keyboard = [
-        ['5', '10'],
-        ['15', '20'],
-        ['25', '30']
+        ["5", "10"],
+        ["15", "20"],
+        ["25", "30"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(
-        f"Sizning mavzuingiz: '{update.message.text}'.\nNechta slayd kerak? Quyidagilardan birini tanlang:", 
+        f"Sizning mavzuingiz: \'{update.message.text}\'.\nNechta slayd kerak? Quyidagilardan birini tanlang:", 
         reply_markup=reply_markup
     )
 
 async def handle_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if text in ['5', '10', '15', '20', '25', '30']:
-        context.user_data['slide_count'] = int(text)
+    if text in ["5", "10", "15", "20", "25", "30"]:
+        context.user_data["slide_count"] = int(text)
         
-        # Template selection with 10 buttons (2 per row layout)
-        keyboard = []
-        for i in range(1, 11, 2):
-            keyboard.append([
-                InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}"),
-                InlineKeyboardButton(f"Shablon {i+1}", callback_data=f"tmpl_{i+1}")
-            ])
+        await update.message.reply_text("Iltimos, o'zingizga yoqqan shablonni tanlang:")
         
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Optionally send a combined preview image if available
-        combined_preview = "templates/previews/all_previews.png"
-        if os.path.exists(combined_preview):
-            with open(combined_preview, 'rb') as photo:
-                await update.message.reply_photo(photo=photo, caption="Iltimos, o'zingizga yoqqan shablonni tanlang:", reply_markup=reply_markup)
-        else:
-            await update.message.reply_text("Iltimos, o'zingizga yoqqan shablonni tanlang:", reply_markup=reply_markup)
+        # Send each template preview image with a selection button below it
+        for i in range(1, 11): # Assuming 10 templates from 1.png to 10.png
+            preview_path = f"templates/previews/{i}.png"
+            if os.path.exists(preview_path):
+                with open(preview_path, "rb") as photo:
+                    keyboard = [[InlineKeyboardButton(f"Shablon {i} ni tanlash", callback_data=f"tmpl_{i}")]]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await update.message.reply_photo(photo=photo, reply_markup=reply_markup)
+            else:
+                logging.warning(f"Preview image not found: {preview_path}")
+                # Fallback to text button if image not found
+                keyboard = [[InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(f"Shablon {i} prevyusi topilmadi.", reply_markup=reply_markup)
     else:
         # If it's the first message (topic), it will be handled by handle_topic
         # This part handles cases where the user sends something else during slide selection
@@ -62,10 +61,10 @@ async def handle_template_selection(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
     
-    template_id = query.data.split('_')[1]
+    template_id = query.data.split("_")[1]
     template_file = f"templates/shablonlar/{template_id}.pptx"
-    topic = context.user_data.get('topic')
-    slide_count = context.user_data.get('slide_count')
+    topic = context.user_data.get("topic")
+    slide_count = context.user_data.get("slide_count")
     
     if not topic or not slide_count:
         await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik: Ma'lumotlar yo'qoldi. Iltimos, /start buyrug'idan boshlang.")
@@ -83,7 +82,7 @@ async def handle_template_selection(update: Update, context: ContextTypes.DEFAUL
         output_path = generate_presentation(topic, slide_count, template_file)
         
         # Send the file
-        with open(output_path, 'rb') as doc:
+        with open(output_path, "rb") as doc:
             await context.bot.send_document(chat_id=query.message.chat_id, document=doc, filename=f"{topic}.pptx")
         os.remove(output_path)
     except Exception as e:
