@@ -36,25 +36,33 @@ async def handle_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if text in ["5", "10", "15", "20", "25", "30"]:
         context.user_data["slide_count"] = int(text)
         
-        await update.message.reply_text("Iltimos, o'zingizga yoqqan shablonni tanlang:")
+        # Path to the single image containing all template previews
+        all_previews_path = "templates/previews/all_previews.png"
         
-        # Send each template preview image with a selection button below it
-        for i in range(1, 11): # Assuming 10 templates from 1.png to 10.png
-            preview_path = f"templates/previews/{i}.png"
-            if os.path.exists(preview_path):
-                with open(preview_path, "rb") as photo:
-                    keyboard = [[InlineKeyboardButton(f"Shablon {i} ni tanlash", callback_data=f"tmpl_{i}")]]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-                    await update.message.reply_photo(photo=photo, reply_markup=reply_markup)
-            else:
-                logging.warning(f"Preview image not found: {preview_path}")
-                # Fallback to text button if image not found
-                keyboard = [[InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.message.reply_text(f"Shablon {i} prevyusi topilmadi.", reply_markup=reply_markup)
+        # Template selection buttons (2 per row)
+        keyboard = []
+        for i in range(1, 11, 2):
+            keyboard.append([
+                InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}"),
+                InlineKeyboardButton(f"Shablon {i+1}", callback_data=f"tmpl_{i+1}")
+            ])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if os.path.exists(all_previews_path):
+            with open(all_previews_path, "rb") as photo:
+                await update.message.reply_photo(
+                    photo=photo, 
+                    caption="Yuqoridagi rasmdan o'zingizga yoqqan shablonni ko'rib tanlang:", 
+                    reply_markup=reply_markup
+                )
+        else:
+            # Fallback if the combined image is not found
+            await update.message.reply_text(
+                "Iltimos, o'zingizga yoqqan shablonni tanlang:", 
+                reply_markup=reply_markup
+            )
     else:
-        # If it's the first message (topic), it will be handled by handle_topic
-        # This part handles cases where the user sends something else during slide selection
+        # This handles cases where user input is unexpected
         pass
 
 async def handle_template_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
