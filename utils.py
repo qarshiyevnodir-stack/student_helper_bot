@@ -2,8 +2,10 @@ import os
 import requests
 import json
 import logging
+import random
 from pptx import Presentation
 from pptx.util import Inches
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -13,13 +15,14 @@ load_dotenv()
 client = OpenAI()
 
 def search_image(query):
-    """Search for an image using Unsplash Source API."""
+    """Search for an image using Unsplash Source API with random seed to avoid duplicates."""
     try:
-        # Unsplash Source API is a simple way to get a random image based on keywords
-        url = f"https://source.unsplash.com/featured/?{query.replace(' ', ',')}"
+        # Adding a random seed to get different images for different slides
+        seed = random.randint(1, 1000)
+        url = f"https://source.unsplash.com/featured/?{query.replace(' ', ',')}&sig={seed}"
         response = requests.get(url, allow_redirects=True, timeout=15)
         if response.status_code == 200:
-            image_path = f"temp_{hash(query)}.jpg"
+            image_path = f"temp_{hash(query)}_{seed}.jpg"
             with open(image_path, 'wb') as f:
                 f.write(response.content)
             return image_path
@@ -28,14 +31,27 @@ def search_image(query):
     return None
 
 def generate_presentation(topic, slide_count, template_path):
-    """Generate a PowerPoint presentation based on the topic, slide count, and template."""
+    """Generate a PowerPoint presentation by strictly modifying a template."""
     
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template not found: {template_path}")
         
     prs = Presentation(template_path)
     
-    # Use GPT to generate content
+    # 1. STICK TO SLIDE COUNT: Remove extra slides or add if needed
+    # First, remove extra slides from the end
+    while len(prs.slides) > slide_count:
+        # Python-pptx doesn't have a direct slide removal, we have to use internal XML manipulation
+        rId = prs.slides._sldIdLst[-1].rId
+        prs.part.drop_rel(rId)
+        del prs.slides._sldIdLst[-1]
+    
+    # If template has fewer slides than requested, add new ones using the second layout (Title and Content)
+    while len(prs.slides) < slide_count:
+        slide_layout = prs.slide_layouts[1] if len(prs.slide_layouts) > 1 else prs.slide_layouts[0]
+        prs.slides.add_slide(slide_layout)
+
+    # 2. GENERATE CONTENT using GPT
     prompt = f"""Create a professional presentation outline for the topic '{topic}' in Uzbek language. 
     Total slides: {slide_count}.
     For each slide, provide:
@@ -47,9 +63,9 @@ def generate_presentation(topic, slide_count, template_path):
     {{
       "slides": [
         {{
-          "title": "Slide Title",
-          "content": ["Point 1", "Point 2", "Point 3"],
-          "image_query": "nature forest"
+          "title": "Slayd sarlavhasi",
+          "content": ["Ma'lumot 1", "Ma'lumot 2", "Ma'lumot 3"],
+          "image_query": "technology computer"
         }},
         ...
       ]
@@ -67,45 +83,65 @@ def generate_presentation(topic, slide_count, template_path):
         slides_data = data.get('slides', [])
     except Exception as e:
         logging.error(f"GPT content generation failed: {e}")
-        # Fallback if GPT fails
         slides_data = [{"title": topic, "content": ["Ma'lumot topilmadi."], "image_query": topic}] * slide_count
 
-    # Fill the presentation
+    # 3. FILL THE PRESENTATION AND REPLACE IMAGES
     for i, slide_info in enumerate(slides_data[:slide_count]):
-        # If we run out of slides in template, add a new one using the first layout
-        if i < len(prs.slides):
-            slide = prs.slides[i]
-        else:
-            slide_layout = prs.slide_layouts[1] if len(prs.slide_layouts) > 1 else prs.slide_layouts[0]
-            slide = prs.slides.add_slide(slide_layout)
-            
-        # Update Title
+        slide = prs.slides[i]
+        
+        # A. Update Title
         if slide.shapes.title:
             slide.shapes.title.text = slide_info.get('title', '')
-            
-        # Update Content (finding the largest text box that is not the title)
-        content_text = "\n".join(slide_info.get('content', []))
+        
+        # B. Replace ALL text in all text boxes with new content
+        content_points = slide_info.get('content', [])
+        content_text = "\n".join(content_points)
+        
+        # Find the main body text box (usually the one with most area that isn't the title)
         body_shape = None
         for shape in slide.shapes:
             if shape.has_text_frame and shape != slide.shapes.title:
-                # Simple heuristic: the largest non-title text box is usually the body
                 if body_shape is None or (shape.width * shape.height > body_shape.width * body_shape.height):
                     body_shape = shape
-        
+            
+            # Clear any other text boxes to avoid "old content" showing up
+            if shape.has_text_frame and shape != slide.shapes.title and shape != body_shape:
+                # If it's a small text box, just clear it
+                if shape.width * shape.height < (prs.slide_width * prs.slide_height * 0.1):
+                    shape.text = ""
+
         if body_shape:
             body_shape.text = content_text
-                
-        # Search and Add Image
+
+        # C. Replace Images
         image_query = slide_info.get('image_query', topic)
-        image_path = search_image(image_query)
-        if image_path:
+        new_image_path = search_image(image_query)
+        
+        if new_image_path:
             try:
-                # Add image to the slide (positioning it on the right side)
-                # This is a generic position, might need adjustment per template
-                slide.shapes.add_picture(image_path, Inches(6), Inches(1.5), width=Inches(3.5))
-                os.remove(image_path)
+                # Find existing pictures on the slide
+                pics = [s for s in slide.shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE]
+                
+                if pics:
+                    # Replace the first existing picture's position and size
+                    first_pic = pics[0]
+                    left, top, width, height = first_pic.left, first_pic.top, first_pic.width, first_pic.height
+                    
+                    # Remove the old picture
+                    sp = first_pic._element
+                    sp.getparent().remove(sp)
+                    
+                    # Add new picture in the same spot
+                    slide.shapes.add_picture(new_image_path, left, top, width=width, height=height)
+                else:
+                    # If no picture exists, add it to a default position (right side)
+                    slide.shapes.add_picture(new_image_path, Inches(6), Inches(1.5), width=Inches(3.5))
+                
+                os.remove(new_image_path)
             except Exception as e:
-                logging.error(f"Error adding image to slide {i}: {e}")
+                logging.error(f"Error replacing image on slide {i}: {e}")
+                if os.path.exists(new_image_path):
+                    os.remove(new_image_path)
                 
     output_filename = f"temp_output_{hash(topic)}.pptx"
     prs.save(output_filename)
