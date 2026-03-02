@@ -4,7 +4,7 @@ import json
 import logging
 import random
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
 from openai import OpenAI
@@ -21,8 +21,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 def search_image(query):
     """Search for an image using Unsplash Source API with random seed to avoid duplicates."""
     try:
+        # Adding a random seed to get different images for different slides
         seed = random.randint(1, 1000)
-        url = f"https://source.unsplash.com/featured/?{query.replace(\' \', \',\')}&sig={seed}"
+        url = f"https://source.unsplash.com/featured/?{query.replace(\' \", \",\")}&sig={seed}"
         response = requests.get(url, allow_redirects=True, timeout=15)
         if response.status_code == 200:
             image_path = f"temp_{hash(query)}_{seed}.jpg"
@@ -45,7 +46,7 @@ def generate_slide_content(topic, slide_number, total_slides):
     prompt += f"Respond ONLY with a JSON object in this format:\n"
     prompt += f"{{\n"
     prompt += f"  \"title\": \"Slayd sarlavhasi\",\n"
-    prompt += f"  \"content\": [\"Ma\'lumot 1\", \"Ma\'lumot 2\", \"Ma\'lumot 3\"],\n"
+    prompt += f"  \"content\": [\"Ma\\'lumot 1\", \"Ma\\'lumot 2\", \"Ma\\'lumot 3\"],\n"
     prompt += f"  \"image_query\": \"technology computer\"\n"
     prompt += f"}}"""
     
@@ -61,7 +62,7 @@ def generate_slide_content(topic, slide_number, total_slides):
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\'lumot topilmadi."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\\'lumot topilmadi."], "image_query": topic}
 
 def generate_presentation(topic, slide_count, template_path):
     """Generate a PowerPoint presentation by strictly modifying a template."""
@@ -102,11 +103,11 @@ def generate_presentation(topic, slide_count, template_path):
                     if first_paragraph.runs:
                         first_run = first_paragraph.runs[0]
                         original_styles[shape.shape_id] = {
-                            'font_name': first_run.font.name,
-                            'font_size': first_run.font.size,
-                            'font_color': first_run.font.color.rgb if first_run.font.color.rgb else None,
-                            'bold': first_run.font.bold,
-                            'italic': first_run.font.italic
+                            \'font_name\': first_run.font.name,
+                            \'font_size\': first_run.font.size,
+                            \'font_color\': first_run.font.color.rgb if first_run.font.color.rgb else None,
+                            \'bold\': first_run.font.bold,
+                            \'italic\': first_run.font.italic
                         }
 
         # Clear all existing text and images
@@ -118,8 +119,8 @@ def generate_presentation(topic, slide_count, template_path):
                 sp.getparent().remove(sp)
         
         # A. Update Title and Content
-        title_text = slide_info.get('title', '')
-        content_points = slide_info.get('content', [])
+        title_text = slide_info.get(\'title\', \'\')
+        content_points = slide_info.get(\'content\', [])
         body_text = "\n".join(content_points)
 
         # Find suitable text frames for title and body, or add new ones
@@ -128,13 +129,13 @@ def generate_presentation(topic, slide_count, template_path):
 
         for shape in slide.shapes:
             if shape.has_text_frame:
-                if shape.is_placeholder and 'title' in shape.name.lower():
+                if shape.is_placeholder and \'title\' in shape.name.lower():
                     title_shape = shape
-                elif shape.is_placeholder and ('body' in shape.name.lower() or 'content' in shape.name.lower()):
+                elif shape.is_placeholder and (\'body\' in shape.name.lower() or \'content\' in shape.name.lower()):
                     body_shape = shape
-                elif not title_shape and shape.text_frame.text == "": # Fallback for empty text frames
+                elif not title_shape and shape.text_frame.text == \"\": # Fallback for empty text frames
                     title_shape = shape
-                elif not body_shape and shape.text_frame.text == "": # Fallback for empty text frames
+                elif not body_shape and shape.text_frame.text == \"\": # Fallback for empty text frames
                     body_shape = shape
         
         # If no placeholders, add generic text boxes
@@ -148,50 +149,57 @@ def generate_presentation(topic, slide_count, template_path):
         # Apply new text and preserve original styles
         if title_shape:
             text_frame = title_shape.text_frame
+            text_frame.clear() # Clear again to ensure clean slate
             p = text_frame.paragraphs[0]
             run = p.add_run()
             run.text = title_text
             if title_shape.shape_id in original_styles:
                 style = original_styles[title_shape.shape_id]
-                run.font.name = style['font_name']
-                run.font.size = style['font_size']
-                if style['font_color']: run.font.color.rgb = style['font_color']
-                run.font.bold = style['bold']
-                run.font.italic = style['italic']
+                run.font.name = style[\'font_name\']
+                run.font.size = style[\'font_size\']
+                if style[\'font_color\']: run.font.color.rgb = style[\'font_color\']
+                run.font.bold = style[\'bold\']
+                run.font.italic = style[\'italic\']
 
         if body_shape:
             text_frame = body_shape.text_frame
-            p = text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = body_text
-            if body_shape.shape_id in original_styles:
-                style = original_styles[body_shape.shape_id]
-                run.font.name = style['font_name']
-                run.font.size = style['font_size']
-                if style['font_color']: run.font.color.rgb = style['font_color']
-                run.font.bold = style['bold']
-                run.font.italic = style['italic']
+            text_frame.clear() # Clear again to ensure clean slate
+            for point in content_points:
+                p = text_frame.add_paragraph()
+                run = p.add_run()
+                run.text = point
+                if body_shape.shape_id in original_styles:
+                    style = original_styles[body_shape.shape_id]
+                    run.font.name = style[\'font_name\']
+                    run.font.size = style[\'font_size\']
+                    if style[\'font_color\']: run.font.color.rgb = style[\'font_color\']
+                    run.font.bold = style[\'bold\']
+                    run.font.italic = style[\'italic\']
 
         # C. Replace Images
-        image_query = slide_info.get('image_query', topic)
+        image_query = slide_info.get(\'image_query\', topic)
         new_image_path = search_image(image_query)
         
         if new_image_path:
             try:
                 # Find existing picture placeholders or add to a default position
-                picture_placeholder = None
-                for shape in slide.shapes:
-                    if shape.is_placeholder and shape.has_text_frame is False: # Look for non-text placeholders
-                        picture_placeholder = shape
-                        break
+                # Look for shapes that are pictures or picture placeholders
+                existing_image_shapes = [s for s in slide.shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE or 
+                                         (s.is_placeholder and s.has_text_frame is False)]
                 
-                if picture_placeholder:
-                    left, top, width, height = picture_placeholder.left, picture_placeholder.top, picture_placeholder.width, picture_placeholder.height
+                if existing_image_shapes:
+                    # Use the first found image shape's position and size
+                    target_shape = existing_image_shapes[0]
+                    left, top, width, height = target_shape.left, target_shape.top, target_shape.width, target_shape.height
+                    
+                    # Remove the old picture/placeholder
+                    sp = target_shape._element
+                    sp.getparent().remove(sp)
+                    
+                    # Add new picture in the same spot
                     slide.shapes.add_picture(new_image_path, left, top, width=width, height=height)
-                    sp = picture_placeholder._element
-                    sp.getparent().remove(sp) # Remove old placeholder
                 else:
-                    # If no suitable placeholder, add it to a default position (right side)
+                    # If no picture or placeholder exists, add it to a default position (right side)
                     slide.shapes.add_picture(new_image_path, Inches(6), Inches(1.5), width=Inches(3.5))
                 
                 os.remove(new_image_path) # Clean up downloaded image
