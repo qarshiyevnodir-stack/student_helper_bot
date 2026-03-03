@@ -23,8 +23,7 @@ def search_image(query):
     try:
         # Adding a random seed to get different images for different slides
         seed = random.randint(1, 1000)
-        # Fixed: Removed unnecessary backslashes from f-string arguments
-        url = f"https://source.unsplash.com/featured/?{query.replace(' ', ',')}&sig={seed}"
+        url = f"https://source.unsplash.com/featured/?{query.replace(\' \', \',\')}&sig={seed}"
         response = requests.get(url, allow_redirects=True, timeout=15)
         if response.status_code == 200:
             image_path = f"temp_{hash(query)}_{seed}.jpg"
@@ -32,20 +31,20 @@ def search_image(query):
                 f.write(response.content)
             return image_path
     except Exception as e:
-        logging.error(f"Error searching image for \'{query}\'": {e})")
+        logging.error(f"Error searching image for \'{query}\': {e}")
     return None
 
 def generate_slide_content(topic, slide_number, total_slides):
     """Generate academic and detailed content for a slide using an LLM."""
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz o\'zbek tilida yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\'yicha chuqur ma\'lumot bering.
+    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz o'zbek tilida yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.
 
 Mavzu: \'{topic}\'
 Jami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.
 
 Ushbu slayd uchun quyidagilarni taqdim eting:
 1. \'title\': Qisqa, ammo mazmunli sarlavha.
-2. \'content\': 3-4 ta asosiy fikrni o\'z ichiga olgan, akademik uslubdagi, tahliliy ma\'lumotlar. Har bir fikr alohida qatorga yozilsin.
-3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\'zlar.
+2. \'content\': 3-4 ta asosiy fikrni o'z ichiga olgan, akademik uslubdagi, tahliliy ma'lumotlar. Har bir fikr alohida qatorga yozilsin.
+3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so'zlar.
 
 Javobni FAQAT quyidagi JSON formatida bering:
 {{
@@ -66,7 +65,7 @@ Javobni FAQAT quyidagi JSON formatida bering:
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\'lumot topilmadi. Iltimos, mavzuni aniqlashtiring yoki qayta urinib ko\'ring."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma'lumot topilmadi. Iltimos, mavzuni aniqlashtiring yoki qayta urinib ko'ring."], "image_query": topic}
 
 def generate_presentation(topic, slide_count, template_path):
     """Generate a PowerPoint presentation by strictly modifying a template."""
@@ -131,12 +130,8 @@ def generate_presentation(topic, slide_count, template_path):
             sp.getparent().remove(sp)
 
         # A. Update Title and Content
-        if i == 0: # For the first slide, use the full topic in uppercase
-            title_text = topic.upper()
-            content_points = [] # No content points for the title slide
-        else:
-            title_text = slide_info.get(\'title\', \'\')
-            content_points = slide_info.get(\'content\', [])
+        title_text = slide_info.get(\'title\', \'\')
+        content_points = slide_info.get(\'content\', [])
 
         # Find suitable text frames for title and body, or add new ones
         title_shape = None
@@ -182,7 +177,7 @@ def generate_presentation(topic, slide_count, template_path):
             if not run.font.size:
                 run.font.size = Pt(24) # Default title size
 
-        if body_shape and content_points: # Only add content points if not the title slide and content exists
+        if body_shape:
             text_frame = body_shape.text_frame
             text_frame.clear() # Clear again to ensure clean slate
             for point in content_points:
@@ -215,7 +210,7 @@ def generate_presentation(topic, slide_count, template_path):
                         image_placeholders.append(shape)
                 
                 if image_placeholders:
-                    # Use the first found image shape\'s position and size
+                    # Use the first found image shape's position and size
                     target_shape = image_placeholders[0]
                     left, top, width, height = target_shape.left, target_shape.top, target_shape.width, target_shape.height
                     
