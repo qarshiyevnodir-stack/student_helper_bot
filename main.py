@@ -79,8 +79,15 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    slide_count = int(query.data.split("_")[2])
-    context.user_data["slide_count"] = slide_count
+    logger.info(f"get_slide_count: Callback data received: {query.data}")
+    try:
+        slide_count = int(query.data.split("_")[2])
+        context.user_data["slide_count"] = slide_count
+        logger.info(f"get_slide_count: Slide count extracted: {slide_count}")
+    except (IndexError, ValueError) as e:
+        logger.error(f"get_slide_count: Error parsing slide count from callback data '{query.data}': {e}")
+        await query.edit_message_text(text="Slayd sonini tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return SLIDE_COUNT # Stay in the same state to allow re-selection
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
@@ -97,7 +104,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         else:
             await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     except Exception as e:
-        logger.error(f"Error sending photo: {e}")
+        logger.error(f"get_slide_count: Error sending photo or template selection: {e}")
         await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     
     return TEMPLATE_SELECTION
@@ -105,13 +112,13 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    logger.info(f"Callback data received for template selection: {query.data}")
+    logger.info(f"get_template: Callback data received for template selection: {query.data}")
     try:
         template_id = int(query.data.split("_")[1])
         context.user_data["template_id"] = template_id
-        logger.info(f"Template ID extracted: {template_id}")
+        logger.info(f"get_template: Template ID extracted: {template_id}")
     except (IndexError, ValueError) as e:
-        logger.error(f"Error parsing template ID from callback data \'{query.data}\': {e}")
+        logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
         await query.edit_message_text(text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return TEMPLATE_SELECTION # Stay in the same state to allow re-selection
 
@@ -127,7 +134,7 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
         os.remove(output_path)
     except Exception as e:
-        logger.error(f"Error in generate_presentation call: {e}")
+        logger.error(f"get_template: Error in generate_presentation call: {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
 
     await context.bot.send_message(chat_id=query.message.chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
@@ -150,14 +157,19 @@ def main() -> None:
         ],
         states={
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
-            SLIDE_COUNT: [CallbackQueryHandler(get_slide_count, pattern="^slide_count_")],
-            TEMPLATE_SELECTION: [CallbackQueryHandler(get_template, pattern="^tmpl_")]
+            SLIDE_COUNT: [
+                CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
+                MessageHandler(filters.ALL, lambda u, c: ConversationHandler.END) # Fallback for unexpected messages
+            ],
+            TEMPLATE_SELECTION: [
+                CallbackQueryHandler(get_template, pattern="^tmpl_"),
+                MessageHandler(filters.ALL, lambda u, c: ConversationHandler.END) # Fallback for unexpected messages
+            ]
         },
         fallbacks=[CommandHandler("start", start)],
     )
 
     application.add_handler(conv_handler)
-    # Removed the redundant MessageHandler here to avoid conflicts
 
     logger.info("Bot is running...")
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
