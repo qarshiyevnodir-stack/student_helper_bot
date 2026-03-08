@@ -105,8 +105,15 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    template_id = int(query.data.split("_")[1])
-    context.user_data["template_id"] = template_id
+    logger.info(f"Callback data received for template selection: {query.data}")
+    try:
+        template_id = int(query.data.split("_")[1])
+        context.user_data["template_id"] = template_id
+        logger.info(f"Template ID extracted: {template_id}")
+    except (IndexError, ValueError) as e:
+        logger.error(f"Error parsing template ID from callback data \'{query.data}\': {e}")
+        await query.edit_message_text(text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return TEMPLATE_SELECTION # Stay in the same state to allow re-selection
 
     await query.edit_message_text(text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
 
@@ -151,7 +158,6 @@ def main() -> None:
 
     application.add_handler(conv_handler)
     # Removed the redundant MessageHandler here to avoid conflicts
-    # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection))
 
     logger.info("Bot is running...")
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
