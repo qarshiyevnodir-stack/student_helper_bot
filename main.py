@@ -119,10 +119,11 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logger.info(f"get_template: Template ID extracted: {template_id}")
     except (IndexError, ValueError) as e:
         logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
-        await query.edit_message_text(text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return TEMPLATE_SELECTION # Stay in the same state to allow re-selection
 
-    await query.edit_message_text(text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
+    # Changed from edit_message_text to send_message to avoid 400 Bad Request after sending photo
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
 
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
@@ -150,6 +151,10 @@ def main() -> None:
 
     application = Application.builder().token(token).build()
 
+    # Get webhook URL and port from environment variables
+    webhook_url = os.getenv("WEBHOOK_URL")
+    port = int(os.getenv("PORT", 8080))
+
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -172,7 +177,17 @@ def main() -> None:
     application.add_handler(conv_handler)
 
     logger.info("Bot is running...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    if webhook_url:
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=token,
+            webhook_url=f"{webhook_url}/{token}"
+        )
+        logger.info(f"Bot running with webhook at {webhook_url}/{token}")
+    else:
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        logger.info("Bot running with polling")
 
 if __name__ == "__main__":
     main()
