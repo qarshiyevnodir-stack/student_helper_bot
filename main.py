@@ -72,11 +72,30 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     text = update.message.text
 
     if text == "🪄 Slayd yaratish ✨":
-        await update.message.reply_text("Prezentatsiya uchun mavzuni kiriting:")
-        return TOPIC
+        await update.message.reply_text(
+            "Endi prezentatsiya tilini tanlang:",
+            reply_markup=get_language_selection_keyboard()
+        )
+        return LANGUAGE_SELECTION # <--- Changed to LANGUAGE_SELECTION
     else:
         await update.message.reply_text(f"'{text}' xizmati tez kunda ishga tushadi! Hozircha faqat 'Slayd yaratish' bo'limi ishlamoqda.", reply_markup=get_main_menu_keyboard())
         return ConversationHandler.END
+
+async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    logger.info(f"get_language: Callback data received for language selection: {query.data}")
+    try:
+        language_code = query.data.split("_")[1]
+        context.user_data["language"] = language_code
+        logger.info(f"get_language: Language code extracted: {language_code}")
+    except (IndexError, ValueError) as e:
+        logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return LANGUAGE_SELECTION # Stay in the same state to allow re-selection
+
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:") # <--- Added topic request here
+    return TOPIC # <--- Transition to TOPIC after language selection
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["topic"] = update.message.text
@@ -101,28 +120,6 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Endi prezentatsiya tilini tanlang:",
-        reply_markup=get_language_selection_keyboard()
-    )
-    return LANGUAGE_SELECTION
-
-async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-    logger.info(f"get_language: Callback data received for language selection: {query.data}")
-    try:
-        language_code = query.data.split("_")[1]
-        context.user_data["language"] = language_code
-        logger.info(f"get_language: Language code extracted: {language_code}")
-    except (IndexError, ValueError) as e:
-        logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return LANGUAGE_SELECTION # Stay in the same state to allow re-selection
-
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz.")
-
     try:
         all_previews_path = "templates/previews/all_previews.png"
         if os.path.exists(all_previews_path):
@@ -136,7 +133,7 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         else:
             await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     except Exception as e:
-        logger.error(f"get_language: Error sending photo or template selection: {e}")
+        logger.error(f"get_slide_count: Error sending photo or template selection: {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     
     return TEMPLATE_SELECTION
@@ -194,12 +191,12 @@ def main() -> None:
             MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)
         ],
         states={
+            LANGUAGE_SELECTION: [
+                CallbackQueryHandler(get_language, pattern="^lang_"),
+            ],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
-            ],
-            LANGUAGE_SELECTION: [
-                CallbackQueryHandler(get_language, pattern="^lang_"),
             ],
             TEMPLATE_SELECTION: [
                 CallbackQueryHandler(get_template, pattern="^tmpl_"),
