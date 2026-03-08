@@ -137,20 +137,22 @@ def main() -> None:
     application = Application.builder().token(token).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection)],
+        entry_points=[MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)],
         states={
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
-            SLIDE_COUNT: [CallbackQueryHandler(get_slide_count, pattern='^slide_count_')],
-            TEMPLATE_SELECTION: [CallbackQueryHandler(get_template, pattern='^tmpl_')]
+            SLIDE_COUNT: [CallbackQueryHandler(get_slide_count, pattern="^slide_count_")],
+            TEMPLATE_SELECTION: [CallbackQueryHandler(get_template, pattern="^tmpl_")]
         },
         fallbacks=[CommandHandler("start", start)],
     )
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(conv_handler)
+    # This MessageHandler will catch any text that is not handled by the ConversationHandler
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection))
 
     logger.info("Bot is running...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
