@@ -7,6 +7,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN # Import PP_ALIGN for text alignment
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -153,6 +154,8 @@ def generate_presentation(topic, slide_count, template_path):
             p = text_frame.paragraphs[0]
             run = p.add_run()
             run.text = title_text
+            # Center the title text
+            p.alignment = PP_ALIGN.CENTER
             if title_shape.shape_id in original_styles:
                 style = original_styles[title_shape.shape_id]
                 if style['font_name']: run.font.name = style['font_name']
@@ -160,7 +163,7 @@ def generate_presentation(topic, slide_count, template_path):
                 if style['font_color']: run.font.color.rgb = style['font_color']
                 run.font.bold = style['bold']
                 run.font.italic = style['italic']
-            if not run.font.size: run.font.size = Pt(32)
+            if not run.font.size: run.font.size = Pt(24) # Reduced default title font size
 
         if body_shape and content_points:
             text_frame = body_shape.text_frame
@@ -176,7 +179,7 @@ def generate_presentation(topic, slide_count, template_path):
                     if style['font_color']: run.font.color.rgb = style['font_color']
                     run.font.bold = style['bold']
                     run.font.italic = style['italic']
-                if not run.font.size: run.font.size = Pt(20)
+                if not run.font.size: run.font.size = Pt(14) # Reduced default body font size
 
         image_query = slide_info.get('image_query', topic)
         new_image_path = search_image(image_query)
