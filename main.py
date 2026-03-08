@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # State management for conversations
-TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION = range(4)
+TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION, NAME_SURNAME = range(5)
 
 # --- Keyboards ---
 
@@ -76,7 +76,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             "Endi prezentatsiya tilini tanlang:",
             reply_markup=get_language_selection_keyboard()
         )
-        return LANGUAGE_SELECTION # <--- Changed to LANGUAGE_SELECTION
+        return LANGUAGE_SELECTION
     else:
         await update.message.reply_text(f"'{text}' xizmati tez kunda ishga tushadi! Hozircha faqat 'Slayd yaratish' bo'limi ishlamoqda.", reply_markup=get_main_menu_keyboard())
         return ConversationHandler.END
@@ -92,15 +92,22 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     except (IndexError, ValueError) as e:
         logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return LANGUAGE_SELECTION # Stay in the same state to allow re-selection
+        return LANGUAGE_SELECTION
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:") # <--- Added topic request here
-    return TOPIC # <--- Transition to TOPIC after language selection
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:")
+    return TOPIC
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["topic"] = update.message.text
     await update.message.reply_text(
-        "Ajoyib! Endi nechta slayd kerakligini tanlang:",
+        "Ajoyib! Endi ism va familiyangizni kiriting (masalan: Ali Valiyev):"
+    )
+    return NAME_SURNAME # <--- New state transition
+
+async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["name_surname"] = update.message.text
+    await update.message.reply_text(
+        "Rahmat! Endi nechta slayd kerakligini tanlang:",
         reply_markup=get_slide_count_keyboard()
     )
     return SLIDE_COUNT
@@ -116,7 +123,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except (IndexError, ValueError) as e:
         logger.error(f"get_slide_count: Error parsing slide count from callback data '{query.data}': {e}")
         await query.edit_message_text(text="Slayd sonini tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return SLIDE_COUNT # Stay in the same state to allow re-selection
+        return SLIDE_COUNT
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
@@ -149,18 +156,18 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     except (IndexError, ValueError) as e:
         logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return TEMPLATE_SELECTION # Stay in the same state to allow re-selection
+        return TEMPLATE_SELECTION
 
-    # Changed from edit_message_text to send_message to avoid 400 Bad Request after sending photo
     await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
 
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
     template_path = f"templates/shablonlar/{template_id}.pptx"
     language = context.user_data.get("language", "uz") # Default to Uzbek if not selected
+    name_surname = context.user_data.get("name_surname", "") # Get name and surname
 
     try:
-        output_path = generate_presentation(topic, slide_count, template_path, language)
+        output_path = generate_presentation(topic, slide_count, template_path, language, name_surname)
         with open(output_path, "rb") as doc_file:
             await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
         os.remove(output_path)
@@ -195,6 +202,7 @@ def main() -> None:
                 CallbackQueryHandler(get_language, pattern="^lang_"),
             ],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
+            NAME_SURNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname)], # <--- New state
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
             ],
