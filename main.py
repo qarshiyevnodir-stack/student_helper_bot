@@ -1,115 +1,156 @@
-import os
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import generate_presentation
-from dotenv import load_dotenv
 
+# Load environment variables
+from dotenv import load_dotenv
 load_dotenv()
 
 # Enable logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# Get Token from Environment Variable
-TOKEN = os.getenv("BOT_TOKEN")
+# State management for conversations
+TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION = range(3)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Assalomu alaykum! Prezentatsiya yaratish uchun mavzu kiriting:")
+# --- Keyboards ---
 
-async def handle_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["topic"] = update.message.text
-    
-    # Slide count selection with buttons (2 per row layout)
+def get_main_menu_keyboard():
     keyboard = [
-        ["5", "10"],
-        ["15", "20"],
-        ["25", "30"]
+        [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
+        [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
+        [KeyboardButton("🎓 Kurs ishi 📝"), KeyboardButton("📚 Referat ✨")],
+        [KeyboardButton("📜 Tezis ✨"), KeyboardButton("💡 Glossary ✨")],
+        [KeyboardButton("🧩 Krossvord ✨"), KeyboardButton("🔠 Test tuzish")],
+        [KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("🖼️ Rasm yaratish"), KeyboardButton("🎬 Video yaratish")],
     ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text(
-        f"Sizning mavzuingiz: \'{update.message.text}\'.\nNechta slayd kerak? Quyidagilardan birini tanlang:", 
-        reply_markup=reply_markup
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+def get_slide_count_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("5", callback_data="slide_count_5"), InlineKeyboardButton("10", callback_data="slide_count_10")],
+        [InlineKeyboardButton("15", callback_data="slide_count_15"), InlineKeyboardButton("20", callback_data="slide_count_20")],
+        [InlineKeyboardButton("25", callback_data="slide_count_25"), InlineKeyboardButton("30", callback_data="slide_count_30")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_template_selection_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
+        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# --- Command Handlers ---
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.effective_user
+    logger.info(f"User {user.id} started the bot.")
+    context.user_data.clear()
+    await update.message.reply_html(
+        f"Assalomu alaykum, {user.mention_html()}! 👋\n\nMen sizning oʻquv ishlaringizda yordam beruvchi aqlli botman. Quyidagi xizmatlardan foydalanishingiz mumkin:",
+        reply_markup=get_main_menu_keyboard()
     )
+    return ConversationHandler.END
 
-async def handle_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text
-    if text in ["5", "10", "15", "20", "25", "30"]:
-        context.user_data["slide_count"] = int(text)
-        
-        # Path to the single image containing all template previews
-        all_previews_path = "templates/previews/all_previews.png"
-        
-        # Template selection buttons (2 per row)
-        keyboard = []
-        for i in range(1, 11, 2):
-            keyboard.append([
-                InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}"),
-                InlineKeyboardButton(f"Shablon {i+1}", callback_data=f"tmpl_{i+1}")
-            ])
-        reply_markup = InlineKeyboardMarkup(keyboard)
 
-        if os.path.exists(all_previews_path):
-            with open(all_previews_path, "rb") as photo:
-                await update.message.reply_photo(
-                    photo=photo, 
-                    caption="Yuqoridagi rasmdan o'zingizga yoqqan shablonni ko'rib tanlang:", 
-                    reply_markup=reply_markup
-                )
-        else:
-            # Fallback if the combined image is not found
-            await update.message.reply_text(
-                "Iltimos, o'zingizga yoqqan shablonni tanlang:", 
-                reply_markup=reply_markup
-            )
+    if text == "🪄 Slayd yaratish ✨":
+        await update.message.reply_text("Prezentatsiya uchun mavzuni kiriting:")
+        return TOPIC
     else:
-        # This handles cases where user input is unexpected
-        pass
+        await update.message.reply_text(f"'{text}' xizmati tez kunda ishga tushadi! Hozircha faqat 'Slayd yaratish' bo'limi ishlamoqda.", reply_markup=get_main_menu_keyboard())
+        return ConversationHandler.END
 
-async def handle_template_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["topic"] = update.message.text
+    await update.message.reply_text(
+        "Ajoyib! Endi nechta slayd kerakligini tanlang:",
+        reply_markup=get_slide_count_keyboard()
+    )
+    return SLIDE_COUNT
+
+async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    slide_count = int(query.data.split("_")[2])
+    context.user_data["slide_count"] = slide_count
+
+    await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
+
+    try:
+        all_previews_path = "templates/previews/all_previews.png"
+        if os.path.exists(all_previews_path):
+            with open(all_previews_path, "rb") as photo_file:
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=photo_file,
+                    caption="Endi quyidagi shablonlardan birini tanlang:",
+                    reply_markup=get_template_selection_keyboard()
+                )
+        else:
+            await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
+    except Exception as e:
+        logger.error(f"Error sending photo: {e}")
+        await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     
-    template_id = query.data.split("_")[1]
-    template_file = f"templates/shablonlar/{template_id}.pptx"
+    return TEMPLATE_SELECTION
+
+async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    template_id = int(query.data.split("_")[1])
+    context.user_data["template_id"] = template_id
+
+    await query.edit_message_text(text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
+
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
-    
-    if not topic or not slide_count:
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik: Ma'lumotlar yo'qoldi. Iltimos, /start buyrug'idan boshlang.")
-        return
+    template_path = f"templates/shablonlar/{template_id}.pptx"
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, iltimos kuting...")
-    
     try:
-        # Check if template exists
-        if not os.path.exists(template_file):
-            await context.bot.send_message(chat_id=query.message.chat_id, text=f"Xatolik: Shablon {template_id} topilmadi. Iltimos, fayllar yuklanganini tekshiring.")
-            return
-
-        # Generate the presentation
-        output_path = generate_presentation(topic, slide_count, template_file)
-        
-        # Send the file
-        with open(output_path, "rb") as doc:
-            await context.bot.send_document(chat_id=query.message.chat_id, document=doc, filename=f"{topic}.pptx")
+        output_path = generate_presentation(topic, slide_count, template_path)
+        with open(output_path, "rb") as doc_file:
+            await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
         os.remove(output_path)
     except Exception as e:
-        logging.error(f"Error generating presentation: {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.")
+        logger.error(f"Error in generate_presentation call: {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
 
-if __name__ == '__main__':
-    if not TOKEN:
-        print("Xatolik: BOT_TOKEN topilmadi!")
-    else:
-        application = ApplicationBuilder().token(TOKEN).build()
-        
-        application.add_handler(CommandHandler('start', start))
-        # Handle slide count selection (text buttons)
-        application.add_handler(MessageHandler(filters.Regex('^(5|10|15|20|25|30)$'), handle_slide_count))
-        # Handle initial topic input
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topic))
-        # Handle template selection (inline buttons)
-        application.add_handler(CallbackQueryHandler(handle_template_selection, pattern='^tmpl_'))
-        
-        print("Bot ishga tushdi...")
-        application.run_polling()
+    await context.bot.send_message(chat_id=query.message.chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
+    return ConversationHandler.END
+
+
+def main() -> None:
+    """Start the bot."""
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        logger.error("BOT_TOKEN not found in environment variables!")
+        return
+
+    application = Application.builder().token(token).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection)],
+        states={
+            TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
+            SLIDE_COUNT: [CallbackQueryHandler(get_slide_count, pattern='^slide_count_')],
+            TEMPLATE_SELECTION: [CallbackQueryHandler(get_template, pattern='^tmpl_')]
+        },
+        fallbacks=[CommandHandler("start", start)],
+    )
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(conv_handler)
+
+    logger.info("Bot is running...")
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
