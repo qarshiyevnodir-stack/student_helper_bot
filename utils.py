@@ -23,21 +23,34 @@ def search_image(query):
     """Search for an image using Unsplash Source API with random seed to avoid duplicates."""
     try:
         seed = random.randint(1, 1000)
-        formatted_query = query.replace(' ', ',')
+        formatted_query = query.replace(" ", ",")
         url = f"https://source.unsplash.com/featured/?{formatted_query}&sig={seed}"
         response = requests.get(url, allow_redirects=True, timeout=15)
         if response.status_code == 200:
             image_path = f"temp_{hash(query)}_{seed}.jpg"
-            with open(image_path, 'wb') as f:
+            with open(image_path, "wb") as f:
                 f.write(response.content)
             return image_path
     except Exception as e:
         logging.error(f"Error searching image for '{query}': {e}")
     return None
 
-def generate_slide_content(topic, slide_number, total_slides):
-    """Generate academic and detailed content for a slide using an LLM."""
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz o'zbek tilida yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.
+def generate_slide_content(topic, slide_number, total_slides, language="uz"):
+    """Generate academic and detailed content for a slide using an LLM in the specified language."""
+    lang_map = {
+        "uz": "o'zbek tilida",
+        "en": "English",
+        "ru": "русском языке",
+        "ko": "한국어로",
+        "zh": "中文",
+        "de": "Deutsch",
+        "kaa": "qoraqalpoq tilida",
+        "tk": "turkman tilida",
+        "tg": "tojik tilida"
+    }
+    lang_phrase = lang_map.get(language, "o'zbek tilida")
+
+    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.
 
 Mavzu: '{topic}'
 Jami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.
@@ -57,7 +70,7 @@ Javobni FAQAT quyidagi JSON formatida bering:
     try:
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
-            messages=[{"role": "system", "content": "You are a professional presentation creator. You write in Uzbek language with an academic and analytical approach."},
+            messages=[{"role": "system", "content": f"You are a professional presentation creator. You write in {lang_phrase} with an academic and analytical approach."},
                       {"role": "user", "content": prompt}],
             response_format={"type": "json_object"}
         )
@@ -65,10 +78,10 @@ Javobni FAQAT quyidagi JSON formatida bering:
         data = json.loads(response.choices[0].message.content)
         return data
     except Exception as e:
-        logging.error(f"GPT content generation failed for slide {slide_number}: {e}")
+        logging.error(f"GPT content generation failed for slide {slide_number} in {language}: {e}")
         return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma'lumot topilmadi."], "image_query": topic}
 
-def generate_presentation(topic, slide_count, template_path):
+def generate_presentation(topic, slide_count, template_path, language="uz"):
     """Generate a PowerPoint presentation by strictly modifying a template."""
     
     if not os.path.exists(template_path):
@@ -88,7 +101,7 @@ def generate_presentation(topic, slide_count, template_path):
 
     all_slides_content = []
     for i in range(slide_count):
-        all_slides_content.append(generate_slide_content(topic, i + 1, slide_count))
+        all_slides_content.append(generate_slide_content(topic, i + 1, slide_count, language))
 
     # 2. FILL THE PRESENTATION
     for i, slide_info in enumerate(all_slides_content):
