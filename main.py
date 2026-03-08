@@ -137,7 +137,10 @@ def main() -> None:
     application = Application.builder().token(token).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)],
+        entry_points=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)
+        ],
         states={
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
             SLIDE_COUNT: [CallbackQueryHandler(get_slide_count, pattern="^slide_count_")],
@@ -146,9 +149,9 @@ def main() -> None:
         fallbacks=[CommandHandler("start", start)],
     )
 
-    application.add_handler(CommandHandler("start", start))
     application.add_handler(conv_handler)
     # Removed the redundant MessageHandler here to avoid conflicts
+    # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection))
 
     logger.info("Bot is running...")
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
