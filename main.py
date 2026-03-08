@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # State management for conversations
-TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION = range(3)
+TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION = range(4)
 
 # --- Keyboards ---
 
@@ -43,6 +43,16 @@ def get_template_selection_keyboard():
     keyboard = [
         [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
         [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_language_selection_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("Oʻzbek tili", callback_data="lang_uz"), InlineKeyboardButton("Ingliz tili", callback_data="lang_en")],
+        [InlineKeyboardButton("Rus tili", callback_data="lang_ru"), InlineKeyboardButton("Kores tili", callback_data="lang_ko")],
+        [InlineKeyboardButton("Xitoy tili", callback_data="lang_zh"), InlineKeyboardButton("Nemis tili", callback_data="lang_de")],
+        [InlineKeyboardButton("Qoraqalpoq tili", callback_data="lang_kaa"), InlineKeyboardButton("Turkman tili", callback_data="lang_tk")],
+        [InlineKeyboardButton("Tojik tili", callback_data="lang_tg")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -91,6 +101,28 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Endi prezentatsiya tilini tanlang:",
+        reply_markup=get_language_selection_keyboard()
+    )
+    return LANGUAGE_SELECTION
+
+async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    logger.info(f"get_language: Callback data received for language selection: {query.data}")
+    try:
+        language_code = query.data.split("_")[1]
+        context.user_data["language"] = language_code
+        logger.info(f"get_language: Language code extracted: {language_code}")
+    except (IndexError, ValueError) as e:
+        logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return LANGUAGE_SELECTION # Stay in the same state to allow re-selection
+
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz.")
+
     try:
         all_previews_path = "templates/previews/all_previews.png"
         if os.path.exists(all_previews_path):
@@ -102,10 +134,10 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     reply_markup=get_template_selection_keyboard()
                 )
         else:
-            await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
+            await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     except Exception as e:
-        logger.error(f"get_slide_count: Error sending photo or template selection: {e}")
-        await query.message.reply_text("Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
+        logger.error(f"get_language: Error sending photo or template selection: {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     
     return TEMPLATE_SELECTION
 
@@ -128,9 +160,10 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
     template_path = f"templates/shablonlar/{template_id}.pptx"
+    language = context.user_data.get("language", "uz") # Default to Uzbek if not selected
 
     try:
-        output_path = generate_presentation(topic, slide_count, template_path)
+        output_path = generate_presentation(topic, slide_count, template_path, language)
         with open(output_path, "rb") as doc_file:
             await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
         os.remove(output_path)
@@ -164,11 +197,12 @@ def main() -> None:
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
-                MessageHandler(filters.ALL, lambda u, c: ConversationHandler.END) # Fallback for unexpected messages
+            ],
+            LANGUAGE_SELECTION: [
+                CallbackQueryHandler(get_language, pattern="^lang_"),
             ],
             TEMPLATE_SELECTION: [
                 CallbackQueryHandler(get_template, pattern="^tmpl_"),
-                MessageHandler(filters.ALL, lambda u, c: ConversationHandler.END) # Fallback for unexpected messages
             ]
         },
         fallbacks=[CommandHandler("start", start)],
