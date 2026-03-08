@@ -17,6 +17,19 @@ logger = logging.getLogger(__name__)
 # State management for conversations
 TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION, NAME_SURNAME = range(5)
 
+# --- Language Mapping ---
+LANGUAGE_NAMES = {
+    "uz": "Oʻzbek tili",
+    "en": "Ingliz tili",
+    "ru": "Rus tili",
+    "ko": "Kores tili",
+    "zh": "Xitoy tili",
+    "de": "Nemis tili",
+    "kaa": "Qoraqalpoq tili",
+    "tk": "Turkman tili",
+    "tg": "Tojik tili"
+}
+
 # --- Keyboards ---
 
 def get_main_menu_keyboard():
@@ -56,6 +69,12 @@ def get_language_selection_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def get_name_surname_skip_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("Ism kiritish shart emas", callback_data="skip_name_surname")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 # --- Command Handlers ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -88,26 +107,42 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     try:
         language_code = query.data.split("_")[1]
         context.user_data["language"] = language_code
+        full_language_name = LANGUAGE_NAMES.get(language_code, language_code) # Get full name
         logger.info(f"get_language: Language code extracted: {language_code}")
     except (IndexError, ValueError) as e:
         logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return LANGUAGE_SELECTION
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {language_code} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:")
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {full_language_name} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:")
     return TOPIC
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["topic"] = update.message.text
     await update.message.reply_text(
-        "Ajoyib! Endi ism va familiyangizni kiriting (masalan: Ali Valiyev):"
+        "Ajoyib! Endi ism va familiyangizni kiriting (masalan: Ali Valiyev):",
+        reply_markup=get_name_surname_skip_keyboard()
     )
-    return NAME_SURNAME # <--- New state transition
+    return NAME_SURNAME
 
 async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["name_surname"] = update.message.text
-    await update.message.reply_text(
-        "Rahmat! Endi nechta slayd kerakligini tanlang:",
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        if query.data == "skip_name_surname":
+            context.user_data["name_surname"] = ""
+            await query.edit_message_text(text="Ism kiritish shart emas deb belgilandi.")
+        else:
+            # This case should ideally not happen if only 'skip_name_surname' is the callback
+            await query.edit_message_text(text="Xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+            return NAME_SURNAME
+    else:
+        context.user_data["name_surname"] = update.message.text
+        await update.message.reply_text(f"Ism va familiya qabul qilindi: {update.message.text}")
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Rahmat! Endi nechta slayd kerakligini tanlang:",
         reply_markup=get_slide_count_keyboard()
     )
     return SLIDE_COUNT
@@ -202,7 +237,10 @@ def main() -> None:
                 CallbackQueryHandler(get_language, pattern="^lang_"),
             ],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
-            NAME_SURNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname)], # <--- New state
+            NAME_SURNAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname),
+                CallbackQueryHandler(get_name_surname, pattern="^skip_name_surname$")
+            ],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
             ],
