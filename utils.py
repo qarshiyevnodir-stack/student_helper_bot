@@ -32,13 +32,13 @@ def search_image(query):
                 f.write(response.content)
             return image_path
     except Exception as e:
-        logging.error(f"Error searching image for '{query}': {e}")
+        logging.error(f"Error searching image for \'{query}\': {e}")
     return None
 
 def generate_slide_content(topic, slide_number, total_slides, language="uz"):
     """Generate academic and detailed content for a slide using an LLM in the specified language."""
     lang_map = {
-        "uz": "o'zbek tilida",
+        "uz": "o\'zbek tilida",
         "en": "English",
         "ru": "русском языке",
         "ko": "한국어로",
@@ -48,24 +48,9 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
         "tk": "turkman tilida",
         "tg": "tojik tilida"
     }
-    lang_phrase = lang_map.get(language, "o'zbek tilida")
+    lang_phrase = lang_map.get(language, "o\'zbek tilida")
 
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.
-
-Mavzu: '{topic}'
-Jami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.
-
-Ushbu slayd uchun quyidagilarni taqdim eting:
-1. 'title': Qisqa, ammo mazmunli sarlavha.
-2. 'content': 3-4 ta asosiy fikrni o'z ichiga olgan, akademik uslubdagi, tahliliy ma'lumotlar. Har bir fikr alohida qatorga yozilsin.
-3. 'image_query': Tegishli rasm uchun 2-3 ta inglizcha kalit so'zlar.
-
-Javobni FAQAT quyidagi JSON formatida bering:
-{{
-  "title": "Slayd sarlavhasi",
-  "content": ["Akademik ma'lumot 1", "Akademik ma'lumot 2", "Akademik ma'lumot 3"],
-  "image_query": "technology computer"
-}}"""
+    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\'yicha chuqur ma\'lumot bering.\n\nMavzu: \'{topic}\'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. \'title\': Qisqa, ammo mazmunli sarlavha.\n2. \'content\': 3-4 ta asosiy fikrni o\'z ichiga olgan, akademik uslubdagi, tahliliy ma\'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma\'lumot 1", "Akademik ma\'lumot 2", "Akademik ma\'lumot 3"],\n  "image_query": "technology computer"\n}}"""
     
     try:
         response = client.chat.completions.create(
@@ -79,9 +64,9 @@ Javobni FAQAT quyidagi JSON formatida bering:
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number} in {language}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma'lumot topilmadi."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\'lumot topilmadi."], "image_query": topic}
 
-def generate_presentation(topic, slide_count, template_path, language="uz"):
+def generate_presentation(topic, slide_count, template_path, language="uz", name_surname=""):
     """Generate a PowerPoint presentation by strictly modifying a template."""
     
     if not os.path.exists(template_path):
@@ -138,6 +123,8 @@ def generate_presentation(topic, slide_count, template_path, language="uz"):
         if i == 0:
             title_text = topic.upper()
             content_points = []
+            if name_surname:
+                content_points.append(name_surname.upper()) # Add name/surname to first slide
         else:
             title_text = slide_info.get('title', '')
             content_points = slide_info.get('content', [])
