@@ -148,8 +148,7 @@ def main() -> None:
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(conv_handler)
-    # This MessageHandler will catch any text that is not handled by the ConversationHandler
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection))
+    # Removed the redundant MessageHandler here to avoid conflicts
 
     logger.info("Bot is running...")
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
