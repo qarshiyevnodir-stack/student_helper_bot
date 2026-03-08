@@ -32,13 +32,13 @@ def search_image(query):
                 f.write(response.content)
             return image_path
     except Exception as e:
-        logging.error(f"Error searching image for \'{query}\': {e}")
+        logging.error(f"Error searching image for \'{query}\\': {e}")
     return None
 
 def generate_slide_content(topic, slide_number, total_slides, language="uz"):
     """Generate academic and detailed content for a slide using an LLM in the specified language."""
     lang_map = {
-        "uz": "o\'zbek tilida",
+        "uz": "o\\'zbek tilida",
         "en": "English",
         "ru": "русском языке",
         "ko": "한국어로",
@@ -48,9 +48,9 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
         "tk": "turkman tilida",
         "tg": "tojik tilida"
     }
-    lang_phrase = lang_map.get(language, "o\'zbek tilida")
+    lang_phrase = lang_map.get(language, "o\\'zbek tilida")
 
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\'yicha chuqur ma\'lumot bering.\n\nMavzu: \'{topic}\'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. \'title\': Qisqa, ammo mazmunli sarlavha.\n2. \'content\': 3-4 ta asosiy fikrni o\'z ichiga olgan, akademik uslubdagi, tahliliy ma\'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma\'lumot 1", "Akademik ma\'lumot 2", "Akademik ma\'lumot 3"],\n  "image_query": "technology computer"\n}}"""
+    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\\'yicha chuqur ma\\'lumot bering.\n\nMavzu: \'{topic}\'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. \'title\': Qisqa, ammo mazmunli sarlavha.\n2. \'content\': 3-4 ta asosiy fikrni o\\'z ichiga olgan, akademik uslubdagi, tahliliy ma\\'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\\'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma\\'lumot 1", "Akademik ma\\'lumot 2", "Akademik ma\\'lumot 3"],\n  "image_query": "technology computer"\n}}"""
     
     try:
         response = client.chat.completions.create(
@@ -64,7 +64,34 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number} in {language}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\'lumot topilmadi."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\\'lumot topilmadi."], "image_query": topic}
+
+def find_placeholder_by_type(slide, ph_type):
+    for shape in slide.shapes:
+        if shape.is_placeholder and shape.placeholder_format.type == ph_type:
+            return shape
+    return None
+
+def find_placeholder_by_name(slide, ph_name):
+    for shape in slide.shapes:
+        if shape.is_placeholder and shape.name == ph_name:
+            return shape
+    return None
+
+def set_text_and_style(text_frame, text, ph_config=None, default_font_size=Pt(18), align=PP_ALIGN.LEFT):
+    text_frame.clear()
+    p = text_frame.paragraphs[0]
+    p.text = text
+    p.alignment = align
+
+    if ph_config:
+        # Apply font styles from config if available
+        if ph_config.get("font_name"): p.font.name = ph_config["font_name"]
+        if ph_config.get("font_size"): p.font.size = Pt(ph_config["font_size"])
+        # Add more style properties as needed (bold, italic, color)
+    else:
+        # Fallback to default font size if no config or size in config
+        if not p.font.size: p.font.size = default_font_size
 
 def generate_presentation(topic, slide_count, template_path, language="uz", name_surname=""):
     """Generate a PowerPoint presentation by strictly modifying a template."""
@@ -73,7 +100,17 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
         raise FileNotFoundError(f"Template not found: {template_path}")
         
     prs = Presentation(template_path)
-    
+
+    # Load template-specific configuration
+    template_id = os.path.basename(template_path).split('.')[0]
+    config_path = os.path.join(os.path.dirname(template_path), f"template_{template_id}.json")
+    template_config = {}
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            template_config = json.load(f)
+    else:
+        logging.warning(f"No JSON config found for template {template_id}. Using default logic.")
+
     # 1. STICK TO SLIDE COUNT
     while len(prs.slides) > slide_count:
         rId = prs.slides._sldIdLst[-1].rId
@@ -92,23 +129,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
     for i, slide_info in enumerate(all_slides_content):
         slide = prs.slides[i]
         
-        original_styles = {}
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                text_frame = shape.text_frame
-                if text_frame.paragraphs:
-                    for paragraph in text_frame.paragraphs:
-                        if paragraph.runs:
-                            first_run = paragraph.runs[0]
-                            original_styles[shape.shape_id] = {
-                                'font_name': first_run.font.name,
-                                'font_size': first_run.font.size,
-                                'font_color': first_run.font.color.rgb if first_run.font.color.rgb else None,
-                                'bold': first_run.font.bold,
-                                'italic': first_run.font.italic
-                            }
-                            break
-
+        # Clear existing text and pictures
         shapes_to_remove = []
         for shape in slide.shapes:
             if shape.has_text_frame:
@@ -120,80 +141,74 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             sp = shape._element
             sp.getparent().remove(sp)
 
-        if i == 0:
+        # Get slide layout config if available
+        current_slide_layout_config = None
+        if template_config and "slide_layouts" in template_config:
+            for layout_cfg in template_config["slide_layouts"]:
+                if layout_cfg["layout_id"] == slide.slide_layout.slide_layout_id:
+                    current_slide_layout_config = layout_cfg
+                    break
+
+        title_text = ""
+        content_points = []
+        if i == 0: # Title slide
             title_text = topic.upper()
-            content_points = []
             if name_surname:
-                content_points.append(name_surname.upper()) # Add name/surname to first slide
+                content_points.append(name_surname.upper())
         else:
             title_text = slide_info.get('title', '')
             content_points = slide_info.get('content', [])
 
-        title_shape = None
-        body_shape = None
-
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                if shape.is_placeholder and 'title' in shape.name.lower():
-                    title_shape = shape
-                elif shape.is_placeholder and ('body' in shape.name.lower() or 'content' in shape.name.lower()):
-                    body_shape = shape
-                elif not title_shape and not shape.text_frame.text.strip(): 
-                    title_shape = shape
-                elif not body_shape and not shape.text_frame.text.strip():
-                    body_shape = shape
-        
+        # Find and fill title placeholder
+        title_shape = find_placeholder_by_type(slide, 1) # TITLE placeholder type
         if not title_shape:
-            title_shape = slide.shapes.add_textbox(Inches(1), Inches(0.5), Inches(8), Inches(1))
-        if not body_shape:
-            body_shape = slide.shapes.add_textbox(Inches(1), Inches(1.5), Inches(8), Inches(5))
-
+            title_shape = find_placeholder_by_name(slide, "Title 1") # Common name
+        
         if title_shape:
-            text_frame = title_shape.text_frame
-            text_frame.clear()
-            p = text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = title_text
-            # Center the title text
-            p.alignment = PP_ALIGN.CENTER
-            if title_shape.shape_id in original_styles:
-                style = original_styles[title_shape.shape_id]
-                if style['font_name']: run.font.name = style['font_name']
-                if style['font_size']: run.font.size = style['font_size']
-                if style['font_color']: run.font.color.rgb = style['font_color']
-                run.font.bold = style['bold']
-                run.font.italic = style['italic']
-            if not run.font.size: run.font.size = Pt(24) # Reduced default title font size
+            set_text_and_style(title_shape.text_frame, title_text, 
+                               ph_config=current_slide_layout_config.get("placeholders", [{}])[0] if current_slide_layout_config else None,
+                               default_font_size=Pt(36), align=PP_ALIGN.CENTER)
+
+        # Find and fill body/content placeholder
+        body_shape = find_placeholder_by_type(slide, 2) # BODY placeholder type
+        if not body_shape:
+            body_shape = find_placeholder_by_name(slide, "Content Placeholder 2") # Common name
+        if not body_shape:
+            body_shape = find_placeholder_by_name(slide, "Text Placeholder 2") # Another common name
 
         if body_shape and content_points:
             text_frame = body_shape.text_frame
             text_frame.clear()
             for point in content_points:
                 p = text_frame.add_paragraph()
-                run = p.add_run()
-                run.text = point
-                if body_shape.shape_id in original_styles:
-                    style = original_styles[body_shape.shape_id]
-                    if style['font_name']: run.font.name = style['font_name']
-                    if style['font_size']: run.font.size = style['font_size']
-                    if style['font_color']: run.font.color.rgb = style['font_color']
-                    run.font.bold = style['bold']
-                    run.font.italic = style['italic']
-                if not run.font.size: run.font.size = Pt(14) # Reduced default body font size
+                p.text = point
+                # Apply default body font size or from config
+                set_text_and_style(p, point, 
+                                   ph_config=current_slide_layout_config.get("placeholders", [{}])[1] if current_slide_layout_config else None,
+                                   default_font_size=Pt(18))
 
+        # Image replacement
         image_query = slide_info.get('image_query', topic)
         new_image_path = search_image(image_query)
         
         if new_image_path:
             try:
-                image_placeholders = [s for s in slide.shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE or (s.is_placeholder and s.placeholder_format.type == 14)]
-                if image_placeholders:
-                    target_shape = image_placeholders[0]
-                    left, top, width, height = target_shape.left, target_shape.top, target_shape.width, target_shape.height
-                    sp = target_shape._element
-                    sp.getparent().remove(sp)
+                # Try to find an image placeholder from config or by type
+                image_placeholder_config = None
+                if current_slide_layout_config:
+                    for ph_cfg in current_slide_layout_config["placeholders"]:
+                        if ph_cfg["type"].startswith("PICTURE") or ph_cfg["type"].startswith("CONTENT") and "image" in ph_cfg["name"].lower():
+                            image_placeholder_config = ph_cfg
+                            break
+
+                if image_placeholder_config:
+                    left = Inches(image_placeholder_config["left"] / 72)
+                    top = Inches(image_placeholder_config["top"] / 72)
+                    width = Inches(image_placeholder_config["width"] / 72)
+                    height = Inches(image_placeholder_config["height"] / 72)
                     slide.shapes.add_picture(new_image_path, left, top, width=width, height=height)
                 else:
+                    # Fallback if no specific image placeholder found
                     slide.shapes.add_picture(new_image_path, Inches(5.5), Inches(2), width=Inches(4))
                 os.remove(new_image_path)
             except Exception as e:
