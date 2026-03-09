@@ -50,7 +50,8 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
     }
     lang_phrase = lang_map.get(language, "o'zbek tilida")
 
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.\n\nMavzu: '{topic}'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. 'title': Qisqa, ammo mazmunli sarlavha.\n2. 'content': 3-4 ta asosiy fikrni o'z ichiga olgan, akademik uslubdagi, tahliliy ma'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. 'image_query': Tegishli rasm uchun 2-3 ta inglizcha kalit so'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma'lumot 1", "Akademik ma'lumot 2", "Akademik ma'lumot 3"],\n  "image_query": "technology computer"\n}}"""
+    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo'yicha chuqur ma'lumot bering.\n\nMavzu: '{topic}'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. 'title': Qisqa, ammo mazmunli sarlavha.\n2. 'content': 3-4 ta asosiy fikrni o'z ichiga olgan, akademik uslubdagi, tahliliy ma'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. 'image_query': Tegishli rasm uchun 2-3 ta inglizcha kalit so'zlar.\n
+Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma'lumot 1", "Akademik ma'lumot 2", "Akademik ma'lumot 3"],\n  "image_query": "technology computer"\n}}"""
     
     try:
         response = client.chat.completions.create(
@@ -221,7 +222,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                             break
 
                 if image_placeholder_config:
-                    logging.info(f"Found image placeholder config: {image_placeholder_config.get("name")}")
+                    logging.info(f"Found image placeholder config: {image_placeholder_config.get('name')}")
                     # Convert EMU to Inches (1 inch = 914400 EMU)
                     left = Inches(image_placeholder_config["left"] / 914400)
                     top = Inches(image_placeholder_config["top"] / 914400)
