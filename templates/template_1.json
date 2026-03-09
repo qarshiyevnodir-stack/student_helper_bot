@@ -1,0 +1,756 @@
+{
+    "slide_layouts": [
+        {
+            "layout_id": 0,
+            "layout_name": "Title Slide",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 108.0,
+                    "width": 648.0,
+                    "height": 108.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Subtitle 2",
+                    "type": "SUBTITLE (3)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 228.0,
+                    "width": 648.0,
+                    "height": 72.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 3",
+                    "type": "DATE (16)",
+                    "id": 4,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 4",
+                    "type": "FOOTER (15)",
+                    "id": 5,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 5",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 6,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 1,
+            "layout_name": "Title and Content",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 648.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 3",
+                    "type": "DATE (16)",
+                    "id": 4,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 4",
+                    "type": "FOOTER (15)",
+                    "id": 5,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 5",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 6,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 2,
+            "layout_name": "Section Header",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 108.0,
+                    "width": 648.0,
+                    "height": 108.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Text Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 228.0,
+                    "width": 648.0,
+                    "height": 72.0,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Date Placeholder 3",
+                    "type": "DATE (16)",
+                    "id": 4,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 4",
+                    "type": "FOOTER (15)",
+                    "id": 5,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 5",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 6,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 3,
+            "layout_name": "Title Only",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 2",
+                    "type": "DATE (16)",
+                    "id": 3,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 3",
+                    "type": "FOOTER (15)",
+                    "id": 4,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 4",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 5,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 4,
+            "layout_name": "Comparison",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Text Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Text Placeholder 3",
+                    "type": "BODY (2)",
+                    "id": 4,
+                    "ph_idx": 1,
+                    "left": 366.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 4",
+                    "type": "DATE (16)",
+                    "id": 5,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 5",
+                    "type": "FOOTER (15)",
+                    "id": 6,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 6",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 7,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 5,
+            "layout_name": "Title and 2 Content",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 3",
+                    "type": "BODY (2)",
+                    "id": 4,
+                    "ph_idx": 1,
+                    "left": 366.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 4",
+                    "type": "DATE (16)",
+                    "id": 5,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 5",
+                    "type": "FOOTER (15)",
+                    "id": 6,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 6",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 7,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 6,
+            "layout_name": "Title, Content and 2 Content",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 150.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 3",
+                    "type": "BODY (2)",
+                    "id": 4,
+                    "ph_idx": 1,
+                    "left": 366.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 150.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 4",
+                    "type": "BODY (2)",
+                    "id": 5,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 288.0,
+                    "width": 318.0,
+                    "height": 194.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 5",
+                    "type": "BODY (2)",
+                    "id": 6,
+                    "ph_idx": 1,
+                    "left": 366.0,
+                    "top": 288.0,
+                    "width": 318.0,
+                    "height": 194.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 6",
+                    "type": "DATE (16)",
+                    "id": 7,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 7",
+                    "type": "FOOTER (15)",
+                    "id": 8,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 8",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 9,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 7,
+            "layout_name": "Blank",
+            "placeholders": [
+                {
+                    "name": "Date Placeholder 1",
+                    "type": "DATE (16)",
+                    "id": 2,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 2",
+                    "type": "FOOTER (15)",
+                    "id": 3,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 3",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 4,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 8,
+            "layout_name": "Content with Caption",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Content Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Caption Placeholder 3",
+                    "type": "BODY (2)",
+                    "id": 4,
+                    "ph_idx": 1,
+                    "left": 366.0,
+                    "top": 126.0,
+                    "width": 318.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 4",
+                    "type": "DATE (16)",
+                    "id": 5,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 5",
+                    "type": "FOOTER (15)",
+                    "id": 6,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 6",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 7,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 9,
+            "layout_name": "Title and Vertical Text",
+            "placeholders": [
+                {
+                    "name": "Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 648.0,
+                    "height": 90.0,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Vertical Text Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 126.0,
+                    "width": 648.0,
+                    "height": 356.37503937007875,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 3",
+                    "type": "DATE (16)",
+                    "id": 4,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 4",
+                    "type": "FOOTER (15)",
+                    "id": 5,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 5",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 6,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        },
+        {
+            "layout_id": 10,
+            "layout_name": "Vertical Title and Text",
+            "placeholders": [
+                {
+                    "name": "Vertical Title 1",
+                    "type": "TITLE (1)",
+                    "id": 2,
+                    "ph_idx": 0,
+                    "left": 522.0,
+                    "top": 21.62503937007874,
+                    "width": 162.0,
+                    "height": 460.75,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Vertical Text Placeholder 2",
+                    "type": "BODY (2)",
+                    "id": 3,
+                    "ph_idx": 1,
+                    "left": 36.0,
+                    "top": 21.62503937007874,
+                    "width": 474.0,
+                    "height": 460.75,
+                    "has_text_frame": true,
+                    "font_name": null,
+                    "font_size": null
+                },
+                {
+                    "name": "Date Placeholder 3",
+                    "type": "DATE (16)",
+                    "id": 4,
+                    "ph_idx": 10,
+                    "left": 36.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Footer Placeholder 4",
+                    "type": "FOOTER (15)",
+                    "id": 5,
+                    "ph_idx": 11,
+                    "left": 246.0,
+                    "top": 500.5,
+                    "width": 228.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                },
+                {
+                    "name": "Slide Number Placeholder 5",
+                    "type": "SLIDE_NUMBER (13)",
+                    "id": 6,
+                    "ph_idx": 12,
+                    "left": 516.0,
+                    "top": 500.5,
+                    "width": 168.0,
+                    "height": 28.75,
+                    "has_text_frame": true
+                }
+            ]
+        }
+    ]
+}

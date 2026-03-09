@@ -254,17 +254,21 @@ def main() -> None:
     application.add_handler(conv_handler)
 
     logger.info("Bot is running...")
-    if webhook_url:
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=token,
-            webhook_url=f"{webhook_url}/{token}"
-        )
-        logger.info(f"Bot running with webhook at {webhook_url}/{token}")
-    else:
-        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-        logger.info("Bot running with polling")
+    if not webhook_url:
+        logger.error("WEBHOOK_URL not found in environment variables! Bot cannot start without it in webhook mode.")
+        return
+    # Check if PORT is set, as it's crucial for webhook to listen
+    if "PORT" not in os.environ:
+        logger.error("PORT environment variable not found! Bot cannot start without it in webhook mode.")
+        return
+
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=token,
+        webhook_url=f"{webhook_url}/{token}"
+    )
+    logger.info(f"Bot running with webhook at {webhook_url}/{token}")
 
 if __name__ == "__main__":
     main()
