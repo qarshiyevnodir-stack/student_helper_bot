@@ -60,11 +60,14 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
             response_format={"type": "json_object"}
         )
         
-        data = json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
+        logging.info(f"Raw content from GPT for slide {slide_number}: {raw_content}")
+        data = json.loads(raw_content)
+        logging.info(f"Parsed content for slide {slide_number}: {data}")
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number} in {language}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\'lumot topilmadi."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\"lumot topilmadi."], "image_query": topic}
 
 def find_placeholder_by_type(slide, ph_type):
     for shape in slide.shapes:
