@@ -81,6 +81,39 @@ def find_placeholder_by_name(slide, ph_name):
             return shape
     return None
 
+def find_best_shape_for_text(slide, type_hint="title"):
+    """Find the best shape to put text into, even if it's not a standard placeholder."""
+    # 1. Try standard placeholders first
+    if type_hint == "title":
+        ph = find_placeholder_by_type(slide, 1) # TITLE
+        if ph: return ph
+    else:
+        ph = find_placeholder_by_type(slide, 2) # BODY
+        if ph: return ph
+
+    # 2. Try shapes by name
+    if type_hint == "title":
+        for name in ["Title", "Sarlavha", "Heading", "TextBox 12", "TextBox 15"]:
+            for shape in slide.shapes:
+                if name.lower() in shape.name.lower() and hasattr(shape, "text_frame"):
+                    return shape
+    else:
+        for name in ["Content", "Body", "Matn", "TextBox 13", "TextBox 16", "TextBox 10", "TextBox 9"]:
+            for shape in slide.shapes:
+                if name.lower() in shape.name.lower() and hasattr(shape, "text_frame"):
+                    return shape
+
+    # 3. Fallback: Find any shape with a text frame that isn't empty or has a specific index
+    shapes_with_text = [s for s in slide.shapes if hasattr(s, "text_frame")]
+    if type_hint == "title" and shapes_with_text:
+        return shapes_with_text[0]
+    elif len(shapes_with_text) > 1:
+        return shapes_with_text[1]
+    elif shapes_with_text:
+        return shapes_with_text[0]
+
+    return None
+
 def set_text_frame_content_and_style(text_frame, text_lines, ph_config=None, default_font_size=Pt(18), align=PP_ALIGN.LEFT):
     text_frame.clear()
     for i, line in enumerate(text_lines):
@@ -176,9 +209,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             content_points = slide_info.get("content", [])
 
         # Find and fill title placeholder
-        title_shape = find_placeholder_by_type(slide, 1) # TITLE placeholder type
-        if not title_shape:
-            title_shape = find_placeholder_by_name(slide, "Title 1") # Common name
+        title_shape = find_best_shape_for_text(slide, "title")
         
         if title_shape:
             logging.info(f"Found title shape: {title_shape.name}")
@@ -195,11 +226,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                                default_font_size=Pt(36), align=PP_ALIGN.CENTER)
 
         # Find and fill body/content placeholder
-        body_shape = find_placeholder_by_type(slide, 2) # BODY placeholder type
-        if not body_shape:
-            body_shape = find_placeholder_by_name(slide, "Content Placeholder 2") # Common name
-        if not body_shape:
-            body_shape = find_placeholder_by_name(slide, "Text Placeholder 2") # Another common name
+        body_shape = find_best_shape_for_text(slide, "body")
 
         if body_shape and content_points:
             logging.info(f"Found body shape: {body_shape.name}")

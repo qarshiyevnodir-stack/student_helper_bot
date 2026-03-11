@@ -1,0 +1,168 @@
+
+--- Slide 1 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 7', HasText=False
+Non-placeholder Shape: Name='Freeform 9', HasText=True
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='TextBox 12', HasText=True
+Non-placeholder Shape: Name='TextBox 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+
+--- Slide 2 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 7', HasText=False
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='TextBox 12', HasText=True
+Non-placeholder Shape: Name='Freeform 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+Non-placeholder Shape: Name='TextBox 15', HasText=True
+Non-placeholder Shape: Name='TextBox 16', HasText=True
+Non-placeholder Shape: Name='TextBox 17', HasText=True
+Non-placeholder Shape: Name='TextBox 18', HasText=True
+Non-placeholder Shape: Name='TextBox 19', HasText=True
+Non-placeholder Shape: Name='TextBox 20', HasText=True
+
+--- Slide 3 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 7', HasText=False
+Non-placeholder Shape: Name='Freeform 9', HasText=True
+Non-placeholder Shape: Name='TextBox 10', HasText=True
+Non-placeholder Shape: Name='AutoShape 11', HasText=True
+Non-placeholder Shape: Name='AutoShape 12', HasText=True
+Non-placeholder Shape: Name='AutoShape 13', HasText=True
+Non-placeholder Shape: Name='AutoShape 14', HasText=True
+Non-placeholder Shape: Name='AutoShape 15', HasText=True
+Non-placeholder Shape: Name='Freeform 16', HasText=True
+Non-placeholder Shape: Name='Freeform 17', HasText=True
+Non-placeholder Shape: Name='Freeform 18', HasText=True
+Non-placeholder Shape: Name='Freeform 19', HasText=True
+Non-placeholder Shape: Name='Freeform 20', HasText=True
+Non-placeholder Shape: Name='Freeform 21', HasText=True
+Non-placeholder Shape: Name='Freeform 22', HasText=True
+Non-placeholder Shape: Name='TextBox 23', HasText=True
+
+--- Slide 4 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Group 3', HasText=False
+Non-placeholder Shape: Name='Freeform 6', HasText=True
+Non-placeholder Shape: Name='Freeform 7', HasText=True
+Non-placeholder Shape: Name='Freeform 8', HasText=True
+Non-placeholder Shape: Name='TextBox 9', HasText=True
+Non-placeholder Shape: Name='TextBox 10', HasText=True
+Non-placeholder Shape: Name='TextBox 11', HasText=True
+Non-placeholder Shape: Name='TextBox 12', HasText=True
+Non-placeholder Shape: Name='TextBox 13', HasText=True
+Non-placeholder Shape: Name='TextBox 14', HasText=True
+Non-placeholder Shape: Name='TextBox 15', HasText=True
+Non-placeholder Shape: Name='TextBox 16', HasText=True
+Non-placeholder Shape: Name='TextBox 17', HasText=True
+Non-placeholder Shape: Name='TextBox 18', HasText=True
+Non-placeholder Shape: Name='TextBox 19', HasText=True
+Non-placeholder Shape: Name='TextBox 20', HasText=True
+Non-placeholder Shape: Name='TextBox 21', HasText=True
+
+--- Slide 5 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 7', HasText=False
+Non-placeholder Shape: Name='Freeform 9', HasText=True
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Group 11', HasText=False
+Non-placeholder Shape: Name='Group 14', HasText=False
+Non-placeholder Shape: Name='Freeform 16', HasText=True
+Non-placeholder Shape: Name='Freeform 17', HasText=True
+Non-placeholder Shape: Name='TextBox 18', HasText=True
+Non-placeholder Shape: Name='TextBox 19', HasText=True
+Non-placeholder Shape: Name='TextBox 20', HasText=True
+Non-placeholder Shape: Name='TextBox 21', HasText=True
+
+--- Slide 6 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Freeform 4', HasText=True
+Non-placeholder Shape: Name='Group 5', HasText=False
+Non-placeholder Shape: Name='Group 8', HasText=False
+Non-placeholder Shape: Name='Group 10', HasText=False
+Non-placeholder Shape: Name='Group 13', HasText=False
+Non-placeholder Shape: Name='Freeform 16', HasText=True
+Non-placeholder Shape: Name='Freeform 17', HasText=True
+Non-placeholder Shape: Name='Freeform 18', HasText=True
+Non-placeholder Shape: Name='Freeform 19', HasText=True
+Non-placeholder Shape: Name='Freeform 20', HasText=True
+Non-placeholder Shape: Name='Freeform 21', HasText=True
+Non-placeholder Shape: Name='TextBox 22', HasText=True
+Non-placeholder Shape: Name='TextBox 23', HasText=True
+Non-placeholder Shape: Name='TextBox 24', HasText=True
+Non-placeholder Shape: Name='TextBox 25', HasText=True
+Non-placeholder Shape: Name='TextBox 26', HasText=True
+Non-placeholder Shape: Name='TextBox 27', HasText=True
+
+--- Slide 7 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 6', HasText=False
+Non-placeholder Shape: Name='Group 8', HasText=False
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='Freeform 12', HasText=True
+Non-placeholder Shape: Name='Freeform 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+Non-placeholder Shape: Name='Freeform 15', HasText=True
+Non-placeholder Shape: Name='Freeform 16', HasText=True
+Non-placeholder Shape: Name='Freeform 17', HasText=True
+Non-placeholder Shape: Name='TextBox 18', HasText=True
+Non-placeholder Shape: Name='TextBox 19', HasText=True
+Non-placeholder Shape: Name='TextBox 20', HasText=True
+Non-placeholder Shape: Name='TextBox 21', HasText=True
+Non-placeholder Shape: Name='TextBox 22', HasText=True
+Non-placeholder Shape: Name='TextBox 23', HasText=True
+
+--- Slide 8 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Freeform 4', HasText=True
+Non-placeholder Shape: Name='Freeform 5', HasText=True
+Non-placeholder Shape: Name='Group 6', HasText=False
+Non-placeholder Shape: Name='Group 9', HasText=False
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='Freeform 12', HasText=True
+Non-placeholder Shape: Name='Freeform 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+Non-placeholder Shape: Name='TextBox 15', HasText=True
+Non-placeholder Shape: Name='TextBox 16', HasText=True
+
+--- Slide 9 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Group 3', HasText=False
+Non-placeholder Shape: Name='Group 6', HasText=False
+Non-placeholder Shape: Name='TextBox 9', HasText=True
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='TextBox 12', HasText=True
+Non-placeholder Shape: Name='Freeform 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+
+--- Slide 10 ---
+Non-placeholder Shape: Name='Freeform 2', HasText=True
+Non-placeholder Shape: Name='Freeform 3', HasText=True
+Non-placeholder Shape: Name='Group 4', HasText=False
+Non-placeholder Shape: Name='Group 7', HasText=False
+Non-placeholder Shape: Name='TextBox 9', HasText=True
+Non-placeholder Shape: Name='Freeform 10', HasText=True
+Non-placeholder Shape: Name='Freeform 11', HasText=True
+Non-placeholder Shape: Name='Freeform 12', HasText=True
+Non-placeholder Shape: Name='Freeform 13', HasText=True
+Non-placeholder Shape: Name='Freeform 14', HasText=True
+Non-placeholder Shape: Name='TextBox 15', HasText=True
+Non-placeholder Shape: Name='TextBox 16', HasText=True
+Non-placeholder Shape: Name='TextBox 17', HasText=True
