@@ -253,6 +253,8 @@ def main() -> None:
 
     application.add_handler(conv_handler)
 
+    logger.info(f"WEBHOOK_URL: {webhook_url}")
+    logger.info(f"PORT: {port}")
     logger.info("Bot is running...")
     if not webhook_url:
         logger.error("WEBHOOK_URL not found in environment variables! Bot cannot start without it in webhook mode.")
