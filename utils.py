@@ -132,7 +132,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
     # 2. FILL THE PRESENTATION
     for i, slide_info in enumerate(all_slides_content):
         slide = prs.slides[i]
-        logging.info(f"Processing slide {i+1} with layout ID: {slide.slide_layout.slide_layout_id}")
+        logging.info(f"Processing slide {i+1} with layout: {slide.slide_layout.name}")
         
         # Clear existing text and pictures
         shapes_to_remove = []
@@ -150,9 +150,9 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
         current_slide_layout_config = None
         if template_config and "slide_layouts" in template_config:
             for layout_cfg in template_config["slide_layouts"]:
-                if layout_cfg["layout_id"] == slide.slide_layout.slide_layout_id:
+                if layout_cfg["layout_id"] == slide.slide_layout.name:
                     current_slide_layout_config = layout_cfg
-                    logging.info(f"Found config for layout ID {slide.slide_layout.slide_layout_id}")
+                    logging.info(f"Found config for layout {slide.slide_layout.name}")
                     break
 
         title_text = ""
