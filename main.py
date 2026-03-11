@@ -268,9 +268,9 @@ def main() -> None:
         listen="0.0.0.0",
         port=port,
         url_path=token,
-        webhook_url=f"{webhook_url}/{token}"
+        webhook_url=webhook_url
     )
-    logger.info(f"Bot running with webhook at {webhook_url}/{token}")
+    logger.info(f"Bot running with webhook at {webhook_url}")
 
 if __name__ == "__main__":
     main()
