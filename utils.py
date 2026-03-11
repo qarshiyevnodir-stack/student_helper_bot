@@ -132,7 +132,14 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
     # 2. FILL THE PRESENTATION
     for i, slide_info in enumerate(all_slides_content):
         slide = prs.slides[i]
-        logging.info(f"Processing slide {i+1} with layout ID: {prs.slide_layouts.index(slide.slide_layout)}")
+        
+        # Get layout index safely
+        try:
+            layout_idx = prs.slide_layouts.index(slide.slide_layout)
+        except ValueError:
+            layout_idx = 0  # Default to first layout if not found
+        
+        logging.info(f"Processing slide {i+1} with layout index: {layout_idx}")
         
         # Clear existing text and pictures
         shapes_to_remove = []
@@ -150,9 +157,9 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
         current_slide_layout_config = None
         if template_config and "slide_layouts" in template_config:
             for layout_cfg in template_config["slide_layouts"]:
-                if layout_cfg["layout_id"] == prs.slide_layouts.index(slide.slide_layout):
+                if layout_cfg["layout_id"] == layout_idx:
                     current_slide_layout_config = layout_cfg
-                    logging.info(f"Found config for layout ID {prs.slide_layouts.index(slide.slide_layout)}")
+                    logging.info(f"Found config for layout ID {layout_idx}")
                     break
 
         title_text = ""
