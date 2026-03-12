@@ -215,11 +215,15 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             logging.info(f"Found title shape: {title_shape.name}")
             # Determine title placeholder config
             title_ph_config = None
-            if current_slide_layout_config:
-                for ph_cfg in current_slide_layout_config.get("placeholders", []):
-                    if ph_cfg.get("ph_idx") == title_shape.placeholder_format.idx:
-                        title_ph_config = ph_cfg
-                        break
+            if current_slide_layout_config and hasattr(title_shape, 'placeholder_format'):
+                try:
+                    ph_idx = title_shape.placeholder_format.idx
+                    for ph_cfg in current_slide_layout_config.get("placeholders", []):
+                        if ph_cfg.get("ph_idx") == ph_idx:
+                            title_ph_config = ph_cfg
+                            break
+                except AttributeError:
+                    logging.warning(f"Shape {title_shape.name} does not have placeholder_format.idx")
 
             # Apply specific formatting for the title slide
             if i == 0:
@@ -239,11 +243,15 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             
             # Determine body placeholder config
             body_ph_config = None
-            if current_slide_layout_config:
-                for ph_cfg in current_slide_layout_config.get("placeholders", []):
-                    if ph_cfg.get("ph_idx") == body_shape.placeholder_format.idx:
-                        body_ph_config = ph_cfg
-                        break
+            if current_slide_layout_config and hasattr(body_shape, 'placeholder_format'):
+                try:
+                    ph_idx = body_shape.placeholder_format.idx
+                    for ph_cfg in current_slide_layout_config.get("placeholders", []):
+                        if ph_cfg.get("ph_idx") == ph_idx:
+                            body_ph_config = ph_cfg
+                            break
+                except AttributeError:
+                    logging.warning(f"Shape {body_shape.name} does not have placeholder_format.idx")
 
             # Apply specific formatting for the author on the title slide
             if i == 0 and name_surname:
