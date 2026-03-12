@@ -221,9 +221,15 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                         title_ph_config = ph_cfg
                         break
 
-            set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
-                               ph_config=title_ph_config,
-                               default_font_size=Pt(36), align=PP_ALIGN.CENTER)
+            # Apply specific formatting for the title slide
+            if i == 0:
+                set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
+                                   ph_config=title_ph_config,
+                                   default_font_size=Pt(48), align=PP_ALIGN.CENTER)
+            else:
+                set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
+                                   ph_config=title_ph_config,
+                                   default_font_size=Pt(36), align=PP_ALIGN.LEFT)
 
         # Find and fill body/content placeholder
         body_shape = find_best_shape_for_text(slide, "body")
@@ -239,9 +245,16 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                         body_ph_config = ph_cfg
                         break
 
-            set_text_frame_content_and_style(body_shape.text_frame, content_points, 
-                                   ph_config=body_ph_config,
-                                   default_font_size=Pt(18))
+            # Apply specific formatting for the author on the title slide
+            if i == 0 and name_surname:
+                # Assuming name_surname is the only content_point for the title slide body
+                set_text_frame_content_and_style(body_shape.text_frame, content_points, 
+                                       ph_config=body_ph_config,
+                                       default_font_size=Pt(24), align=PP_ALIGN.CENTER)
+            else:
+                set_text_frame_content_and_style(body_shape.text_frame, content_points, 
+                                       ph_config=body_ph_config,
+                                       default_font_size=Pt(18), align=PP_ALIGN.LEFT)
 
         # Image replacement
         image_query = slide_info.get("image_query", topic)
