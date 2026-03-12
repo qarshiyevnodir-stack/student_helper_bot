@@ -35,7 +35,7 @@ def search_image(query):
         logging.error(f"Error searching image for \'{query}\': {e}")
     return None
 
-def generate_slide_content(topic, slide_number, total_slides, language="uz"):
+def generate_slide_content(topic, slide_number, total_slides, language="uz", is_plan=False, is_conclusion=False):
     """Generate academic and detailed content for a slide using an LLM in the specified language."""
     lang_map = {
         "uz": "o\'zbek tilida",
@@ -50,10 +50,17 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz"):
     }
     lang_phrase = lang_map.get(language, "o\'zbek tilida")
 
-    prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\'yicha chuqur ma\'lumot bering.\n\nMavzu: \'{topic}\'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. \'title\': Qisqa, ammo mazmunli sarlavha.\n2. \'content\': 3-4 ta asosiy fikrni o\'z ichiga olgan, akademik uslubdagi, tahliliy ma\'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. \'image_query\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma\'lumot 1", "Akademik ma\'lumot 2", "Akademik ma\'lumot 3"],\n  "image_query": "technology computer"\n}}"""
-    
-    try:
-        response = client.chat.completions.create(
+    if is_plan:
+        prompt = f"""Siz professional prezentatsiya rejalashtiruvchisisiz. \'{topic}\' mavzusida {total_slides} slayddan iborat prezentatsiya uchun batafsil reja tuzing. Reja sarlavha va 3-5 banddan iborat bo\'lsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Reja",\n  "content": ["1. Kirish", "2. Asosiy qism...", "3. Xulosa"]
+}}"""
+    elif is_conclusion:
+        prompt = f"""Siz professional prezentatsiya yakunlovchisisiz. \'{topic}\' mavzusidagi prezentatsiya uchun yakuniy xulosa yozing. Xulosa 2-3 ta asosiy fikrni o\'z ichiga olsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Xulosa",\n  "content": ["Asosiy xulosa 1", "Asosiy xulosa 2"]
+}}"""
+    else:
+        prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\\'yicha chuqur ma\\\'lumot bering.\\n\\nMavzu: \\\'{topic}\\\'\\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\\n\\nUshbu slayd uchun quyidagilarni taqdim eting:\\n1. \\'title\\': Qisqa, ammo mazmunli sarlavha.\\n2. \\'content\\': 3-4 ta asosiy fikrni o\\\'z ichiga olgan, akademik uslubdagi, tahliliy ma\\\'lumotlar. Har bir fikr alohida qatorga yozilsin.\\n3. \\'image_query\\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\\\'zlar.\\n\\nJavobni FAQAT quyidagi JSON formatida bering:\\n{{\\n  "title": "Slayd sarlavhasi",\\n  "content": ["Akademik ma\\\'lumot 1", "Akademik ma\\\'lumot 2", "Akademik ma\\\'lumot 3"],\\n  "image_query": "technology computer"\\n}}"""
+        
+        try:
+            response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[{"role": "system", "content": f"You are a professional presentation creator. You write in {lang_phrase} with an academic and analytical approach."},
                       {"role": "user", "content": prompt}],
@@ -132,7 +139,7 @@ def set_text_frame_content_and_style(text_frame, text_lines, ph_config=None, def
             # Fallback to default font size if no config or size in config
             if not run.font.size: run.font.size = default_font_size
 
-def generate_presentation(topic, slide_count, template_path, language="uz", name_surname=""):
+def generate_presentation(topic, slide_count, template_path, language="uz", name_surname="", plan=None):
     """Generate a PowerPoint presentation by strictly modifying a template."""
     
     if not os.path.exists(template_path):
@@ -151,19 +158,40 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
     else:
         logging.warning(f"No JSON config found for template {template_id}. Using default logic.")
 
+    # Calculate actual total slides needed
+    actual_total_slides = slide_count + 2  # Title + Content Slides + Conclusion
+    if plan: # Add 1 for outline slide if plan is provided
+        actual_total_slides += 1
+
     # 1. STICK TO SLIDE COUNT
-    while len(prs.slides) > slide_count:
+    while len(prs.slides) > actual_total_slides:
         rId = prs.slides._sldIdLst[-1].rId
         prs.part.drop_rel(rId)
         del prs.slides._sldIdLst[-1]
     
-    while len(prs.slides) < slide_count:
+    while len(prs.slides) < actual_total_slides:
         slide_layout = prs.slide_layouts[1] if len(prs.slide_layouts) > 1 else prs.slide_layouts[0]
         prs.slides.add_slide(slide_layout)
 
     all_slides_content = []
+    # Generate title slide content (placeholder)
+    all_slides_content.append({"title": topic, "content": [name_surname] if name_surname else []})
+
+    # Generate plan slide content
+    if plan:
+        all_slides_content.append(plan)
+
+    # Generate main content slides
+    # The slide_number for content slides should be relative to the overall presentation
+    # The total_slides for content generation should be the actual_total_slides
     for i in range(slide_count):
-        all_slides_content.append(generate_slide_content(topic, i + 1, slide_count, language))
+        all_slides_content.append(generate_slide_content(topic, i + 1 + (2 if plan else 1), actual_total_slides, language))
+
+    # Generate conclusion slide content
+    # The slide_number for the conclusion slide should be the last slide in the overall presentation
+    # The total_slides for the conclusion prompt should be the actual_total_slides
+    conclusion_content = generate_slide_content(topic, actual_total_slides, actual_total_slides, language, is_conclusion=True)
+    all_slides_content.append(conclusion_content)
 
     # 2. FILL THE PRESENTATION
     for i, slide_info in enumerate(all_slides_content):
@@ -198,15 +226,20 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                     logging.info(f"Found config for layout ID {layout_idx}")
                     break
 
-        title_text = ""
-        content_points = []
+        title_text = slide_info.get("title", "")
+        content_points = slide_info.get("content", [])
+
         if i == 0: # Title slide
             title_text = topic.upper()
             if name_surname:
-                content_points.append(name_surname.upper())
-        else:
-            title_text = slide_info.get("title", "")
+                content_points = [name_surname.upper()]
+        elif plan and i == 1: # Plan slide (if plan exists)
+            title_text = plan.get("title", "Reja")
+            content_points = plan.get("content", [])
+        elif i == actual_total_slides - 1: # Conclusion slide
+            title_text = slide_info.get("title", "Xulosa")
             content_points = slide_info.get("content", [])
+        # For other slides, title_text and content_points are already set from slide_info
 
         # Find and fill title placeholder
         title_shape = find_best_shape_for_text(slide, "title")
@@ -230,6 +263,14 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
                                    default_font_size=Pt(48), align=PP_ALIGN.CENTER)
+            elif plan and i == 1: # Outline slide
+                set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
+                                   ph_config=title_ph_config,
+                                   default_font_size=Pt(36), align=PP_ALIGN.CENTER)
+            elif i == actual_total_slides - 1: # Conclusion slide
+                set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
+                                   ph_config=title_ph_config,
+                                   default_font_size=Pt(36), align=PP_ALIGN.CENTER)
             else:
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
@@ -255,10 +296,17 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
 
             # Apply specific formatting for the author on the title slide
             if i == 0 and name_surname:
-                # Assuming name_surname is the only content_point for the title slide body
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,
                                        default_font_size=Pt(24), align=PP_ALIGN.CENTER)
+            elif plan and i == 1: # Outline slide content
+                set_text_frame_content_and_style(body_shape.text_frame, content_points, 
+                                       ph_config=body_ph_config,
+                                       default_font_size=Pt(20), align=PP_ALIGN.LEFT)
+            elif i == actual_total_slides - 1: # Conclusion slide content
+                set_text_frame_content_and_style(body_shape.text_frame, content_points, 
+                                       ph_config=body_ph_config,
+                                       default_font_size=Pt(20), align=PP_ALIGN.LEFT)
             else:
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,

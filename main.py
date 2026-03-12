@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # State management for conversations
-TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION, NAME_SURNAME = range(5)
+TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION, NAME_SURNAME, PLAN_CONFIRMATION = range(6)
 
 # --- Language Mapping ---
 LANGUAGE_NAMES = {
@@ -189,6 +189,75 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         context.user_data["template_id"] = template_id
         logger.info(f"get_template: Template ID extracted: {template_id}")
     except (IndexError, ValueError) as e:
+        logger.error(f"get_template: Error parsing template ID from callback data 
+{query.data}
+: {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return TEMPLATE_SELECTION
+
+    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya uchun reja tuzilmoqda...")
+
+    topic = context.user_data.get("topic")
+    slide_count = context.user_data.get("slide_count")
+    language = context.user_data.get("language", "uz")
+
+    try:
+        from utils import generate_slide_content
+        plan_content = generate_slide_content(topic, slide_count, language, is_plan=True)
+        context.user_data["plan"] = plan_content
+        plan_text = "\n".join(plan_content["content"])
+        keyboard = [
+            [InlineKeyboardButton("Ha, ma'qul", callback_data="plan_confirm_yes")],
+            [InlineKeyboardButton("Yo'q, qayta tuz", callback_data="plan_confirm_no")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=query.message.chat_id, text=f"**Reja:**\n{plan_text}\n\nShu reja ma'qulmi?", reply_markup=reply_markup, parse_mode="Markdown")
+        return PLAN_CONFIRMATION
+    except Exception as e:
+        logger.error(f"get_template: Error generating plan: {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Reja tuzishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return ConversationHandler.END
+
+async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "plan_confirm_yes":
+        await query.edit_message_text(text="Reja tasdiqlandi. Prezentatsiya tayyorlanmoqda...")
+        return await generate_final_presentation(update, context)
+    elif query.data == "plan_confirm_no":
+        await query.edit_message_text(text="Reja bekor qilindi. Yangi reja tuzilmoqda...")
+        return await get_template(update, context) # Regenerate plan
+
+async def generate_final_presentation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    topic = context.user_data.get("topic")
+    slide_count = context.user_data.get("slide_count")
+    template_path = f"templates/shablonlar/{context.user_data.get("template_id")}.pptx"
+    language = context.user_data.get("language", "uz")
+    name_surname = context.user_data.get("name_surname", "")
+    plan = context.user_data.get("plan")
+
+    try:
+        output_path = generate_presentation(topic, slide_count, template_path, language, name_surname, plan)
+        with open(output_path, "rb") as doc_file:
+            await context.bot.send_document(chat_id=chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
+        if os.path.exists(output_path):
+            os.remove(output_path)
+    except Exception as e:
+        logger.error(f"generate_final_presentation: Error in generate_presentation call: {e}")
+        await context.bot.send_message(chat_id=chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
+
+    await context.bot.send_message(chat_id=chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
+    return ConversationHandler.END
+    query = update.callback_query
+    await query.answer()
+    logger.info(f"get_template: Callback data received for template selection: {query.data}")
+    try:
+        template_id = int(query.data.split("_")[1])
+        context.user_data["template_id"] = template_id
+        logger.info(f"get_template: Template ID extracted: {template_id}")
+    except (IndexError, ValueError) as e:
         logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return TEMPLATE_SELECTION
@@ -205,7 +274,8 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         output_path = generate_presentation(topic, slide_count, template_path, language, name_surname)
         with open(output_path, "rb") as doc_file:
             await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-        os.remove(output_path)
+        if os.path.exists(output_path):
+            os.remove(output_path)
     except Exception as e:
         logger.error(f"get_template: Error in generate_presentation call: {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
@@ -246,6 +316,9 @@ def main() -> None:
             ],
             TEMPLATE_SELECTION: [
                 CallbackQueryHandler(get_template, pattern="^tmpl_"),
+            ],
+            PLAN_CONFIRMATION: [
+                CallbackQueryHandler(plan_confirmation, pattern="^plan_confirm_")
             ]
         },
         fallbacks=[CommandHandler("start", start)],
@@ -270,6 +343,11 @@ def main() -> None:
         url_path=token,
         webhook_url=webhook_url
     )
+    # Set webhook explicitly to ensure it's updated
+    import requests
+    set_webhook_url = f"https://api.telegram.org/bot{token}/setWebhook?url={webhook_url}"
+    response = requests.get(set_webhook_url)
+    logger.info(f"Webhook set response: {response.json()}")
     logger.info(f"Bot running with webhook at {webhook_url}")
 
 if __name__ == "__main__":
