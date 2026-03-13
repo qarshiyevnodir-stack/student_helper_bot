@@ -2,7 +2,7 @@ import logging
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
-from utils import generate_presentation
+from utils import generate_presentation, generate_slide_content
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -107,7 +107,7 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     try:
         language_code = query.data.split("_")[1]
         context.user_data["language"] = language_code
-        full_language_name = LANGUAGE_NAMES.get(language_code, language_code) # Get full name
+        full_language_name = LANGUAGE_NAMES.get(language_code, language_code)
         logger.info(f"get_language: Language code extracted: {language_code}")
     except (IndexError, ValueError) as e:
         logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
@@ -133,7 +133,6 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             context.user_data["name_surname"] = ""
             await query.edit_message_text(text="Ism kiritish shart emas deb belgilandi.")
         else:
-            # This case should ideally not happen if only 'skip_name_surname' is the callback
             await query.edit_message_text(text="Xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
             return NAME_SURNAME
     else:
@@ -189,9 +188,7 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         context.user_data["template_id"] = template_id
         logger.info(f"get_template: Template ID extracted: {template_id}")
     except (IndexError, ValueError) as e:
-        logger.error(f"get_template: Error parsing template ID from callback data 
-{query.data}
-: {e}")
+        logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
         await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return TEMPLATE_SELECTION
 
@@ -202,10 +199,9 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     language = context.user_data.get("language", "uz")
 
     try:
-        from utils import generate_slide_content
-        plan_content = generate_slide_content(topic, slide_count, language, is_plan=True)
+        plan_content = generate_slide_content(topic, slide_count, slide_count, language, is_plan=True)
         context.user_data["plan"] = plan_content
-        plan_text = "\n".join(plan_content["content"])
+        plan_text = "\n".join(plan_content.get("content", []))
         keyboard = [
             [InlineKeyboardButton("Ha, ma'qul", callback_data="plan_confirm_yes")],
             [InlineKeyboardButton("Yo'q, qayta tuz", callback_data="plan_confirm_no")]
@@ -227,13 +223,14 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return await generate_final_presentation(update, context)
     elif query.data == "plan_confirm_no":
         await query.edit_message_text(text="Reja bekor qilindi. Yangi reja tuzilmoqda...")
-        return await get_template(update, context) # Regenerate plan
+        return await get_template(update, context)
 
 async def generate_final_presentation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
-    template_path = f"templates/shablonlar/{context.user_data.get("template_id")}.pptx"
+    template_id = context.user_data.get("template_id")
+    template_path = f"templates/shablonlar/{template_id}.pptx"
     language = context.user_data.get("language", "uz")
     name_surname = context.user_data.get("name_surname", "")
     plan = context.user_data.get("plan")
@@ -249,38 +246,6 @@ async def generate_final_presentation(update: Update, context: ContextTypes.DEFA
         await context.bot.send_message(chat_id=chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
 
     await context.bot.send_message(chat_id=chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
-    return ConversationHandler.END
-    query = update.callback_query
-    await query.answer()
-    logger.info(f"get_template: Callback data received for template selection: {query.data}")
-    try:
-        template_id = int(query.data.split("_")[1])
-        context.user_data["template_id"] = template_id
-        logger.info(f"get_template: Template ID extracted: {template_id}")
-    except (IndexError, ValueError) as e:
-        logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return TEMPLATE_SELECTION
-
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya tayyorlanmoqda, bu bir necha daqiqa vaqt olishi mumkin...")
-
-    topic = context.user_data.get("topic")
-    slide_count = context.user_data.get("slide_count")
-    template_path = f"templates/shablonlar/{template_id}.pptx"
-    language = context.user_data.get("language", "uz") # Default to Uzbek if not selected
-    name_surname = context.user_data.get("name_surname", "") # Get name and surname
-
-    try:
-        output_path = generate_presentation(topic, slide_count, template_path, language, name_surname)
-        with open(output_path, "rb") as doc_file:
-            await context.bot.send_document(chat_id=query.message.chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-        if os.path.exists(output_path):
-            os.remove(output_path)
-    except Exception as e:
-        logger.error(f"get_template: Error in generate_presentation call: {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
-
-    await context.bot.send_message(chat_id=query.message.chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
     return ConversationHandler.END
 
 
@@ -330,11 +295,7 @@ def main() -> None:
     logger.info(f"PORT: {port}")
     logger.info("Bot is running...")
     if not webhook_url:
-        logger.error("WEBHOOK_URL not found in environment variables! Bot cannot start without it in webhook mode.")
-        return
-    # Check if PORT is set, as it's crucial for webhook to listen
-    if "PORT" not in os.environ:
-        logger.error("PORT environment variable not found! Bot cannot start without it in webhook mode.")
+        logger.error("WEBHOOK_URL not found in environment variables!")
         return
 
     application.run_webhook(
@@ -343,12 +304,7 @@ def main() -> None:
         url_path=token,
         webhook_url=webhook_url
     )
-    # Set webhook explicitly to ensure it's updated
-    import requests
-    set_webhook_url = f"https://api.telegram.org/bot{token}/setWebhook?url={webhook_url}"
-    response = requests.get(set_webhook_url)
-    logger.info(f"Webhook set response: {response.json()}")
-    logger.info(f"Bot running with webhook at {webhook_url}")
+
 
 if __name__ == "__main__":
     main()

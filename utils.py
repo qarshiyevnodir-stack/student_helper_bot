@@ -57,10 +57,10 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz", is_
         prompt = f"""Siz professional prezentatsiya yakunlovchisisiz. \'{topic}\' mavzusidagi prezentatsiya uchun yakuniy xulosa yozing. Xulosa 2-3 ta asosiy fikrni o\'z ichiga olsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Xulosa",\n  "content": ["Asosiy xulosa 1", "Asosiy xulosa 2"]
 }}"""
     else:
-        prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\\'yicha chuqur ma\\\'lumot bering.\\n\\nMavzu: \\\'{topic}\\\'\\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\\n\\nUshbu slayd uchun quyidagilarni taqdim eting:\\n1. \\'title\\': Qisqa, ammo mazmunli sarlavha.\\n2. \\'content\\': 3-4 ta asosiy fikrni o\\\'z ichiga olgan, akademik uslubdagi, tahliliy ma\\\'lumotlar. Har bir fikr alohida qatorga yozilsin.\\n3. \\'image_query\\': Tegishli rasm uchun 2-3 ta inglizcha kalit so\\\'zlar.\\n\\nJavobni FAQAT quyidagi JSON formatida bering:\\n{{\\n  "title": "Slayd sarlavhasi",\\n  "content": ["Akademik ma\\\'lumot 1", "Akademik ma\\\'lumot 2", "Akademik ma\\\'lumot 3"],\\n  "image_query": "technology computer"\\n}}"""
-        
-        try:
-            response = client.chat.completions.create(
+        prompt = f"""Siz professional prezentatsiya yaratuvchisiz. Siz {lang_phrase} yozasiz va akademik, tahliliy yondashuvga egasiz. Mavzu bo\'yicha chuqur ma\'lumot bering.\n\nMavzu: '{topic}'\nJami slaydlar soni: {total_slides}. Bu {slide_number}-slayd.\n\nUshbu slayd uchun quyidagilarni taqdim eting:\n1. 'title': Qisqa, ammo mazmunli sarlavha.\n2. 'content': 3-4 ta asosiy fikrni o'z ichiga olgan, akademik uslubdagi, tahliliy ma'lumotlar. Har bir fikr alohida qatorga yozilsin.\n3. 'image_query': Tegishli rasm uchun 2-3 ta inglizcha kalit so'zlar.\n\nJavobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Slayd sarlavhasi",\n  "content": ["Akademik ma'lumot 1", "Akademik ma'lumot 2", "Akademik ma'lumot 3"],\n  "image_query": "technology computer"\n}}"""
+    
+    try:
+        response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[{"role": "system", "content": f"You are a professional presentation creator. You write in {lang_phrase} with an academic and analytical approach."},
                       {"role": "user", "content": prompt}],
@@ -74,7 +74,7 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz", is_
         return data
     except Exception as e:
         logging.error(f"GPT content generation failed for slide {slide_number} in {language}: {e}")
-        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma\"lumot topilmadi."], "image_query": topic}
+        return {"title": f"{topic} - Slayd {slide_number}", "content": ["Ma'lumot topilmadi."], "image_query": topic}
 
 def find_placeholder_by_type(slide, ph_type):
     for shape in slide.shapes:
