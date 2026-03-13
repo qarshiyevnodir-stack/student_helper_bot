@@ -161,7 +161,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Endi quyidagi shablonlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
+    await context.bot.send_message(chat_id=query.message.chat_id, text="Endi quyidagi shablonlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     return TEMPLATE_SELECTION
 
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
