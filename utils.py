@@ -311,37 +311,36 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                                        ph_config=body_ph_config,
                                        default_font_size=Pt(16), align=PP_ALIGN.LEFT)
 
-        # Image replacement
-        image_query = slide_info.get("image_query", topic)
-        new_image_path = search_image(image_query)
+        # Image replacement - Add images to content slides (not title or conclusion)
+        if i > 0 and i < actual_total_slides - 1:  # Skip title and conclusion slides
+            image_query = slide_info.get("image_query", topic)
+            new_image_path = search_image(image_query)
         
-        if new_image_path:
-            try:
-                # Try to find an image placeholder from config or by type
-                image_placeholder_config = None
-                if current_slide_layout_config:
-                    for ph_cfg in current_slide_layout_config.get("placeholders", []):
-                        if ph_cfg.get("type") == "PICTURE (18)" or (ph_cfg.get("type") == "CONTENT (7)" and "image" in ph_cfg.get("name", "").lower()):
-                            image_placeholder_config = ph_cfg
-                            break
+            if new_image_path:
+                try:
+                    image_placeholder_config = None
+                    if current_slide_layout_config:
+                        for ph_cfg in current_slide_layout_config.get("placeholders", []):
+                            if ph_cfg.get("type") == "PICTURE (18)" or (ph_cfg.get("type") == "CONTENT (7)" and "image" in ph_cfg.get("name", "").lower()):
+                                image_placeholder_config = ph_cfg
+                                break
 
-                if image_placeholder_config:
-                    placeholder_name = image_placeholder_config.get("name", "Unknown")
-                    logging.info(f"Found image placeholder config: {placeholder_name}")
-                    # Convert EMU to Inches (1 inch = 914400 EMU)
-                    left = Inches(image_placeholder_config["left"] / 914400)
-                    top = Inches(image_placeholder_config["top"] / 914400)
-                    width = Inches(image_placeholder_config["width"] / 914400)
-                    height = Inches(image_placeholder_config["height"] / 914400)
-                    slide.shapes.add_picture(new_image_path, left, top, width=width, height=height)
-                else:
-                    logging.info("No specific image placeholder config found. Using default position.")
-                    # Fallback if no specific image placeholder found
-                    slide.shapes.add_picture(new_image_path, Inches(5.5), Inches(2), width=Inches(4), height=Inches(3))
-                os.remove(new_image_path)
-            except Exception as e:
-                logging.error(f"Error replacing image: {e}")
-                if os.path.exists(new_image_path): os.remove(new_image_path)
+                    if image_placeholder_config:
+                        placeholder_name = image_placeholder_config.get("name", "Unknown")
+                        logging.info(f"Found image placeholder config: {placeholder_name}")
+                        left = Inches(image_placeholder_config["left"] / 914400)
+                        top = Inches(image_placeholder_config["top"] / 914400)
+                        width = Inches(image_placeholder_config["width"] / 914400)
+                        height = Inches(image_placeholder_config["height"] / 914400)
+                        slide.shapes.add_picture(new_image_path, left, top, width=width, height=height)
+                    else:
+                        logging.info("No specific image placeholder config found. Using default position.")
+                        slide.shapes.add_picture(new_image_path, Inches(5.5), Inches(2), width=Inches(4), height=Inches(3))
+                    logging.info(f"Successfully added image to slide {i+1}")
+                    os.remove(new_image_path)
+                except Exception as e:
+                    logging.error(f"Error adding image to slide {i+1}: {e}")
+                    if os.path.exists(new_image_path): os.remove(new_image_path)
                 
     output_filename = f"temp_output_{hash(topic)}.pptx"
     output_path = os.path.join("temp_presentations", output_filename)
