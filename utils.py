@@ -51,8 +51,7 @@ def generate_slide_content(topic, slide_number, total_slides, language="uz", is_
     lang_phrase = lang_map.get(language, "o\'zbek tilida")
 
     if is_plan:
-        prompt = f"""Siz professional prezentatsiya rejalashtiruvchisisiz. \'{topic}\' mavzusida {total_slides} slayddan iborat prezentatsiya uchun batafsil reja tuzing. Reja sarlavha va 3-5 banddan iborat bo\'lsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Reja",\n  "content": ["1. Kirish", "2. Asosiy qism...", "3. Xulosa"]
-}}"""
+       prompt = f"""Siz professional prezentatsiya rejalashtiruvchisisiz. \'{topic}\' mavzusida {total_slides} slayddan iborat prezentatsiya uchun batafsil reja tuzing. Reja sarlavha va 3-4 ta asosiy banddan iborat bo\'lsin. Har bir band qisqa va aniq bo\'lsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Reja",\n  "content": ["1. Kirish", "2. Asosiy qism...", "3. Xulosa"]\n}}"""
     elif is_conclusion:
         prompt = f"""Siz professional prezentatsiya yakunlovchisisiz. \'{topic}\' mavzusidagi prezentatsiya uchun yakuniy xulosa yozing. Xulosa 2-3 ta asosiy fikrni o\'z ichiga olsin. Javobni FAQAT quyidagi JSON formatida bering:\n{{\n  "title": "Xulosa",\n  "content": ["Asosiy xulosa 1", "Asosiy xulosa 2"]
 }}"""
@@ -121,7 +120,7 @@ def find_best_shape_for_text(slide, type_hint="title"):
 
     return None
 
-def set_text_frame_content_and_style(text_frame, text_lines, ph_config=None, default_font_size=Pt(18), align=PP_ALIGN.LEFT):
+def set_text_frame_content_and_style(text_frame, text_lines, ph_config=None, default_font_size=Pt(16), align=PP_ALIGN.LEFT):
     text_frame.clear()
     for i, line in enumerate(text_lines):
         p = text_frame.add_paragraph()
@@ -262,19 +261,19 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             if i == 0:
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
-                                   default_font_size=Pt(48), align=PP_ALIGN.CENTER)
+                                   default_font_size=Pt(40), align=PP_ALIGN.CENTER)
             elif plan and i == 1: # Outline slide
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
-                                   default_font_size=Pt(36), align=PP_ALIGN.CENTER)
+                                   default_font_size=Pt(30), align=PP_ALIGN.CENTER)
             elif i == actual_total_slides - 1: # Conclusion slide
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
-                                   default_font_size=Pt(36), align=PP_ALIGN.CENTER)
+                                   default_font_size=Pt(30), align=PP_ALIGN.CENTER)
             else:
                 set_text_frame_content_and_style(title_shape.text_frame, [title_text], 
                                    ph_config=title_ph_config,
-                                   default_font_size=Pt(36), align=PP_ALIGN.LEFT)
+                                   default_font_size=Pt(30), align=PP_ALIGN.LEFT)
 
         # Find and fill body/content placeholder
         body_shape = find_best_shape_for_text(slide, "body")
@@ -298,19 +297,19 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
             if i == 0 and name_surname:
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,
-                                       default_font_size=Pt(24), align=PP_ALIGN.CENTER)
+                                       default_font_size=Pt(20), align=PP_ALIGN.CENTER)
             elif plan and i == 1: # Outline slide content
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,
-                                       default_font_size=Pt(20), align=PP_ALIGN.LEFT)
+                                       default_font_size=Pt(16), align=PP_ALIGN.LEFT)
             elif i == actual_total_slides - 1: # Conclusion slide content
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,
-                                       default_font_size=Pt(20), align=PP_ALIGN.LEFT)
+                                       default_font_size=Pt(16), align=PP_ALIGN.LEFT)
             else:
                 set_text_frame_content_and_style(body_shape.text_frame, content_points, 
                                        ph_config=body_ph_config,
-                                       default_font_size=Pt(18), align=PP_ALIGN.LEFT)
+                                       default_font_size=Pt(16), align=PP_ALIGN.LEFT)
 
         # Image replacement
         image_query = slide_info.get("image_query", topic)
@@ -338,7 +337,7 @@ def generate_presentation(topic, slide_count, template_path, language="uz", name
                 else:
                     logging.info("No specific image placeholder config found. Using default position.")
                     # Fallback if no specific image placeholder found
-                    slide.shapes.add_picture(new_image_path, Inches(5.5), Inches(2), width=Inches(4))
+                    slide.shapes.add_picture(new_image_path, Inches(5.5), Inches(2), width=Inches(4), height=Inches(3))
                 os.remove(new_image_path)
             except Exception as e:
                 logging.error(f"Error replacing image: {e}")

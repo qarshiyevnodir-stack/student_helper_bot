@@ -161,22 +161,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    try:
-        all_previews_path = "templates/previews/all_previews.png"
-        if os.path.exists(all_previews_path):
-            with open(all_previews_path, "rb") as photo_file:
-                await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=photo_file,
-                    caption="Endi quyidagi shablonlardan birini tanlang:",
-                    reply_markup=get_template_selection_keyboard()
-                )
-        else:
-            await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
-    except Exception as e:
-        logger.error(f"get_slide_count: Error sending photo or template selection: {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon rasmlari topilmadi. Quyidagi raqamlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
-    
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Endi quyidagi shablonlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     return TEMPLATE_SELECTION
 
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
