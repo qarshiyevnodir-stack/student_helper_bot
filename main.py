@@ -177,8 +177,6 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return TEMPLATE_SELECTION
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Shablon {template_id} tanlandi. Prezentatsiya uchun reja tuzilmoqda...")
-
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
     language = context.user_data.get("language", "uz")
@@ -204,10 +202,8 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
 
     if query.data == "plan_confirm_yes":
-        await query.edit_message_text(text="Reja tasdiqlandi. Prezentatsiya tayyorlanmoqda...")
         return await generate_final_presentation(update, context)
     elif query.data == "plan_confirm_no":
-        await query.edit_message_text(text="Reja bekor qilindi. Yangi reja tuzilmoqda...")
         return await get_template(update, context)
 
 async def generate_final_presentation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
