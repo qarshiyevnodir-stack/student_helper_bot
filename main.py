@@ -165,32 +165,19 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    # Send template preview images as media group
+    # Send template preview images with inline buttons (each image with its own button)
     try:
-        from telegram import InputMediaPhoto
-        media_group = []
         for i in range(1, 13):
             preview_path = f"templates/previews/{i}.png"
             if os.path.exists(preview_path):
-                media_group.append(InputMediaPhoto(media=open(preview_path, "rb"), caption=f"Shablon {i}"))
-        
-        if media_group:
-            # Send first 10 images as media group (Telegram limit)
-            await context.bot.send_media_group(chat_id=query.message.chat_id, media=media_group[:10])
-            # Send remaining 2 images separately if needed
-            for media in media_group[10:]:
-                await context.bot.send_photo(chat_id=query.message.chat_id, photo=media.media, caption=media.caption)
+                keyboard = [[InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                with open(preview_path, "rb") as img_file:
+                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, reply_markup=reply_markup)
+                # Add delay to avoid Telegram rate limiting
+                await asyncio.sleep(0.2)
     except Exception as e:
         logger.error(f"Error sending template previews: {e}")
-    
-    # Send inline keyboard for template selection
-    keyboard = [
-        [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
-        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")],
-        [InlineKeyboardButton("11", callback_data="tmpl_11"), InlineKeyboardButton("12", callback_data="tmpl_12")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon raqamini tanlang:", reply_markup=reply_markup)
 
     return TEMPLATE_SELECTION
 
