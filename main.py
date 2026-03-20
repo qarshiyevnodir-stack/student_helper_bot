@@ -55,7 +55,8 @@ def get_slide_count_keyboard():
 def get_template_selection_keyboard():
     keyboard = [
         [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
-        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")]
+        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")],
+        [InlineKeyboardButton("11", callback_data="tmpl_11"), InlineKeyboardButton("12", callback_data="tmpl_12")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -160,6 +161,16 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return SLIDE_COUNT
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
+
+    # Send template preview images
+    try:
+        for i in range(1, 13):
+            preview_path = f"templates/previews/{i}.png"
+            if os.path.exists(preview_path):
+                with open(preview_path, "rb") as img_file:
+                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption=f"Shablon {i}")
+    except Exception as e:
+        logger.error(f"Error sending template previews: {e}")
 
     await context.bot.send_message(chat_id=query.message.chat_id, text="Endi quyidagi shablonlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     return TEMPLATE_SELECTION
