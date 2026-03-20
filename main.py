@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import generate_presentation, generate_slide_content
@@ -162,18 +163,20 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    # Send template preview images (send combined image if available)
+    # Send template preview images with inline buttons
     try:
-        all_previews_path = "templates/previews/all_previews.png"
-        if os.path.exists(all_previews_path):
-            with open(all_previews_path, "rb") as img_file:
-                await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption="Mavjud shablonlar:")
-        else:
-            logger.warning("All previews combined image not found.")
+        for i in range(1, 13):
+            preview_path = f"templates/previews/{i}.png"
+            if os.path.exists(preview_path):
+                keyboard = [[InlineKeyboardButton(f"Shablon {i} ni tanlash", callback_data=f"tmpl_{i}")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                with open(preview_path, "rb") as img_file:
+                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption=f"Shablon {i}", reply_markup=reply_markup)
+                # Add small delay to avoid Telegram rate limiting
+                await asyncio.sleep(0.3)
     except Exception as e:
         logger.error(f"Error sending template previews: {e}")
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text="Endi quyidagi shablonlardan birini tanlang:", reply_markup=get_template_selection_keyboard())
     return TEMPLATE_SELECTION
 
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
