@@ -162,13 +162,14 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    # Send template preview images
+    # Send template preview images (send combined image if available)
     try:
-        for i in range(1, 13):
-            preview_path = f"templates/previews/{i}.png"
-            if os.path.exists(preview_path):
-                with open(preview_path, "rb") as img_file:
-                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption=f"Shablon {i}")
+        all_previews_path = "templates/previews/all_previews.png"
+        if os.path.exists(all_previews_path):
+            with open(all_previews_path, "rb") as img_file:
+                await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption="Mavjud shablonlar:")
+        else:
+            logger.warning("All previews combined image not found.")
     except Exception as e:
         logger.error(f"Error sending template previews: {e}")
 
