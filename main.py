@@ -134,15 +134,17 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if query.data == "skip_name_surname":
             context.user_data["name_surname"] = ""
             await query.edit_message_text(text="Ism kiritish shart emas deb belgilandi.")
+            chat_id = query.message.chat_id
         else:
             await query.edit_message_text(text="Xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
             return NAME_SURNAME
     else:
         context.user_data["name_surname"] = update.message.text
         await update.message.reply_text(f"Ism va familiya qabul qilindi: {update.message.text}")
+        chat_id = update.effective_chat.id
 
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text="Rahmat! Endi nechta slayd kerakligini tanlang:",
         reply_markup=get_slide_count_keyboard()
     )
@@ -163,19 +165,32 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    # Send template preview images with inline buttons
+    # Send template preview images as media group
     try:
+        from telegram import InputMediaPhoto
+        media_group = []
         for i in range(1, 13):
             preview_path = f"templates/previews/{i}.png"
             if os.path.exists(preview_path):
-                keyboard = [[InlineKeyboardButton(f"Shablon {i} ni tanlash", callback_data=f"tmpl_{i}")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                with open(preview_path, "rb") as img_file:
-                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, caption=f"Shablon {i}", reply_markup=reply_markup)
-                # Add small delay to avoid Telegram rate limiting
-                await asyncio.sleep(0.3)
+                media_group.append(InputMediaPhoto(media=open(preview_path, "rb"), caption=f"Shablon {i}"))
+        
+        if media_group:
+            # Send first 10 images as media group (Telegram limit)
+            await context.bot.send_media_group(chat_id=query.message.chat_id, media=media_group[:10])
+            # Send remaining 2 images separately if needed
+            for media in media_group[10:]:
+                await context.bot.send_photo(chat_id=query.message.chat_id, photo=media.media, caption=media.caption)
     except Exception as e:
         logger.error(f"Error sending template previews: {e}")
+    
+    # Send inline keyboard for template selection
+    keyboard = [
+        [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
+        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")],
+        [InlineKeyboardButton("11", callback_data="tmpl_11"), InlineKeyboardButton("12", callback_data="tmpl_12")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon raqamini tanlang:", reply_markup=reply_markup)
 
     return TEMPLATE_SELECTION
 
