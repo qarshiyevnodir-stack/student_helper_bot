@@ -280,6 +280,14 @@ async def generate_final_presentation(update: Update, context: ContextTypes.DEFA
     return ConversationHandler.END
 
 
+async def setup_webhook(application: Application, webhook_url: str, token: str) -> None:
+    """Set up webhook for the bot."""
+    try:
+        await application.bot.set_webhook(url=f"{webhook_url}/{token}")
+        logger.info(f"Webhook set successfully: {webhook_url}/{token}")
+    except Exception as e:
+        logger.error(f"Failed to set webhook: {e}")
+
 def main() -> None:
     """Start the bot."""
     token = os.getenv("BOT_TOKEN")
@@ -292,6 +300,10 @@ def main() -> None:
     # Get webhook URL and port from environment variables
     webhook_url = os.getenv("WEBHOOK_URL")
     port = int(os.getenv("PORT", 8080))
+    
+    # Set up webhook asynchronously
+    if webhook_url:
+        asyncio.run(setup_webhook(application, webhook_url, token))
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -323,7 +335,8 @@ def main() -> None:
     logger.info(f"PORT: {port}")
     logger.info("Bot is running...")
     if not webhook_url:
-        logger.error("WEBHOOK_URL not found in environment variables!")
+        logger.warning("WEBHOOK_URL not found, using polling mode...")
+        application.run_polling()
         return
 
     application.run_webhook(
