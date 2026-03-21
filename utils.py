@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import requests
+from io import BytesIO
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -179,11 +180,11 @@ def generate_presentation(prs, topic, slide_count, language, name_surname=""):
                     # Fallback to adding image at a default position if no placeholder is found
                     add_image_to_slide(slide, image_query, Inches(7), Inches(1.5), Inches(2.5), Inches(2.5))
 
-    # Create directory if it doesn't exist
-    os.makedirs("generated_presentations", exist_ok=True)
-    output_path = f"generated_presentations/{topic}_{random.randint(1000, 9999)}.pptx"
-    prs.save(output_path)
-    return output_path
+    # Save presentation to memory (BytesIO) instead of disk
+    prs_bytes = BytesIO()
+    prs.save(prs_bytes)
+    prs_bytes.seek(0)
+    return prs_bytes
 
 def generate_template_1_presentation(prs, topic, requested_slide_count, language, name_surname="", plan=None):
     logging.info(f"Generating presentation for template 1 with topic: {topic}, slides: {requested_slide_count}")
@@ -342,10 +343,10 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
                     else:
                         add_image_to_slide(slide, image_query, Inches(7), Inches(1.5), Inches(2.5), Inches(2.5))
 
-    # Create directory if it doesn't exist
-    os.makedirs("generated_presentations", exist_ok=True)
-    output_path = f"generated_presentations/{topic}_{random.randint(1000, 9999)}.pptx"
-    prs.save(output_path)
-    return output_path
+    # Save presentation to memory (BytesIO) instead of disk
+    prs_bytes = BytesIO()
+    prs.save(prs_bytes)
+    prs_bytes.seek(0)
+    return prs_bytes
 
 import json

@@ -214,7 +214,7 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
             
             await context.bot.send_message(chat_id=query.message.chat_id, text="💾 Prezentatsiya saqlanmoqda...")
-            await context.bot.send_document(chat_id=query.message.chat_id, document=open(generated_pptx_path, "rb"))
+            await context.bot.send_document(chat_id=query.message.chat_id, document=generated_pptx_path, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
             await context.bot.send_message(chat_id=query.message.chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
             return ConversationHandler.END
         else:
@@ -253,11 +253,8 @@ async def generate_final_presentation(update: Update, context: ContextTypes.DEFA
     plan = context.user_data.get("plan")
 
     try:
-        output_path = generate_presentation(topic, slide_count, template_path, language, name_surname, plan)
-        with open(output_path, "rb") as doc_file:
-            await context.bot.send_document(chat_id=chat_id, document=doc_file, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        prs_bytes = generate_presentation(topic, slide_count, template_path, language, name_surname, plan)
+        await context.bot.send_document(chat_id=chat_id, document=prs_bytes, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
     except Exception as e:
         logger.error(f"generate_final_presentation: Error in generate_presentation call: {e}")
         await context.bot.send_message(chat_id=chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
