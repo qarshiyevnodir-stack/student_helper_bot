@@ -3,7 +3,8 @@ import os
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
-from utils import generate_presentation, generate_slide_content
+from utils import generate_presentation, generate_slide_content, generate_template_1_presentation
+from pptx import Presentation
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -178,6 +179,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await asyncio.sleep(0.2)
     except Exception as e:
         logger.error(f"Error sending template previews: {e}")
+    await context.bot.send_message(chat_id=query.message.chat_id, text="Yuqoridagi shablonlardan birini tanlang.")
 
     return TEMPLATE_SELECTION
 
@@ -197,21 +199,31 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = context.user_data.get("topic")
     slide_count = context.user_data.get("slide_count")
     language = context.user_data.get("language", "uz")
+    name_surname = context.user_data.get("name_surname", "")
+
+    template_path = f"templates/shablonlar/{template_id}.pptx"
 
     try:
-        plan_content = generate_slide_content(topic, slide_count, slide_count, language, is_plan=True)
-        context.user_data["plan"] = plan_content
-        plan_text = "\n".join(plan_content.get("content", []))
-        keyboard = [
-            [InlineKeyboardButton("Ha, ma'qul", callback_data="plan_confirm_yes")],
-            [InlineKeyboardButton("Yo'q, qayta tuz", callback_data="plan_confirm_no")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await context.bot.send_message(chat_id=query.message.chat_id, text=f"**Reja:**\n{plan_text}\n\nShu reja ma'qulmi?", reply_markup=reply_markup, parse_mode="Markdown")
-        return PLAN_CONFIRMATION
+        if template_id == 1:
+            prs = Presentation(template_path)
+            generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
+            await context.bot.send_document(chat_id=query.message.chat_id, document=open(generated_pptx_path, "rb"))
+            await context.bot.send_message(chat_id=query.message.chat_id, text="Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
+            return ConversationHandler.END
+        else:
+            plan_content = generate_slide_content(topic, slide_count, slide_count, language, is_plan=True)
+            context.user_data["plan"] = plan_content
+            plan_text = "\n".join(plan_content.get("content", []))
+            keyboard = [
+                [InlineKeyboardButton("Ha, ma\"qul", callback_data="plan_confirm_yes")],
+                [InlineKeyboardButton("Yo\"q, qayta tuz", callback_data="plan_confirm_no")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await context.bot.send_message(chat_id=query.message.chat_id, text=f"**Reja:**\n{plan_text}\n\nShu reja ma\"qulmi?", reply_markup=reply_markup, parse_mode="Markdown")
+            return PLAN_CONFIRMATION
     except Exception as e:
-        logger.error(f"get_template: Error generating plan: {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Reja tuzishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        logger.error(f"get_template: Error generating presentation or plan: {e}")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Prezentatsiya yaratishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return ConversationHandler.END
 
 async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
