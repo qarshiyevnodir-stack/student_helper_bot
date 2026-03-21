@@ -217,6 +217,8 @@ def generate_template_1_presentation(prs, topic, slide_count, language="uz", nam
     # Generate plan slide content
     if plan is None:
         plan = generate_slide_content(topic, 2, required_total_slides, language, is_plan=True)
+    if plan is None:  # Double check in case generation failed
+        plan = {"title": "Reja", "content": ["Kirish", "Asosiy qism", "Xulosa"]}
     all_slides_content.append(plan)
 
     # Generate main content slides
@@ -228,10 +230,16 @@ def generate_template_1_presentation(prs, topic, slide_count, language="uz", nam
 
     # Generate conclusion slide content
     conclusion_content = generate_slide_content(topic, required_total_slides, required_total_slides, language, is_conclusion=True)
+    if conclusion_content is None:
+        conclusion_content = {"title": "Xulosa", "content": ["Asosiy xulosa"]}
     all_slides_content.append(conclusion_content)
 
     # Fill the presentation
     for i, slide_info in enumerate(all_slides_content):
+        # Safety check for slide_info
+        if slide_info is None:
+            slide_info = {"title": f"Slayd {i}", "content": []}
+        
         slide = prs.slides[i]
         current_slide_layout_config = template_layouts.get(i) # Get specific layout config for this slide index
 
