@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # State management for conversations
-TOPIC, SLIDE_COUNT, TEMPLATE_SELECTION, LANGUAGE_SELECTION, NAME_SURNAME, PLAN_CONFIRMATION = range(6)
+TOPIC, SLIDE_COUNT, LANGUAGE_SELECTION, NAME_SURNAME, PLAN_CONFIRMATION = range(5)
 
 # --- Language Mapping ---
 LANGUAGE_NAMES = {
@@ -166,22 +166,39 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
 
-    # Send template preview images with inline buttons (each image with its own button)
-    try:
-        for i in range(1, 13):
-            preview_path = f"templates/previews/{i}.png"
-            if os.path.exists(preview_path):
-                keyboard = [[InlineKeyboardButton(f"Shablon {i}", callback_data=f"tmpl_{i}")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                with open(preview_path, "rb") as img_file:
-                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=img_file, reply_markup=reply_markup)
-                # Add delay to avoid Telegram rate limiting
-                await asyncio.sleep(0.2)
-    except Exception as e:
-        logger.error(f"Error sending template previews: {e}")
-    await context.bot.send_message(chat_id=query.message.chat_id, text="Yuqoridagi shablonlardan birini tanlang.")
+    # Skip template selection and directly proceed to presentation generation
+    context.user_data["template_id"] = 1  # Use the only available template
+    await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz. Prezentatsiya tayyorlanmoqda...")
+    
+    # Proceed directly to get_template with template_id = 1
+    return await get_template_direct(update, context)
 
-    return TEMPLATE_SELECTION
+async def get_template_direct(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Directly generate presentation without template selection"""
+    chat_id = update.callback_query.message.chat_id if update.callback_query else update.effective_chat.id
+    
+    topic = context.user_data.get("topic")
+    slide_count = context.user_data.get("slide_count")
+    language = context.user_data.get("language", "uz")
+    name_surname = context.user_data.get("name_surname", "")
+    template_id = 1  # Always use template 1
+    template_path = f"templates/shablonlar/{template_id}.pptx"
+
+    try:
+        await context.bot.send_message(chat_id=chat_id, text="📝 Reja tuzilmoqda...")
+        prs = Presentation(template_path)
+        
+        await context.bot.send_message(chat_id=chat_id, text="✍️ Slaydlar yozilmoqda...")
+        generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
+        
+        await context.bot.send_message(chat_id=chat_id, text="💾 Prezentatsiya yuborilmoqda...")
+        await context.bot.send_document(chat_id=chat_id, document=generated_pptx_path, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
+        await context.bot.send_message(chat_id=chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"get_template_direct: Error generating presentation: {e}")
+        await context.bot.send_message(chat_id=chat_id, text="Prezentatsiya yaratishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
+        return ConversationHandler.END
 
 async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -292,9 +309,6 @@ def main() -> None:
             ],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern="^slide_count_"),
-            ],
-            TEMPLATE_SELECTION: [
-                CallbackQueryHandler(get_template, pattern="^tmpl_"),
             ],
             PLAN_CONFIRMATION: [
                 CallbackQueryHandler(plan_confirmation, pattern="^plan_confirm_")
