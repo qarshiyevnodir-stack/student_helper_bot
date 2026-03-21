@@ -205,13 +205,14 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     try:
         if template_id == 1:
+            # For now, use the old generate_presentation function for template 1
             await context.bot.send_message(chat_id=query.message.chat_id, text="🔄 Siz 1-shablonni tanladingiz. Hozir prezentatsiya tayyorlanmoqda...")
             await context.bot.send_message(chat_id=query.message.chat_id, text="📝 Reja tuzilmoqda...")
             
             prs = Presentation(template_path)
             
             await context.bot.send_message(chat_id=query.message.chat_id, text="✍️ Slaydlar yozilmoqda...")
-            generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
+            generated_pptx_path = generate_presentation(prs, topic, slide_count, language, name_surname=name_surname)
             
             await context.bot.send_message(chat_id=query.message.chat_id, text="💾 Prezentatsiya saqlanmoqda...")
             await context.bot.send_document(chat_id=query.message.chat_id, document=open(generated_pptx_path, "rb"))
