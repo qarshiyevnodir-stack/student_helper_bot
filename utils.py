@@ -7,7 +7,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.dml import MSO_THEME_COLOR
-from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, MSO_VERTICAL_ALIGNMENT
+from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
 from openai import OpenAI
 
 # Configure logging
@@ -21,7 +21,7 @@ def set_text_frame_content_and_style(text_frame, content_list, font_size=None, i
     text_frame.clear()
     tf = text_frame
     tf.word_wrap = True
-    tf.vertical_anchor = MSO_VERTICAL_ALIGNMENT.TOP
+    # tf.vertical_anchor = MSO_VERTICAL_ALIGNMENT.TOP  # Not available in this version
     tf.auto_size = MSO_AUTO_SIZE.SHAPE_TO_FIT_TEXT
 
     for i, paragraph_text in enumerate(content_list):
