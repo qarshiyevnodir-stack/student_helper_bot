@@ -194,8 +194,8 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
         0: {"layout_name": "TITLE", "title": {"ph_type": 3}, "subtitle": {"ph_type": 4}},
         1: {"layout_name": "TITLE_AND_BODY", "title": {"ph_type": 1}, "body": {"ph_type": 2}},
         2: {"layout_name": "BLANK_1_1_1_1_1_1", "title": {"ph_type": 1}, "subtitle": {"ph_type": 4}, "text_box_1": {"id": 34}, "text_box_2": {"id": 37}},
-        3: {"layout_name": "TITLE_AND_TWO_COLUMNS_1_1", "title": {"ph_type": 1}, "subtitle_1": {"ph_type": 4}, "subtitle_2": {"ph_type": 4}},
-        4: {"layout_name": "ONE_COLUMN_TEXT", "title": {"ph_type": 1}, "subtitle": {"ph_type": 4}, "picture": {"ph_type": 18}},
+        3: {"layout_name": "TITLE_AND_TWO_COLUMNS_1_1", "title": {"ph_type": 1}, "body_1": {"ph_type": 4}, "body_2": {"ph_type": 4}}, # Slide 4
+        4: {"layout_name": "ONE_COLUMN_TEXT", "title": {"ph_type": 1}, "subtitle": {"ph_type": 4}, "picture": {"ph_type": 18}}, # Placeholder type for picture is 18, from analysis
         5: {"layout_name": "BLANK_1_1", "title": {"ph_type": 1}, "subtitle": {"ph_type": 4}},
         6: {"layout_name": "CUSTOM", "title": {"ph_type": 1}, "subtitle": {"ph_type": 4}, "picture": {"ph_type": 18}},
         7: {"layout_name": "TITLE_AND_BODY_1", "title": {"ph_type": 1}, "body": {"ph_type": 2}}
@@ -308,11 +308,11 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
 
             elif current_template_layout["layout_name"] == "TITLE_AND_TWO_COLUMNS_1_1": # Slide 4 layout
                 title_shape = find_placeholder_by_type(slide, current_template_layout["title"]["ph_type"])
-                subtitle1_shape = find_placeholder_by_type(slide, current_template_layout["subtitle_1"]["ph_type"])
-                subtitle2_shape = find_placeholder_by_type(slide, current_template_layout["subtitle_2"]["ph_type"])
+                body1_shape = find_placeholder_by_type(slide, current_template_layout["body_1"]["ph_type"])
+                body2_shape = find_placeholder_by_type(slide, current_template_layout["body_2"]["ph_type"])
                 if title_shape: set_text_frame_content_and_style(title_shape.text_frame, [title_text], is_title=True)
-                if subtitle1_shape and len(content_points) > 0: set_text_frame_content_and_style(subtitle1_shape.text_frame, [content_points[0]])
-                if subtitle2_shape and len(content_points) > 1: set_text_frame_content_and_style(subtitle2_shape.text_frame, [content_points[1]])
+                if body1_shape and len(content_points) > 0: set_text_frame_content_and_style(body1_shape.text_frame, [content_points[0]])
+                if body2_shape and len(content_points) > 1: set_text_frame_content_and_style(body2_shape.text_frame, [content_points[1]])
 
             elif current_template_layout["layout_name"] == "ONE_COLUMN_TEXT": # Slide 5 layout
                 title_shape = find_placeholder_by_type(slide, current_template_layout["title"]["ph_type"])
