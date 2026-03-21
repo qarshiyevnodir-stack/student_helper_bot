@@ -205,10 +205,17 @@ async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     try:
         if template_id == 1:
+            await context.bot.send_message(chat_id=query.message.chat_id, text="🔄 Siz 1-shablonni tanladingiz. Hozir prezentatsiya tayyorlanmoqda...")
+            await context.bot.send_message(chat_id=query.message.chat_id, text="📝 Reja tuzilmoqda...")
+            
             prs = Presentation(template_path)
+            
+            await context.bot.send_message(chat_id=query.message.chat_id, text="✍️ Slaydlar yozilmoqda...")
             generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
+            
+            await context.bot.send_message(chat_id=query.message.chat_id, text="💾 Prezentatsiya saqlanmoqda...")
             await context.bot.send_document(chat_id=query.message.chat_id, document=open(generated_pptx_path, "rb"))
-            await context.bot.send_message(chat_id=query.message.chat_id, text="Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
+            await context.bot.send_message(chat_id=query.message.chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
             return ConversationHandler.END
         else:
             plan_content = generate_slide_content(topic, slide_count, slide_count, language, is_plan=True)

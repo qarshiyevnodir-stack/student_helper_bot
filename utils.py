@@ -215,6 +215,8 @@ def generate_template_1_presentation(prs, topic, slide_count, language="uz", nam
     all_slides_content.append({"title": topic, "content": [name_surname] if name_surname else []})
 
     # Generate plan slide content
+    if plan is None:
+        plan = generate_slide_content(topic, 2, required_total_slides, language, is_plan=True)
     all_slides_content.append(plan)
 
     # Generate main content slides
