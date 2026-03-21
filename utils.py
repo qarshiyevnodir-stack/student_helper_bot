@@ -238,7 +238,8 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
     current_prs_slides_count = len(prs.slides)
     while len(all_slides_content) > current_prs_slides_count:
         # Add a new slide using a generic content layout from the template (e.g., layout 2)
-        blank_slide_layout = prs.slide_layouts[template_layouts[2]["layout_name"]]
+        # Use layout index 2 instead of layout name
+        blank_slide_layout = prs.slide_layouts[2]
         prs.slides.add_slide(blank_slide_layout)
         current_prs_slides_count = len(prs.slides)
 
