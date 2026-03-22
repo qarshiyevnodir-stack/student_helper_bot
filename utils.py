@@ -471,16 +471,26 @@ def fill_slide_5_image_left(slide, content_data, image_query):
             font_pt = 11
         else:
             font_pt = 9
+        from pptx.enum.text import PP_ALIGN
+        from pptx.oxml.ns import qn
+        from lxml import etree
+        from pptx.util import Emu
         for idx_p, item in enumerate(items[:2]):
             if idx_p == 0:
                 p = tf.paragraphs[0]
             else:
                 p = tf.add_paragraph()
-            # Avzasni o'chirish
-            from pptx.oxml.ns import qn
-            from lxml import etree
+            p.alignment = PP_ALIGN.LEFT
             pPr = p._p.get_or_add_pPr()
-            buNone = etree.SubElement(pPr, qn('a:buNone'))
+            # Barcha bullet/indent elementlarini o'chirish
+            for child in list(pPr):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL'):
+                    pPr.remove(child)
+            etree.SubElement(pPr, qn('a:buNone'))
+            # Indent va margin ni nolga tushirish
+            pPr.set('indent', '0')
+            pPr.set('marL', '0')
             run = p.add_run()
             run.text = str(item)
             run.font.size = Pt(font_pt)
@@ -567,12 +577,15 @@ def fill_slide_7_image_right(slide, content_data, image_query):
                 p = tf.add_paragraph()
             p.alignment = PP_ALIGN.LEFT
             pPr = p._p.get_or_add_pPr()
-            # Barcha bullet/numbering elementlarini o'chirish
+            # Barcha bullet/indent elementlarini o'chirish
             for child in list(pPr):
                 tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
-                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct'):
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL'):
                     pPr.remove(child)
             etree.SubElement(pPr, qn('a:buNone'))
+            # Indent va margin ni nolga tushirish
+            pPr.set('indent', '0')
+            pPr.set('marL', '0')
             run = p.add_run()
             run.text = str(item)
             run.font.size = Pt(font_pt)
