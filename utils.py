@@ -540,12 +540,13 @@ def generate_plan_with_titles(topic, slide_count, language):
         f"Mavzu: '{topic}'. Taqdimot uchun reja va slayd sarlavhalarini yarat.\n"
         f"Slaydlar soni: {slide_count}. Til: {language}.\n\n"
         f"QOIDALAR:\n"
-        f"1. 'plan' massivida {plan_count} ta nuqta bo'lsin. "
+        f"1. 'plan' massivida AYNAN {plan_count} ta nuqta bo'lsin. "
         f"Har bir nuqta mavzuni chuqur yorituvchi, aniq va o'ziga xos bo'lsin. "
         f"'Kirish', 'Asosiy qism', 'Xulosa' kabi umumiy so'zlar ISHLATILMASIN. "
-        f"Har bir nuqta arab raqami bilan boshlansin: '1. ...', '2. ...', ...\n"
-        f"2. 'slide_titles' massivida {content_count} ta sarlavha bo'lsin. "
-        f"Har bir sarlavha o'sha slayd mavzusini qisqa va aniq ifodalash kerak. "
+        f"Har bir nuqta FAQAT oddiy arab raqami bilan boshlansin: '1. matn', '2. matn' — "
+        f"ichki raqamlash (1.1, 1.2) MUTLAQO ISHLATILMASIN.\n"
+        f"2. 'slide_titles' massivida AYNAN {content_count} ta sarlavha bo'lsin. "
+        f"Har bir sarlavha qisqa (3-6 so'z), aniq va mavzuga oid bo'lsin. "
         f"Sarlavhalar reja nuqtalariga mos va izchil bo'lsin.\n\n"
         f"JSON formatida qaytarish shart:\n"
         f"{{\"plan\": [\"1. ...\", \"2. ...\"], \"slide_titles\": [\"...\", \"...\", ...]}}"
@@ -554,6 +555,7 @@ def generate_plan_with_titles(topic, slide_count, language):
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
+            max_tokens=1500,
             messages=[
                 {
                     "role": "system",
@@ -561,7 +563,8 @@ def generate_plan_with_titles(topic, slide_count, language):
                         "Siz taqdimot reja va sarlavhalar yaratuvchi mutaxasssissiz. "
                         "Faqat JSON formatida javob bering. "
                         "Reja nuqtalari mavzudan kelib chiqib, aniq va o'ziga xos bo'lsin. "
-                        "Umumiy iboralar ishlatmang."
+                        "Umumiy iboralar ishlatmang. "
+                        "Reja nuqtalarida HECH QACHON ichki raqamlash (1.1, 1.2) ishlatma."
                     )
                 },
                 {"role": "user", "content": prompt}
@@ -569,8 +572,19 @@ def generate_plan_with_titles(topic, slide_count, language):
             response_format={"type": "json_object"}
         )
         result = json.loads(response.choices[0].message.content)
-        # Reja punktlarini cheklash
-        result["plan"] = result.get("plan", [])[:plan_count]
+        # Reja punktlarini cheklash va tozalash
+        raw_plan = result.get("plan", [])[:plan_count]
+        # Ichki raqamlashni tozalash: '1.1. matn' → '1. matn'
+        import re
+        clean_plan = []
+        for idx, item in enumerate(raw_plan):
+            # Har qanday "N.M. " yoki "N.M " prefiksini olib tashlash
+            cleaned = re.sub(r'^\d+\.\d+\.?\s*', '', str(item)).strip()
+            # Agar raqam bilan boshlanmasa, qo'shish
+            if not re.match(r'^\d+\.', cleaned):
+                cleaned = f"{idx+1}. {cleaned}"
+            clean_plan.append(cleaned)
+        result["plan"] = clean_plan
         result["slide_titles"] = result.get("slide_titles", [])[:content_count]
         logging.info(f"1-bosqich tayyor: {len(result['plan'])} reja, {len(result['slide_titles'])} sarlavha")
         return result
@@ -615,16 +629,22 @@ def generate_all_content(topic, slide_count, language, slide_titles):
         f"{{\"slides\": [{{...}}, {{...}}, ...]}}"
     )
 
+    # Slayd soniga qarab max_tokens hisoblash
+    max_tok_map = {5: 2000, 10: 3500, 15: 5000, 20: 6500, 25: 8000, 30: 10000}
+    max_tok = max_tok_map.get(len(slide_titles), 4000)
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
+            max_tokens=max_tok,
             messages=[
                 {
                     "role": "system",
                     "content": (
                         "Siz taqdimot slaydlari uchun kontent yaratuvchi mutaxasssissiz. "
                         "Faqat JSON formatida javob bering. "
-                        "Har bir slayd uchun batafsil, ma'lumotli matn yozing. "
+                        "Har bir slayd uchun batafsil, ma'lumotli, to'liq matn yozing — "
+                        "matnlarni qisqartirma, har bir ustun/paragraf uchun kamida 3-5 jumla yoz. "
                         "image_query har doim ingliz tilida bo'lsin."
                     )
                 },
