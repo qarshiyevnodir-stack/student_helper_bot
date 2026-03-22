@@ -48,262 +48,189 @@ def get_main_menu_keyboard():
 
 def get_slide_count_keyboard():
     keyboard = [
-        [InlineKeyboardButton("5", callback_data="slide_count_5"), InlineKeyboardButton("10", callback_data="slide_count_10")],
-        [InlineKeyboardButton("15", callback_data="slide_count_15"), InlineKeyboardButton("20", callback_data="slide_count_20")],
-        [InlineKeyboardButton("25", callback_data="slide_count_25"), InlineKeyboardButton("30", callback_data="slide_count_30")],
+        [InlineKeyboardButton("5", callback_data="slide_count_5"), InlineKeyboardButton("10", callback_data="slide_count_10"), InlineKeyboardButton("15", callback_data="slide_count_15")],
+        [InlineKeyboardButton("20", callback_data="slide_count_20"), InlineKeyboardButton("25", callback_data="slide_count_25"), InlineKeyboardButton("30", callback_data="slide_count_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_template_selection_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("1", callback_data="tmpl_1"), InlineKeyboardButton("2", callback_data="tmpl_2"), InlineKeyboardButton("3", callback_data="tmpl_3"), InlineKeyboardButton("4", callback_data="tmpl_4"), InlineKeyboardButton("5", callback_data="tmpl_5")],
-        [InlineKeyboardButton("6", callback_data="tmpl_6"), InlineKeyboardButton("7", callback_data="tmpl_7"), InlineKeyboardButton("8", callback_data="tmpl_8"), InlineKeyboardButton("9", callback_data="tmpl_9"), InlineKeyboardButton("10", callback_data="tmpl_10")],
-        [InlineKeyboardButton("11", callback_data="tmpl_11"), InlineKeyboardButton("12", callback_data="tmpl_12")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_language_selection_keyboard():
+def get_language_keyboard():
     keyboard = [
         [InlineKeyboardButton("Oʻzbek tili", callback_data="lang_uz"), InlineKeyboardButton("Ingliz tili", callback_data="lang_en")],
         [InlineKeyboardButton("Rus tili", callback_data="lang_ru"), InlineKeyboardButton("Kores tili", callback_data="lang_ko")],
         [InlineKeyboardButton("Xitoy tili", callback_data="lang_zh"), InlineKeyboardButton("Nemis tili", callback_data="lang_de")],
-        [InlineKeyboardButton("Qoraqalpoq tili", callback_data="lang_kaa"), InlineKeyboardButton("Turkman tili", callback_data="lang_tk")],
-        [InlineKeyboardButton("Tojik tili", callback_data="lang_tg")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_name_surname_skip_keyboard():
+def get_plan_confirmation_keyboard():
     keyboard = [
-        [InlineKeyboardButton("Ism kiritish shart emas", callback_data="skip_name_surname")]
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data="plan_confirm_yes"), InlineKeyboardButton("❌ Qayta tuzish", callback_data="plan_confirm_no")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- Command Handlers ---
+# --- Handlers ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.effective_user
-    logger.info(f"User {user.id} started the bot.")
-    context.user_data.clear()
-    await update.message.reply_html(
-        f"Assalomu alaykum, {user.mention_html()}! 👋\n\nMen sizning oʻquv ishlaringizda yordam beruvchi aqlli botman. Quyidagi xizmatlardan foydalanishingiz mumkin:",
+    """Start the bot and show main menu."""
+    await update.message.reply_text(
+        "Assalomu alaykum! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
         reply_markup=get_main_menu_keyboard()
     )
-    return ConversationHandler.END
+    return LANGUAGE_SELECTION
 
 async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle main menu selection."""
     text = update.message.text
-
+    
     if text == "🪄 Slayd yaratish ✨":
         await update.message.reply_text(
-            "Endi prezentatsiya tilini tanlang:",
-            reply_markup=get_language_selection_keyboard()
+            "Qaysi tilda slayd yaratmoqchisiz?",
+            reply_markup=get_language_keyboard()
         )
         return LANGUAGE_SELECTION
     else:
         await update.message.reply_text(f"'{text}' xizmati tez kunda ishga tushadi! Hozircha faqat 'Slayd yaratish' bo'limi ishlamoqda.", reply_markup=get_main_menu_keyboard())
-        return ConversationHandler.END
-
-async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-    logger.info(f"get_language: Callback data received for language selection: {query.data}")
-    try:
-        language_code = query.data.split("_")[1]
-        context.user_data["language"] = language_code
-        full_language_name = LANGUAGE_NAMES.get(language_code, language_code)
-        logger.info(f"get_language: Language code extracted: {language_code}")
-    except (IndexError, ValueError) as e:
-        logger.error(f"get_language: Error parsing language code from callback data '{query.data}': {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Til tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
         return LANGUAGE_SELECTION
 
-    await context.bot.send_message(chat_id=query.message.chat_id, text=f"Siz {full_language_name} tilini tanladingiz. Endi prezentatsiya uchun mavzuni kiriting:")
+async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Get language selection."""
+    query = update.callback_query
+    await query.answer()
+    
+    language_code = query.data.split("_")[1]
+    context.user_data["language"] = language_code
+    
+    await query.edit_message_text(
+        text=f"Tili: {LANGUAGE_NAMES.get(language_code, 'Oʻzbek tili')}\n\nEndi mavzuni kiriting:"
+    )
     return TOPIC
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["topic"] = update.message.text
+    """Get topic from user."""
+    topic = update.message.text
+    context.user_data["topic"] = topic
+    
+    skip_button = InlineKeyboardMarkup([[InlineKeyboardButton("O'tkazib yuborish", callback_data="skip_name_surname")]])
     await update.message.reply_text(
-        "Ajoyib! Endi ism va familiyangizni kiriting (masalan: Ali Valiyev):",
-        reply_markup=get_name_surname_skip_keyboard()
+        f"Mavzu: {topic}\n\nEndi ism va familiyangizni kiriting (yoki o'tkazib yuborish):",
+        reply_markup=skip_button
     )
     return NAME_SURNAME
 
 async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Get name and surname from user."""
     if update.callback_query:
         query = update.callback_query
         await query.answer()
-        if query.data == "skip_name_surname":
-            context.user_data["name_surname"] = ""
-            await query.edit_message_text(text="Ism kiritish shart emas deb belgilandi.")
-            chat_id = query.message.chat_id
-        else:
-            await query.edit_message_text(text="Xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-            return NAME_SURNAME
+        context.user_data["name_surname"] = "Noma'lum"
+        await query.edit_message_text(text="Slayd sonini tanlang:", reply_markup=get_slide_count_keyboard())
     else:
-        context.user_data["name_surname"] = update.message.text
-        await update.message.reply_text(f"Ism va familiya qabul qilindi: {update.message.text}")
-        chat_id = update.effective_chat.id
-
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="Rahmat! Endi nechta slayd kerakligini tanlang:",
-        reply_markup=get_slide_count_keyboard()
-    )
+        name_surname = update.message.text
+        context.user_data["name_surname"] = name_surname
+        await update.message.reply_text("Slayd sonini tanlang:", reply_markup=get_slide_count_keyboard())
+    
     return SLIDE_COUNT
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Get slide count from user."""
     query = update.callback_query
     await query.answer()
-    logger.info(f"get_slide_count: Callback data received: {query.data}")
-    try:
-        slide_count = int(query.data.split("_")[2])
-        context.user_data["slide_count"] = slide_count
-        logger.info(f"get_slide_count: Slide count extracted: {slide_count}")
-    except (IndexError, ValueError) as e:
-        logger.error(f"get_slide_count: Error parsing slide count from callback data '{query.data}': {e}")
-        await query.edit_message_text(text="Slayd sonini tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return SLIDE_COUNT
-
-    await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz.")
-
-    # Skip template selection and directly proceed to presentation generation
-    context.user_data["template_id"] = 1  # Use the only available template
-    await query.edit_message_text(text=f"Siz {slide_count} ta slayd tanladingiz. Prezentatsiya tayyorlanmoqda...")
     
-    # Proceed directly to get_template with template_id = 1
-    return await get_template_direct(update, context)
-
-async def get_template_direct(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Directly generate presentation without template selection"""
-    chat_id = update.callback_query.message.chat_id if update.callback_query else update.effective_chat.id
+    slide_count = int(query.data.split("_")[2])
+    context.user_data["slide_count"] = slide_count
     
-    topic = context.user_data.get("topic")
-    slide_count = context.user_data.get("slide_count")
+    await query.edit_message_text(text=f"Slaydlar soni: {slide_count}\n\n📝 Reja tuzilmoqda...")
+    
+    # Generate plan
+    topic = context.user_data.get("topic", "")
     language = context.user_data.get("language", "uz")
-    name_surname = context.user_data.get("name_surname", "")
-    template_id = 1  # Always use template 1
-    template_path = f"templates/shablonlar/{template_id}.pptx"
-
-    try:
-        await context.bot.send_message(chat_id=chat_id, text="📝 Reja tuzilmoqda...")
-        prs = Presentation(template_path)
-        
-        await context.bot.send_message(chat_id=chat_id, text="✍️ Slaydlar yozilmoqda...")
-        generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
-        
-        await context.bot.send_message(chat_id=chat_id, text="💾 Prezentatsiya yuborilmoqda...")
-        await context.bot.send_document(chat_id=chat_id, document=generated_pptx_path, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-        await context.bot.send_message(chat_id=chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
-        return ConversationHandler.END
-    except Exception as e:
-        logger.error(f"get_template_direct: Error generating presentation: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="Prezentatsiya yaratishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return ConversationHandler.END
-
-async def get_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-    logger.info(f"get_template: Callback data received for template selection: {query.data}")
-    try:
-        template_id = int(query.data.split("_")[1])
-        context.user_data["template_id"] = template_id
-        logger.info(f"get_template: Template ID extracted: {template_id}")
-    except (IndexError, ValueError) as e:
-        logger.error(f"get_template: Error parsing template ID from callback data '{query.data}': {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Shablon tanlashda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return TEMPLATE_SELECTION
-
-    topic = context.user_data.get("topic")
-    slide_count = context.user_data.get("slide_count")
-    language = context.user_data.get("language", "uz")
-    name_surname = context.user_data.get("name_surname", "")
-
-    template_path = f"templates/shablonlar/{template_id}.pptx"
-
-    try:
-        if template_id == 1:
-            await context.bot.send_message(chat_id=query.message.chat_id, text="🔄 Siz 1-shablonni tanladingiz. Hozir prezentatsiya tayyorlanmoqda...")
-            await context.bot.send_message(chat_id=query.message.chat_id, text="📝 Reja tuzilmoqda...")
-            
-            prs = Presentation(template_path)
-            
-            await context.bot.send_message(chat_id=query.message.chat_id, text="✍️ Slaydlar yozilmoqda...")
-            generated_pptx_path = generate_template_1_presentation(prs, topic, slide_count, language, name_surname=name_surname, plan=context.user_data.get("plan"))
-            
-            await context.bot.send_message(chat_id=query.message.chat_id, text="💾 Prezentatsiya saqlanmoqda...")
-            await context.bot.send_document(chat_id=query.message.chat_id, document=generated_pptx_path, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-            await context.bot.send_message(chat_id=query.message.chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
-            return ConversationHandler.END
-        else:
-            plan_content = generate_slide_content(topic, slide_count, slide_count, language, is_plan=True)
-            context.user_data["plan"] = plan_content
-            plan_text = "\n".join(plan_content.get("content", []))
-            keyboard = [
-                [InlineKeyboardButton("Ha, ma\"qul", callback_data="plan_confirm_yes")],
-                [InlineKeyboardButton("Yo\"q, qayta tuz", callback_data="plan_confirm_no")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await context.bot.send_message(chat_id=query.message.chat_id, text=f"**Reja:**\n{plan_text}\n\nShu reja ma\"qulmi?", reply_markup=reply_markup, parse_mode="Markdown")
-            return PLAN_CONFIRMATION
-    except Exception as e:
-        logger.error(f"get_template: Error generating presentation or plan: {e}")
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Prezentatsiya yaratishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.")
-        return ConversationHandler.END
+    
+    plan = generate_slide_content(topic, language, "plan", slide_count)
+    context.user_data["plan"] = plan
+    
+    # Show plan for confirmation
+    plan_text = plan.get("content", "Reja tayyorlanmadi") if plan else "Reja tayyorlanmadi"
+    
+    await query.edit_message_text(
+        text=f"📋 **Reja:**\n\n{plan_text}\n\nBu rejani tasdiqlaysizmi?",
+        reply_markup=get_plan_confirmation_keyboard(),
+        parse_mode="Markdown"
+    )
+    
+    return PLAN_CONFIRMATION
 
 async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Confirm or reject the plan."""
     query = update.callback_query
     await query.answer()
-
+    
     if query.data == "plan_confirm_yes":
-        return await generate_final_presentation(update, context)
-    elif query.data == "plan_confirm_no":
-        return await get_template(update, context)
+        await query.edit_message_text(text="✅ Reja tasdiqlandi!\n\n🔄 Prezentatsiya tayyorlanmoqda...")
+        
+        # Generate presentation
+        chat_id = query.message.chat_id
+        topic = context.user_data.get("topic", "")
+        language = context.user_data.get("language", "uz")
+        slide_count = context.user_data.get("slide_count", 5)
+        name_surname = context.user_data.get("name_surname", "Noma'lum")
+        plan = context.user_data.get("plan", {})
+        
+        try:
+            # Generate presentation using the custom template function
+            presentation_bytes = generate_template_1_presentation(
+                topic=topic,
+                language=language,
+                slide_count=slide_count,
+                name_surname=name_surname,
+                plan=plan
+            )
+            
+            # Send presentation to user
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=presentation_bytes,
+                filename=f"{topic[:20]}_presentation.pptx"
+            )
+            
+            await context.bot.send_message(chat_id=chat_id, text="✅ Prezentatsiya tayyor! Yana biror narsa kerakmi?", reply_markup=get_main_menu_keyboard())
+        except Exception as e:
+            logger.error(f"Error generating presentation: {e}")
+            await context.bot.send_message(chat_id=chat_id, text=f"Prezentatsiya yaratishda xatolik yuz berdi: {str(e)}", reply_markup=get_main_menu_keyboard())
+        
+        return ConversationHandler.END
+    else:
+        await query.edit_message_text(text="Reja qayta tuzilmoqda...")
+        topic = context.user_data.get("topic", "")
+        language = context.user_data.get("language", "uz")
+        slide_count = context.user_data.get("slide_count", 5)
+        
+        plan = generate_slide_content(topic, language, "plan", slide_count)
+        context.user_data["plan"] = plan
+        
+        plan_text = plan.get("content", "Reja tayyorlanmadi") if plan else "Reja tayyorlanmadi"
+        
+        await query.edit_message_text(
+            text=f"📋 **Reja:**\n\n{plan_text}\n\nBu rejani tasdiqlaysizmi?",
+            reply_markup=get_plan_confirmation_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        return PLAN_CONFIRMATION
 
-async def generate_final_presentation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    topic = context.user_data.get("topic")
-    slide_count = context.user_data.get("slide_count")
-    template_id = context.user_data.get("template_id")
-    template_path = f"templates/shablonlar/{template_id}.pptx"
-    language = context.user_data.get("language", "uz")
-    name_surname = context.user_data.get("name_surname", "")
-    plan = context.user_data.get("plan")
-
-    try:
-        prs_bytes = generate_presentation(topic, slide_count, template_path, language, name_surname, plan)
-        await context.bot.send_document(chat_id=chat_id, document=prs_bytes, filename=f"{topic}.pptx", caption="Prezentatsiyangiz tayyor!")
-    except Exception as e:
-        logger.error(f"generate_final_presentation: Error in generate_presentation call: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="Xatolik yuz berdi. Iltimos, boshqa shablon bilan yoki boshqa mavzuda qayta urinib koʻring.")
-
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancel the conversation."""
+    chat_id = update.message.chat_id
     await context.bot.send_message(chat_id=chat_id, text="Yana yordamim kerakmi?", reply_markup=get_main_menu_keyboard())
     return ConversationHandler.END
 
 
-async def setup_webhook(application: Application, webhook_url: str, token: str) -> None:
-    """Set up webhook for the bot."""
-    try:
-        await application.bot.set_webhook(url=f"{webhook_url}/{token}")
-        logger.info(f"Webhook set successfully: {webhook_url}/{token}")
-    except Exception as e:
-        logger.error(f"Failed to set webhook: {e}")
-
 def main() -> None:
-    """Start the bot."""
+    """Start the bot using polling mode."""
     token = os.getenv("BOT_TOKEN")
     if not token:
         logger.error("BOT_TOKEN not found in environment variables!")
         return
 
     application = Application.builder().token(token).build()
-
-    # Get webhook URL and port from environment variables
-    webhook_url = os.getenv("WEBHOOK_URL")
-    port = int(os.getenv("PORT", 8080))
-    
-    # Set up webhook asynchronously
-    if webhook_url:
-        asyncio.run(setup_webhook(application, webhook_url, token))
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -331,20 +258,8 @@ def main() -> None:
 
     application.add_handler(conv_handler)
 
-    logger.info(f"WEBHOOK_URL: {webhook_url}")
-    logger.info(f"PORT: {port}")
-    logger.info("Bot is running...")
-    if not webhook_url:
-        logger.warning("WEBHOOK_URL not found, using polling mode...")
-        application.run_polling()
-        return
-
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=token,
-        webhook_url=webhook_url
-    )
+    logger.info("Bot is starting in polling mode...")
+    application.run_polling()
 
 
 if __name__ == "__main__":
