@@ -506,22 +506,156 @@ def fill_slide_8_conclusion(slide, conclusion_data):
 
 
 # ═══════════════════════════════════════════════════════════════
+# 2 BOSQICHLI TIZIM
+# ═══════════════════════════════════════════════════════════════
+
+# Slayd turi xaritasi (0-indexed kontent slayd pozitsiyasi → tur nomi)
+SLIDE_TYPE_NAMES = {
+    0: "three_columns",   # 3-slayd: 3 ustun
+    1: "two_columns",     # 4-slayd: 2 ustun
+    2: "image_left",      # 5-slayd: chapda rasm
+    3: "quote",           # 6-slayd: iqtibos
+    4: "image_right",     # 7-slayd: o'ngda rasm
+}
+
+
+def generate_plan_with_titles(topic, slide_count, language):
+    """
+    1-BOSQICH: Mavzu bo'yicha reja va har bir kontent slayd sarlavhasini yaratadi.
+
+    Qaytaradi:
+    {
+      "plan": ["1. ...", "2. ...", "3. ..."],   # 3-5 ta, slayd soniga mos
+      "slide_titles": ["Sarlavha 1", "Sarlavha 2", ...]  # kontent slaydlar uchun
+    }
+    """
+    # Slayd soniga mos reja punktlari soni
+    plan_count_map = {5: 3, 10: 4, 15: 4, 20: 5, 25: 5, 30: 5}
+    plan_count = plan_count_map.get(slide_count, 4)
+
+    # Kontent slaydlar soni (5 ta shablon × takrorlash)
+    content_count = slide_count  # 5, 10, 15, 20, 25, 30
+
+    prompt = (
+        f"Mavzu: '{topic}'. Taqdimot uchun reja va slayd sarlavhalarini yarat.\n"
+        f"Slaydlar soni: {slide_count}. Til: {language}.\n\n"
+        f"QOIDALAR:\n"
+        f"1. 'plan' massivida {plan_count} ta nuqta bo'lsin. "
+        f"Har bir nuqta mavzuni chuqur yorituvchi, aniq va o'ziga xos bo'lsin. "
+        f"'Kirish', 'Asosiy qism', 'Xulosa' kabi umumiy so'zlar ISHLATILMASIN. "
+        f"Har bir nuqta arab raqami bilan boshlansin: '1. ...', '2. ...', ...\n"
+        f"2. 'slide_titles' massivida {content_count} ta sarlavha bo'lsin. "
+        f"Har bir sarlavha o'sha slayd mavzusini qisqa va aniq ifodalash kerak. "
+        f"Sarlavhalar reja nuqtalariga mos va izchil bo'lsin.\n\n"
+        f"JSON formatida qaytarish shart:\n"
+        f"{{\"plan\": [\"1. ...\", \"2. ...\"], \"slide_titles\": [\"...\", \"...\", ...]}}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Siz taqdimot reja va sarlavhalar yaratuvchi mutaxasssissiz. "
+                        "Faqat JSON formatida javob bering. "
+                        "Reja nuqtalari mavzudan kelib chiqib, aniq va o'ziga xos bo'lsin. "
+                        "Umumiy iboralar ishlatmang."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        result = json.loads(response.choices[0].message.content)
+        # Reja punktlarini cheklash
+        result["plan"] = result.get("plan", [])[:plan_count]
+        result["slide_titles"] = result.get("slide_titles", [])[:content_count]
+        logging.info(f"1-bosqich tayyor: {len(result['plan'])} reja, {len(result['slide_titles'])} sarlavha")
+        return result
+    except Exception as e:
+        logging.error(f"generate_plan_with_titles xatolik: {e}")
+        return None
+
+
+def generate_all_content(topic, slide_count, language, slide_titles):
+    """
+    2-BOSQICH: Tasdiqlangan sarlavhalar bo'yicha barcha kontent slaydlar uchun
+    matnlarni BITTA GPT so'rovida yaratadi.
+
+    Qaytaradi: list of dicts, har biri bir kontent slayd uchun.
+    """
+    content_count = len(slide_titles)
+    slides_info = []
+    for i, title in enumerate(slide_titles):
+        stype = SLIDE_TYPE_NAMES.get(i % 5, "image_left")
+        if stype == "three_columns":
+            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "col3": "...", "image_query": "..."}}'
+            desc = "3 ta alohida ustun, har biri 3-5 jumla"
+        elif stype == "two_columns":
+            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'
+            desc = "2 ta ustun, har biri 4-6 jumla"
+        elif stype in ("image_left", "image_right"):
+            fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
+            desc = "2 ta punkt, har biri 3-5 jumla, image_query inglizcha"
+        else:  # quote
+            fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
+            desc = "2 ta paragraf, har biri 3-5 jumla"
+        slides_info.append(f"  Slayd {i+1} ('{title}', format: {desc}): {fmt}")
+
+    slides_list_str = "\n".join(slides_info)
+
+    prompt = (
+        f"Mavzu: '{topic}'. Til: {language}.\n"
+        f"Quyidagi {content_count} ta slayd uchun kontent yoz.\n"
+        f"Har bir slayd uchun ko'rsatilgan formatda JSON ob'ekt qaytarish kerak.\n\n"
+        f"{slides_list_str}\n\n"
+        f"Barcha slaydlarni bitta JSON massivida qaytaring:\n"
+        f"{{\"slides\": [{{...}}, {{...}}, ...]}}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Siz taqdimot slaydlari uchun kontent yaratuvchi mutaxasssissiz. "
+                        "Faqat JSON formatida javob bering. "
+                        "Har bir slayd uchun batafsil, ma'lumotli matn yozing. "
+                        "image_query har doim ingliz tilida bo'lsin."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        result = json.loads(response.choices[0].message.content)
+        slides = result.get("slides", [])
+        logging.info(f"2-bosqich tayyor: {len(slides)} slayd kontent")
+        return slides
+    except Exception as e:
+        logging.error(f"generate_all_content xatolik: {e}")
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
 # ASOSIY FUNKSIYA
 # ═══════════════════════════════════════════════════════════════
 
-def generate_template_1_presentation(prs, topic, requested_slide_count, language, name_surname="", plan=None):
+def generate_template_1_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None,
+                                       content_data_list=None):
     """
     8 slaydli shablon asosida taqdimot yaratadi.
 
-    Tuzilma:
-      - Slayd 1: Sarlavha (har doim birinchi)
-      - Slayd 2: Reja     (har doim ikkinchi)
-      - Slaydlar 3-7: Kontent (requested_slide_count / 5 marta takrorlanadi)
-      - Slayd 8: Xulosa   (har doim oxirgi)
+    2-bosqichli tizim bilan ishlash uchun:
+      - plan: {"content": ["1. ...", "2. ...", ...]}  (1-bosqichdan)
+      - content_data_list: list of dicts (2-bosqichdan generate_all_content())
 
-    Takrorlash qoidasi:
-      5  → 1 marta, 10 → 2 marta, 15 → 3 marta,
-      20 → 4 marta, 25 → 5 marta, 30 → 6 marta
+    Agar content_data_list berilmasa, eski usulda har bir slayd uchun alohida GPT so'rovi yuboriladi.
     """
     logging.info(f"Taqdimot yaratilmoqda: mavzu='{topic}', slaydlar={requested_slide_count}, til={language}")
 
@@ -529,52 +663,38 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
     total_content_slides = build_slide_structure(prs, requested_slide_count)
     total_slides = len(prs.slides)
 
-    # ── 2. GPT orqali barcha kontent yaratish ──
+    # ── 2. Kontent ma'lumotlarini tayyorlash ──
 
-    # Reja (plan)
+    # Reja
     if plan is None or not isinstance(plan, dict) or not plan.get("content"):
-        plan = generate_slide_content(topic, 2, total_slides, language, is_plan=True)
-    if not plan:
         plan = {"title": "Reja", "content": ["Kirish", "Asosiy qism", "Xulosa"]}
 
-    # Kontent slaydlari uchun matn
-    # Slayd turlari: 0=3-slayd(3ustun), 1=4-slayd(2ustun), 2=5-slayd(rasm+matn),
-    #                3=6-slayd(iqtibos), 4=7-slayd(rasm+matn)
-    slide_type_map = {
-        0: "three_columns",
-        1: "two_columns",
-        2: None,          # oddiy (content ro'yxati)
-        3: None,          # oddiy
-        4: None,          # oddiy
-    }
-
-    content_data_list = []
-    for i in range(total_content_slides):
-        stype = slide_type_map.get(i % 5, None)
-        data = generate_slide_content(topic, i + 3, total_slides, language, slide_type=stype)
-        if not data:
-            if stype == "three_columns":
-                data = {
-                    "title": f"{topic} — {i + 1}",
-                    "col1": "Birinchi ustun matni",
-                    "col2": "Ikkinchi ustun matni",
-                    "col3": "Uchinchi ustun matni",
-                    "image_query": topic
-                }
-            elif stype == "two_columns":
-                data = {
-                    "title": f"{topic} — {i + 1}",
-                    "col1": "Birinchi ustun matni",
-                    "col2": "Ikkinchi ustun matni",
-                    "image_query": topic
-                }
-            else:
-                data = {
-                    "title": f"{topic} — {i + 1}",
-                    "content": ["Asosiy ma'lumot", "Qo'shimcha tafsilotlar"],
-                    "image_query": topic
-                }
-        content_data_list.append(data)
+    # Kontent slaydlari
+    if content_data_list is None:
+        # Eski usul: har bir slayd uchun alohida GPT so'rovi
+        slide_type_map = {
+            0: "three_columns",
+            1: "two_columns",
+            2: None,
+            3: None,
+            4: None,
+        }
+        content_data_list = []
+        for i in range(total_content_slides):
+            stype = slide_type_map.get(i % 5, None)
+            data = generate_slide_content(topic, i + 3, total_slides, language, slide_type=stype)
+            if not data:
+                if stype == "three_columns":
+                    data = {"title": f"{topic} — {i+1}", "col1": "Birinchi ustun", "col2": "Ikkinchi ustun", "col3": "Uchinchi ustun", "image_query": topic}
+                elif stype == "two_columns":
+                    data = {"title": f"{topic} — {i+1}", "col1": "Birinchi ustun", "col2": "Ikkinchi ustun", "image_query": topic}
+                else:
+                    data = {"title": f"{topic} — {i+1}", "content": ["Asosiy ma'lumot", "Qo'shimcha tafsilotlar"], "image_query": topic}
+            content_data_list.append(data)
+    else:
+        # 2-bosqich: content_data_list tayyor, faqat uzunligini tekshirish
+        while len(content_data_list) < total_content_slides:
+            content_data_list.append({"title": topic, "content": ["Ma'lumot"], "image_query": topic})
 
     # Xulosa
     conclusion = generate_slide_content(topic, total_slides, total_slides, language, is_conclusion=True)
