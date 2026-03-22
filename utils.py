@@ -1062,6 +1062,40 @@ def fill_t2_slide_3_section(slide, content_data):
             run.text = str(item)
             run.font.size = Pt(font_pt)
 
+    # Shape[4] — chapdan 16.27cm da joylashgan qo'shimcha text_box ni ham to'ldirish
+    extra_textbox = None
+    for shape in slide.shapes:
+        if shape.is_placeholder:
+            continue
+        if not hasattr(shape, 'text_frame'):
+            continue
+        left_cm = shape.left / 914400 * 2.54 if shape.left else 0
+        if 14.0 <= left_cm <= 18.5:
+            extra_textbox = shape
+            break
+    if extra_textbox:
+        col3 = content_data.get("col3", "")
+        if not col3:
+            items = content_data.get("content", [])
+            col3 = items[-1] if items else ""
+        if col3:
+            tf2 = extra_textbox.text_frame
+            tf2.clear()
+            tf2.word_wrap = True
+            p2 = tf2.paragraphs[0]
+            pPr2 = p2._p.get_or_add_pPr()
+            for tag in ['a:buChar', 'a:buAutoNum']:
+                for el in pPr2.findall(qn(tag)):
+                    pPr2.remove(el)
+            etree.SubElement(pPr2, qn('a:buNone'))
+            pPr2.set('marL', '0')
+            pPr2.set('indent', '0')
+            p2.alignment = PP_ALIGN.LEFT
+            run2 = p2.add_run()
+            run2.text = col3
+            total_c = len(col3)
+            run2.font.size = Pt(18 if total_c <= 200 else 15 if total_c <= 400 else 12)
+
 
 def fill_t2_slide_4_two_columns(slide, content_data):
     """
@@ -1234,12 +1268,7 @@ def fill_t2_slide_6_text(slide, content_data):
             run.font.size = Pt(font_pt)
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
-    # idx=6 placeholder ni bo'sh qoldirish (foydalanuvchi so'rovi bo'yicha o'chirish)
-    if extra_ph:
-        tf = extra_ph.text_frame
-        tf.clear()
-        if tf.paragraphs:
-            tf.paragraphs[0].text = ""
+    # idx=6 placeholder shablon dan o'chirilgan — hech narsa qilmasa ham bo'ladi
 
 
 def fill_t2_slide_7_image(slide, content_data, image_query):
