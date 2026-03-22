@@ -470,12 +470,16 @@ def fill_slide_5_image_left(slide, content_data, image_query):
         tf.clear()
         tf.word_wrap = True
         total_chars = sum(len(str(i)) for i in items[:2])
-        if total_chars <= 200:
-            font_pt = 13
-        elif total_chars <= 400:
-            font_pt = 11
+        if total_chars <= 150:
+            font_pt = 18
+        elif total_chars <= 300:
+            font_pt = 16
+        elif total_chars <= 500:
+            font_pt = 14
+        elif total_chars <= 700:
+            font_pt = 12
         else:
-            font_pt = 9
+            font_pt = 10
         from pptx.enum.text import PP_ALIGN
         from pptx.oxml.ns import qn
         from lxml import etree
@@ -553,9 +557,9 @@ def fill_slide_7_image_right(slide, content_data, image_query):
     body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (chapda)
 
     if title_ph:
-        # Sarlavha tepadan 1.5sm
+        # Sarlavha tepadan 1.5sm, so'zlar ko'p bo'lsa shrift kichrayadi
         title_ph.top = Cm(1.5)
-        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=32, min_font_pt=14, bold=True)
 
     if body_ph:
         items = content_data.get("content", [])
