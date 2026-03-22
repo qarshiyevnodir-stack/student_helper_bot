@@ -237,6 +237,7 @@ def main() -> None:
             CommandHandler("start", start),
             MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)
         ],
+        per_message=False,
         states={
             LANGUAGE_SELECTION: [
                 CallbackQueryHandler(get_language, pattern="^lang_"),
