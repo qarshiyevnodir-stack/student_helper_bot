@@ -1014,6 +1014,7 @@ def fill_t2_slide_3_section(slide, content_data):
     2-Shablon Slayd 3 — Bo'lim sarlavhasi (SECTION_TITLE_AND_DESCRIPTION).
     idx=0: Sarlavha (markazda, katta)
     idx=1: Tavsif (sarlavha ostida, kichikroq)
+    col1/col2/col3 yoki content ro'yxatidan matn oladi.
     """
     from pptx.enum.text import PP_ALIGN
     from pptx.oxml.ns import qn
@@ -1026,7 +1027,17 @@ def fill_t2_slide_3_section(slide, content_data):
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=32, min_font_pt=18, bold=True)
 
     if body_ph:
-        items = content_data.get("content", [])
+        # col1/col2/col3 formatidan yoki content ro'yxatidan matn olish
+        col1 = content_data.get("col1", "")
+        col2 = content_data.get("col2", "")
+        col3 = content_data.get("col3", "")
+        if col1 or col2 or col3:
+            # col1+col2+col3 ni bitta matn sifatida birlashtirish
+            combined = " ".join(filter(None, [col1, col2, col3]))
+            items = [combined]
+        else:
+            items = content_data.get("content", [])
+
         tf = body_ph.text_frame
         tf.clear()
         tf.word_wrap = True
@@ -1115,8 +1126,19 @@ def fill_t2_slide_5_three_columns(slide, content_data):
 
     title_ph = find_placeholder_by_idx(slide, 0)
     col1_ph  = find_placeholder_by_idx(slide, 1)
-    col2_ph  = find_textbox_by_position(slide, 8.5, 11.5)
-    col3_ph  = find_textbox_by_position(slide, 16.0, 19.0)
+    # O'rta va o'ng ustunlarni to'g'ridan-to'g'ri shape indeksi bilan topish
+    col2_ph = None
+    col3_ph = None
+    for shape in slide.shapes:
+        if shape.is_placeholder:
+            continue
+        if not hasattr(shape, 'text_frame'):
+            continue
+        left_cm = shape.left / 914400 * 2.54 if shape.left else 0
+        if 8.0 <= left_cm <= 11.0:
+            col2_ph = shape
+        elif 15.5 <= left_cm <= 19.0:
+            col3_ph = shape
 
     if title_ph:
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=16, bold=True)
@@ -1212,12 +1234,12 @@ def fill_t2_slide_6_text(slide, content_data):
             run.font.size = Pt(font_pt)
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
-    # Qo'shimcha matn (idx=6) — agar mavjud bo'lsa
+    # idx=6 placeholder ni bo'sh qoldirish (foydalanuvchi so'rovi bo'yicha o'chirish)
     if extra_ph:
-        items = content_data.get("content", [])
-        extra_text = items[2] if len(items) > 2 else (items[-1] if items else "")
-        if extra_text:
-            auto_shrink_text(extra_ph, extra_text, base_font_pt=14, min_font_pt=10)
+        tf = extra_ph.text_frame
+        tf.clear()
+        if tf.paragraphs:
+            tf.paragraphs[0].text = ""
 
 
 def fill_t2_slide_7_image(slide, content_data, image_query):
