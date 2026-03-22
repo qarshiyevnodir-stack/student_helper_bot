@@ -349,14 +349,35 @@ def fill_slide_2_plan(slide, plan_data):
 
     if body_ph:
         import re
-        # Maksimal 4 ta nuqta, raqamli ro'yxat
+        from pptx.oxml.ns import qn
+        from lxml import etree
+        from pptx.enum.text import PP_ALIGN
+        # Maksimal 4 ta nuqta
         content = plan_data.get("content", [])[:4]
-        numbered = []
+        tf = body_ph.text_frame
+        tf.clear()
+        tf.word_wrap = True
         for i, item in enumerate(content):
             # Mavjud N. yoki N.M. prefiksini olib tashlash
             text = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', str(item)).strip()
-            numbered.append(f"{i+1}. {text}")
-        set_text_list_auto(body_ph, numbered, base_font_pt=20)
+            label = f"{i+1}. {text}"
+            if i == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            p.alignment = PP_ALIGN.LEFT
+            # Shablon bullet va tartib raqamini o'chirish
+            pPr = p._p.get_or_add_pPr()
+            # Mavjud buChar, buAutoNum, buNone larni olib tashlash
+            for child in list(pPr):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct'):
+                    pPr.remove(child)
+            # buNone qo'shish — hech qanday belgi yo'q
+            etree.SubElement(pPr, qn('a:buNone'))
+            run = p.add_run()
+            run.text = label
+            run.font.size = Pt(20)
 
 
 def fill_slide_3_three_columns(slide, content_data):
