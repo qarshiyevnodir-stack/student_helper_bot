@@ -346,9 +346,14 @@ def fill_slide_2_plan(slide, plan_data):
         auto_shrink_text(title_ph, "Reja", base_font_pt=32, bold=True)
 
     if body_ph:
+        import re
         # Maksimal 4 ta nuqta, raqamli ro'yxat
         content = plan_data.get("content", [])[:4]
-        numbered = [f"{i+1}. {item}" for i, item in enumerate(content)]
+        numbered = []
+        for i, item in enumerate(content):
+            # Mavjud N. yoki N.M. prefiksini olib tashlash
+            text = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', str(item)).strip()
+            numbered.append(f"{i+1}. {text}")
         set_text_list_auto(body_ph, numbered, base_font_pt=20)
 
 
@@ -384,11 +389,11 @@ def fill_slide_3_three_columns(slide, content_data):
         col3_text = items[2] if len(items) > 2 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=14, min_font_pt=9)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=16, min_font_pt=10)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=14, min_font_pt=9)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=16, min_font_pt=10)
     if col3_ph:
-        auto_shrink_text(col3_ph, col3_text, base_font_pt=14, min_font_pt=9)
+        auto_shrink_text(col3_ph, col3_text, base_font_pt=16, min_font_pt=10)
 
 
 def fill_slide_4_two_columns(slide, content_data):
@@ -480,9 +485,21 @@ def fill_slide_6_quote(slide, content_data):
     if body_ph:
         items = content_data.get("content", [])
         if items:
-            # Barcha matnni birlashtirib yozish, 14pt, tepadan tekislash
-            full_text = "\n\n".join(str(item) for item in items)
-            auto_shrink_text(body_ph, full_text, base_font_pt=14, min_font_pt=10)
+            # 4 paragraf (2 ta asosiy + har birini 2 ga bo'lish), 16pt, tepadan tekislash
+            expanded = []
+            for item in items[:2]:
+                text = str(item)
+                # Matnni taxminan 2 ga bo'lish (birinchi gap va qolgan qism)
+                sentences = text.replace('! ', '!|').replace('. ', '.|').replace('? ', '?|').split('|')
+                mid = max(1, len(sentences) // 2)
+                part1 = ' '.join(sentences[:mid]).strip()
+                part2 = ' '.join(sentences[mid:]).strip()
+                if part1:
+                    expanded.append(part1)
+                if part2:
+                    expanded.append(part2)
+            full_text = "\n\n".join(expanded) if expanded else "\n\n".join(str(i) for i in items)
+            auto_shrink_text(body_ph, full_text, base_font_pt=16, min_font_pt=11)
             from pptx.enum.text import MSO_ANCHOR
             body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
@@ -498,8 +515,8 @@ def fill_slide_7_image_right(slide, content_data, image_query):
     body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (chapda)
 
     if title_ph:
-        # Sarlavha tepadan 3sm
-        title_ph.top = Cm(3)
+        # Sarlavha tepadan 1.5sm
+        title_ph.top = Cm(1.5)
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
 
     if body_ph:
