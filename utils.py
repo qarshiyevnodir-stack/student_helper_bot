@@ -292,7 +292,7 @@ def generate_slide_content(topic, slide_number, total_slides, language,
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {
                     "role": "system",
@@ -554,7 +554,7 @@ def generate_plan_with_titles(topic, slide_count, language):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             max_tokens=1500,
             messages=[
                 {
@@ -635,7 +635,7 @@ def generate_all_content(topic, slide_count, language, slide_titles):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             max_tokens=max_tok,
             messages=[
                 {
