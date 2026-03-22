@@ -6,7 +6,7 @@ import random
 import requests
 from io import BytesIO
 from pptx import Presentation
-from pptx.util import Inches, Pt
+from pptx.util import Inches, Pt, Emu
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_AUTO_SIZE
 
@@ -23,11 +23,11 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 # Template slide structure (1.pptx):
 #   Index 0  → Slide 1: TITLE            (sarlavha)
 #   Index 1  → Slide 2: TITLE_AND_BODY   (reja)
-#   Index 2  → Slide 3: BLANK_1_1_1_1_1_1  (kontent 1)
-#   Index 3  → Slide 4: TITLE_AND_TWO_COLUMNS_1_1 (kontent 2)
-#   Index 4  → Slide 5: ONE_COLUMN_TEXT  (kontent 3, rasm bilan)
-#   Index 5  → Slide 6: BLANK_1_1        (kontent 4)
-#   Index 6  → Slide 7: CUSTOM           (kontent 5, rasm bilan)
+#   Index 2  → Slide 3: BLANK_1_1_1_1_1_1  (kontent 1 — 3 ustun)
+#   Index 3  → Slide 4: TITLE_AND_TWO_COLUMNS_1_1 (kontent 2 — 2 ustun)
+#   Index 4  → Slide 5: ONE_COLUMN_TEXT  (kontent 3 — chapda rasm, o'ngda matn)
+#   Index 5  → Slide 6: BLANK_1_1        (kontent 4 — katta iqtibos)
+#   Index 6  → Slide 7: CUSTOM           (kontent 5 — o'ngda rasm, chapda matn)
 #   Index 7  → Slide 8: TITLE_AND_BODY_1 (xulosa)
 #
 # Takrorlash qoidasi:
@@ -41,6 +41,10 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 CONTENT_SLIDE_TEMPLATE_INDICES = [2, 3, 4, 5, 6]  # Shablondagi 3-7 slaydlar indekslari
 
+
+# ═══════════════════════════════════════════════════════════════
+# YORDAMCHI FUNKSIYALAR
+# ═══════════════════════════════════════════════════════════════
 
 def duplicate_slide(prs, template_slide_index):
     """Shablondagi slaydni nusxalab, taqdimot oxiriga qo'shadi."""
@@ -77,16 +81,11 @@ def build_slide_structure(prs, requested_content_count):
 
     Qaytaradi: kontent slaydlari indekslari ro'yxati (final taqdimotda)
     """
-    # Necha marta to'liq takrorlash kerak
     full_repeats = max(1, round(requested_content_count / 5))
     total_content_slides = full_repeats * 5
 
     logging.info(f"Kontent slaydlari: {requested_content_count} so'raldi, "
                  f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
-
-    # Shablon allaqachon 1 to'plam (slaydlar 3-7) va xulosa (slayd 8) ni o'z ichiga oladi.
-    # Agar ko'proq takrorlash kerak bo'lsa, qo'shimcha nusxalar qo'shamiz.
-    # Xulosa slayd hozircha index 7 da turibdi.
 
     extra_sets_needed = full_repeats - 1  # Birinchi to'plam allaqachon bor
 
@@ -101,9 +100,6 @@ def build_slide_structure(prs, requested_content_count):
     move_slide(prs, conclusion_current_index, last_index)
 
     logging.info(f"Yakuniy tuzilma: {len(prs.slides)} ta slayd")
-    for i, s in enumerate(prs.slides):
-        logging.info(f"  [{i}] {s.slide_layout.name}")
-
     return total_content_slides
 
 
@@ -115,74 +111,144 @@ def find_placeholder_by_idx(slide, idx):
     return None
 
 
-def set_text(shape, text, font_size_pt=None, bold=None):
-    """Shape yoki placeholder matnini o'rnatadi."""
+def find_textbox_by_position(slide, min_left_cm, max_left_cm):
+    """
+    Berilgan chapdan oraliq koordinatada joylashgan TEXT_BOX ni topadi.
+    3-slayddagi o'rta va o'ng ustunlar uchun ishlatiladi.
+    """
+    for shape in slide.shapes:
+        left_cm = shape.left / 914400 * 2.54
+        if min_left_cm <= left_cm <= max_left_cm:
+            if hasattr(shape, "text_frame"):
+                return shape
+    return None
+
+
+def auto_shrink_text(shape, text, base_font_pt, min_font_pt=10, bold=False):
+    """
+    Matnni shape ga yozadi. Agar matn uzun bo'lsa, shriftni kichraytiradi.
+    base_font_pt dan boshlaydi, min_font_pt gacha kamaytiradi.
+    """
     if shape is None:
         return
     tf = shape.text_frame
     tf.clear()
     tf.word_wrap = True
+
+    # Matn uzunligiga qarab shrift o'lchamini hisoblash
+    char_count = len(text)
+    if char_count <= 60:
+        font_pt = base_font_pt
+    elif char_count <= 100:
+        font_pt = max(min_font_pt, base_font_pt - 4)
+    elif char_count <= 150:
+        font_pt = max(min_font_pt, base_font_pt - 8)
+    elif char_count <= 200:
+        font_pt = max(min_font_pt, base_font_pt - 12)
+    else:
+        font_pt = max(min_font_pt, base_font_pt - 16)
+
     p = tf.paragraphs[0]
-    p.text = text
-    run = p.runs[0] if p.runs else p.add_run()
+    run = p.add_run()
     run.text = text
-    if font_size_pt:
-        run.font.size = Pt(font_size_pt)
-    if bold is not None:
-        run.font.bold = bold
+    run.font.size = Pt(font_pt)
+    if bold:
+        run.font.bold = True
 
 
-def set_text_list(shape, items, font_size_pt=18):
-    """Shape ga ro'yxat (bullet points) yozadi."""
+def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
+    """
+    Ro'yxat matnini yozadi. Elementlar ko'p yoki uzun bo'lsa shriftni kichraytiradi.
+    """
     if shape is None or not items:
         return
     tf = shape.text_frame
     tf.clear()
     tf.word_wrap = True
+
+    # Umumiy belgilar soniga qarab shrift o'lchamini hisoblash
+    total_chars = sum(len(str(item)) for item in items)
+    item_count = len(items)
+
+    if total_chars <= 100 and item_count <= 3:
+        font_pt = base_font_pt
+    elif total_chars <= 200 and item_count <= 5:
+        font_pt = max(min_font_pt, base_font_pt - 2)
+    elif total_chars <= 350:
+        font_pt = max(min_font_pt, base_font_pt - 4)
+    elif total_chars <= 500:
+        font_pt = max(min_font_pt, base_font_pt - 6)
+    else:
+        font_pt = max(min_font_pt, base_font_pt - 8)
+
     for i, item in enumerate(items):
         if i == 0:
             p = tf.paragraphs[0]
         else:
             p = tf.add_paragraph()
-        p.text = str(item)
-        if p.runs:
-            p.runs[0].font.size = Pt(font_size_pt)
+        run = p.add_run()
+        run.text = str(item)
+        run.font.size = Pt(font_pt)
 
 
-def add_image_to_placeholder(slide, ph_idx, image_query):
-    """Rasm placeholder ga rasm qo'shadi."""
+def fetch_image(image_query):
+    """
+    Unsplash orqali rasm yuklab oladi.
+    Qaytaradi: lokal fayl yo'li yoki None.
+    """
     if not UNSPLASH_ACCESS_KEY:
         logging.warning("UNSPLASH_ACCESS_KEY yo'q. Rasm o'tkazib yuborildi.")
-        return
+        return None
     try:
         url = (f"https://api.unsplash.com/search/photos"
-               f"?query={image_query}&per_page=1&client_id={UNSPLASH_ACCESS_KEY}")
+               f"?query={image_query}&per_page=3&orientation=squarish"
+               f"&client_id={UNSPLASH_ACCESS_KEY}")
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         results = resp.json().get("results", [])
         if not results:
             logging.warning(f"Rasm topilmadi: {image_query}")
-            return
+            return None
         img_url = results[0]["urls"]["regular"]
         img_data = requests.get(img_url, timeout=15).content
         img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.jpg"
         with open(img_path, "wb") as f:
             f.write(img_data)
-
-        ph = find_placeholder_by_idx(slide, ph_idx)
-        if ph:
-            slide.shapes.add_picture(img_path, ph.left, ph.top, ph.width, ph.height)
-        else:
-            slide.shapes.add_picture(img_path, Inches(6.5), Inches(1.5), Inches(3), Inches(3))
-
-        os.remove(img_path)
-        logging.info(f"Rasm qo'shildi: {image_query}")
+        logging.info(f"Rasm yuklandi: {image_query}")
+        return img_path
     except Exception as e:
-        logging.error(f"Rasm qo'shishda xatolik ({image_query}): {e}")
+        logging.error(f"Rasm yuklashda xatolik ({image_query}): {e}")
+        return None
 
 
-def generate_slide_content(topic, slide_number, total_slides, language, is_plan=False, is_conclusion=False):
+def place_image_in_placeholder(slide, ph_idx, img_path):
+    """
+    Rasmni placeholder o'lchamida va koordinatasida joylashtiradi.
+    Placeholder ni o'zi esa ko'rinmas qilinadi (rasm ustiga qo'yiladi).
+    """
+    if not img_path:
+        return
+    ph = find_placeholder_by_idx(slide, ph_idx)
+    if ph is None:
+        logging.warning(f"Placeholder idx={ph_idx} topilmadi.")
+        return
+    try:
+        slide.shapes.add_picture(img_path, ph.left, ph.top, ph.width, ph.height)
+        os.remove(img_path)
+        logging.info(f"Rasm placeholder idx={ph_idx} ga joylashtirildi.")
+    except Exception as e:
+        logging.error(f"Rasm joylashtirish xatolik: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GPT KONTENT YARATISH
+# ═══════════════════════════════════════════════════════════════
+
+def generate_slide_content(topic, slide_number, total_slides, language,
+                           is_plan=False, is_conclusion=False,
+                           slide_type=None):
     """GPT orqali slayd uchun kontent yaratadi."""
+
     if is_plan:
         prompt = (
             f"Mavzu: '{topic}'. Taqdimot rejasini (plan) yarat. "
@@ -195,11 +261,30 @@ def generate_slide_content(topic, slide_number, total_slides, language, is_plan=
             f"Asosiy xulosalar. Til: {language}. "
             f"JSON formatida: {{\"title\": \"Xulosa\", \"content\": [\"...\", \"...\"]}}"
         )
-    else:
+    elif slide_type == "three_columns":
+        # 3-slayd: sarlavha + 3 ta alohida ustun matni
         prompt = (
             f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
             f"Til: {language}. "
-            f"JSON formatida: {{\"title\": \"...\", \"content\": [\"...\", \"...\", \"...\"], \"image_query\": \"...\"}}"
+            f"Slaydda 3 ta alohida ustun bor. Har bir ustun uchun 1-2 jumlali qisqa matn yoz. "
+            f"JSON formatida: {{\"title\": \"...\", \"col1\": \"...\", \"col2\": \"...\", \"col3\": \"...\", \"image_query\": \"...\"}}"
+        )
+    elif slide_type == "two_columns":
+        # 4-slayd: sarlavha + 2 ta ustun matni (faqat 2 punkt)
+        prompt = (
+            f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
+            f"Til: {language}. "
+            f"Slaydda 2 ta ustun bor, har biriga 1 ta qisqa paragraf yoz (3-4 jumla). "
+            f"Faqat 2 ta ustun matni kerak, ko'proq emas. "
+            f"JSON formatida: {{\"title\": \"...\", \"col1\": \"...\", \"col2\": \"...\", \"image_query\": \"...\"}}"
+        )
+    else:
+        # Oddiy slayd: sarlavha + 2 punkt matn + rasm so'rovi
+        prompt = (
+            f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
+            f"Til: {language}. "
+            f"Faqat 2 ta qisqa punkt matn yetarli (har biri 1-2 jumla). "
+            f"JSON formatida: {{\"title\": \"...\", \"content\": [\"...\", \"...\"], \"image_query\": \"...\"}}"
         )
 
     try:
@@ -210,7 +295,8 @@ def generate_slide_content(topic, slide_number, total_slides, language, is_plan=
                     "role": "system",
                     "content": (
                         "Siz taqdimot slaydlari uchun kontent yaratuvchi yordamchisiz. "
-                        "Faqat JSON formatida javob bering. Matnlar berilgan tilda bo'lsin."
+                        "Faqat JSON formatida javob bering. Matnlar berilgan tilda bo'lsin. "
+                        "Matnlar qisqa va aniq bo'lsin."
                     )
                 },
                 {"role": "user", "content": prompt}
@@ -224,106 +310,188 @@ def generate_slide_content(topic, slide_number, total_slides, language, is_plan=
         return None
 
 
+# ═══════════════════════════════════════════════════════════════
+# SLAYD TO'LDIRISH FUNKSIYALARI
+# ═══════════════════════════════════════════════════════════════
+
 def fill_slide_1_title(slide, topic, name_surname):
-    """Slayd 1: Sarlavha slaydini to'ldiradi."""
-    title_ph = find_placeholder_by_idx(slide, 0)  # CENTER_TITLE
-    subtitle_ph = find_placeholder_by_idx(slide, 1)  # SUBTITLE
+    """
+    Slayd 1 — Muqova (TITLE).
+    Sarlavha: katta shrift, matn uzun bo'lsa kichrayadi.
+    Subtitle: ism-familiya yoki taqdimotchi nomi.
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)   # CENTER_TITLE
+    subtitle_ph = find_placeholder_by_idx(slide, 1) # SUBTITLE
+
     if title_ph:
-        set_text(title_ph, topic.upper(), font_size_pt=40, bold=True)
+        auto_shrink_text(title_ph, topic.upper(), base_font_pt=40, min_font_pt=20, bold=True)
+
     if subtitle_ph and name_surname and name_surname.strip():
-        set_text(subtitle_ph, name_surname, font_size_pt=24)
+        auto_shrink_text(subtitle_ph, name_surname, base_font_pt=24, min_font_pt=14)
 
 
 def fill_slide_2_plan(slide, plan_data):
-    """Slayd 2: Reja slaydini to'ldiradi."""
+    """
+    Slayd 2 — Reja (TITLE_AND_BODY).
+    Sarlavha + reja punktlari ro'yxati.
+    """
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # BODY
+    body_ph  = find_placeholder_by_idx(slide, 1)  # BODY
+
     if title_ph:
-        set_text(title_ph, plan_data.get("title", "Reja"), font_size_pt=32, bold=True)
+        auto_shrink_text(title_ph, plan_data.get("title", "Reja"), base_font_pt=32, bold=True)
     if body_ph:
-        set_text_list(body_ph, plan_data.get("content", []), font_size_pt=20)
+        set_text_list_auto(body_ph, plan_data.get("content", []), base_font_pt=20)
 
 
-def fill_slide_3_blank(slide, content_data):
-    """Slayd 3 (BLANK_1_1_1_1_1_1): Sarlavha + matn."""
-    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # SUBTITLE
+def fill_slide_3_three_columns(slide, content_data):
+    """
+    Slayd 3 — Uch ustunli kontent (BLANK_1_1_1_1_1_1).
+    Sarlavha (idx=0) + 3 ta ustun (idx=1, idx=10, idx=11).
+    Har bir ustun uchun alohida matn.
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)   # TITLE
+    col1_ph  = find_placeholder_by_idx(slide, 1)   # Chap ustun
+    col2_ph  = find_placeholder_by_idx(slide, 10)  # O'rta ustun
+    col3_ph  = find_placeholder_by_idx(slide, 11)  # O'ng ustun
+
+    # Agar yangi placeholder topilmasa, koordinata bo'yicha topishga urinish
+    if col2_ph is None:
+        col2_ph = find_textbox_by_position(slide, 8.5, 11.5)
+    if col3_ph is None:
+        col3_ph = find_textbox_by_position(slide, 16.0, 20.0)
+
     if title_ph:
-        set_text(title_ph, content_data.get("title", ""), font_size_pt=28, bold=True)
-    if body_ph:
-        set_text_list(body_ph, content_data.get("content", []), font_size_pt=18)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=28, bold=True)
+
+    col1_text = content_data.get("col1", "")
+    col2_text = content_data.get("col2", "")
+    col3_text = content_data.get("col3", "")
+
+    # Agar col1/col2/col3 yo'q bo'lsa, content ro'yxatidan foydalanish
+    if not col1_text:
+        items = content_data.get("content", ["", "", ""])
+        col1_text = items[0] if len(items) > 0 else ""
+        col2_text = items[1] if len(items) > 1 else ""
+        col3_text = items[2] if len(items) > 2 else ""
+
+    if col1_ph:
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=16, min_font_pt=10)
+    if col2_ph:
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=16, min_font_pt=10)
+    if col3_ph:
+        auto_shrink_text(col3_ph, col3_text, base_font_pt=16, min_font_pt=10)
 
 
 def fill_slide_4_two_columns(slide, content_data):
-    """Slayd 4 (TITLE_AND_TWO_COLUMNS_1_1): Sarlavha + 2 ustun."""
+    """
+    Slayd 4 — Ikki ustunli kontent (TITLE_AND_TWO_COLUMNS_1_1).
+    Sarlavha + 2 ta ustun (faqat 2 ta paragraf, ko'proq bo'lsa qolganini o'tkazib yuboradi).
+    """
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    col1_ph = find_placeholder_by_idx(slide, 1)   # SUBTITLE (1-ustun)
-    col2_ph = find_placeholder_by_idx(slide, 2)   # SUBTITLE (2-ustun)
+    col1_ph  = find_placeholder_by_idx(slide, 2)  # Chap ustun
+    col2_ph  = find_placeholder_by_idx(slide, 1)  # O'ng ustun
 
     if title_ph:
-        set_text(title_ph, content_data.get("title", ""), font_size_pt=28, bold=True)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=28, bold=True)
 
-    content = content_data.get("content", [])
-    half = max(1, len(content) // 2)
+    col1_text = content_data.get("col1", "")
+    col2_text = content_data.get("col2", "")
+
+    # Agar col1/col2 yo'q bo'lsa, content ro'yxatidan foydalanish (faqat 2 ta)
+    if not col1_text:
+        items = content_data.get("content", ["", ""])
+        col1_text = items[0] if len(items) > 0 else ""
+        col2_text = items[1] if len(items) > 1 else ""
+
     if col1_ph:
-        set_text_list(col1_ph, content[:half], font_size_pt=18)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=17, min_font_pt=11)
     if col2_ph:
-        set_text_list(col2_ph, content[half:], font_size_pt=18)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=17, min_font_pt=11)
 
 
-def fill_slide_5_one_column_image(slide, content_data, image_query):
-    """Slayd 5 (ONE_COLUMN_TEXT): Sarlavha + matn + rasm."""
-    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # SUBTITLE
+def fill_slide_5_image_left(slide, content_data, image_query):
+    """
+    Slayd 5 — Chapda rasm, o'ngda matn (ONE_COLUMN_TEXT).
+    Sarlavha (idx=0) + Asosiy matn (idx=1) + Rasm (idx=2).
+    Shrift: sarlavha kichrayadi, asosiy matn 13pt.
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (o'ngda)
+    body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (o'ngda)
+
     if title_ph:
-        set_text(title_ph, content_data.get("title", ""), font_size_pt=28, bold=True)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
+
     if body_ph:
-        set_text_list(body_ph, content_data.get("content", []), font_size_pt=18)
-    if image_query:
-        add_image_to_placeholder(slide, 2, image_query)
+        items = content_data.get("content", [])
+        # Faqat 2 ta punkt ko'rsatiladi
+        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=10)
+
+    # Rasm yuklab olish va joylashtirish
+    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+    img_path = fetch_image(query)
+    place_image_in_placeholder(slide, 2, img_path)
 
 
-def fill_slide_6_blank(slide, content_data):
-    """Slayd 6 (BLANK_1_1): Sarlavha + matn."""
-    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # SUBTITLE
+def fill_slide_6_quote(slide, content_data):
+    """
+    Slayd 6 — Katta iqtibos / diqqat slayd (BLANK_1_1).
+    Sarlavha (idx=0) tepada, Asosiy matn (idx=1) pastda.
+    Matn ko'p bo'lsa shrift kichrayadi.
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (tepada)
+    body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (pastda, katta)
+
     if title_ph:
-        set_text(title_ph, content_data.get("title", ""), font_size_pt=28, bold=True)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
+
     if body_ph:
-        set_text_list(body_ph, content_data.get("content", []), font_size_pt=18)
+        items = content_data.get("content", [])
+        if items:
+            # Barcha matnni birlashtirib yozish
+            full_text = "\n\n".join(str(item) for item in items)
+            auto_shrink_text(body_ph, full_text, base_font_pt=20, min_font_pt=11)
 
 
-def fill_slide_7_custom_image(slide, content_data, image_query):
-    """Slayd 7 (CUSTOM): Sarlavha + matn + rasm."""
-    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # SUBTITLE
+def fill_slide_7_image_right(slide, content_data, image_query):
+    """
+    Slayd 7 — O'ngda rasm, chapda matn (CUSTOM).
+    Sarlavha (idx=0) + Asosiy matn (idx=1) + Rasm (idx=2).
+    Sarlavha va matn tepada, shrift kichrayadi.
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (chapda, tepada)
+    body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (chapda, pastroq)
+
     if title_ph:
-        set_text(title_ph, content_data.get("title", ""), font_size_pt=28, bold=True)
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
+
     if body_ph:
-        set_text_list(body_ph, content_data.get("content", []), font_size_pt=18)
-    if image_query:
-        add_image_to_placeholder(slide, 2, image_query)
+        items = content_data.get("content", [])
+        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=10)
+
+    # Rasm yuklab olish va joylashtirish
+    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+    img_path = fetch_image(query)
+    place_image_in_placeholder(slide, 2, img_path)
 
 
 def fill_slide_8_conclusion(slide, conclusion_data):
-    """Slayd 8 (TITLE_AND_BODY_1): Xulosa slaydini to'ldiradi."""
+    """
+    Slayd 8 — Xulosa / Rahmat (TITLE_AND_BODY_1).
+    Sarlavha (idx=0) + Asosiy matn (idx=1).
+    """
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
-    body_ph = find_placeholder_by_idx(slide, 1)   # BODY
+    body_ph  = find_placeholder_by_idx(slide, 1)  # BODY
+
     if title_ph:
-        set_text(title_ph, conclusion_data.get("title", "Xulosa"), font_size_pt=32, bold=True)
+        auto_shrink_text(title_ph, conclusion_data.get("title", "Xulosa"), base_font_pt=32, bold=True)
     if body_ph:
-        set_text_list(body_ph, conclusion_data.get("content", []), font_size_pt=20)
+        set_text_list_auto(body_ph, conclusion_data.get("content", []), base_font_pt=20)
 
 
-# Kontent slaydlari uchun to'ldirish funksiyalari ro'yxati (tartib bo'yicha)
-CONTENT_FILL_FUNCTIONS = [
-    fill_slide_3_blank,
-    fill_slide_4_two_columns,
-    fill_slide_5_one_column_image,
-    fill_slide_6_blank,
-    fill_slide_7_custom_image,
-]
-
+# ═══════════════════════════════════════════════════════════════
+# ASOSIY FUNKSIYA
+# ═══════════════════════════════════════════════════════════════
 
 def generate_template_1_presentation(prs, topic, requested_slide_count, language, name_surname="", plan=None):
     """
@@ -341,9 +509,9 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
     """
     logging.info(f"Taqdimot yaratilmoqda: mavzu='{topic}', slaydlar={requested_slide_count}, til={language}")
 
-    # ── 1. Shablon tuzilmasini qurish (slaydlarni takrorlash va tartibga solish) ──
+    # ── 1. Shablon tuzilmasini qurish ──
     total_content_slides = build_slide_structure(prs, requested_slide_count)
-    total_slides = len(prs.slides)  # 2 + total_content_slides + 1
+    total_slides = len(prs.slides)
 
     # ── 2. GPT orqali barcha kontent yaratish ──
 
@@ -354,15 +522,42 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
         plan = {"title": "Reja", "content": ["Kirish", "Asosiy qism", "Xulosa"]}
 
     # Kontent slaydlari uchun matn
+    # Slayd turlari: 0=3-slayd(3ustun), 1=4-slayd(2ustun), 2=5-slayd(rasm+matn),
+    #                3=6-slayd(iqtibos), 4=7-slayd(rasm+matn)
+    slide_type_map = {
+        0: "three_columns",
+        1: "two_columns",
+        2: None,          # oddiy (content ro'yxati)
+        3: None,          # oddiy
+        4: None,          # oddiy
+    }
+
     content_data_list = []
     for i in range(total_content_slides):
-        data = generate_slide_content(topic, i + 3, total_slides, language)
+        stype = slide_type_map.get(i % 5, None)
+        data = generate_slide_content(topic, i + 3, total_slides, language, slide_type=stype)
         if not data:
-            data = {
-                "title": f"{topic} — {i + 1}",
-                "content": ["Asosiy ma'lumot", "Qo'shimcha tafsilotlar"],
-                "image_query": topic
-            }
+            if stype == "three_columns":
+                data = {
+                    "title": f"{topic} — {i + 1}",
+                    "col1": "Birinchi ustun matni",
+                    "col2": "Ikkinchi ustun matni",
+                    "col3": "Uchinchi ustun matni",
+                    "image_query": topic
+                }
+            elif stype == "two_columns":
+                data = {
+                    "title": f"{topic} — {i + 1}",
+                    "col1": "Birinchi ustun matni",
+                    "col2": "Ikkinchi ustun matni",
+                    "image_query": topic
+                }
+            else:
+                data = {
+                    "title": f"{topic} — {i + 1}",
+                    "content": ["Asosiy ma'lumot", "Qo'shimcha tafsilotlar"],
+                    "image_query": topic
+                }
         content_data_list.append(data)
 
     # Xulosa
@@ -380,24 +575,23 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
 
     # Slaydlar 3 dan (total_slides - 2) gacha: Kontent
     for i in range(total_content_slides):
-        slide_index = i + 2  # 0-indexed: 2, 3, 4, ...
+        slide_index = i + 2  # 0-indexed
         slide = prs.slides[slide_index]
         data = content_data_list[i]
         image_query = data.get("image_query", topic)
 
-        # Slayd turini aniqlash (0-4 oralig'ida sikl)
         slide_type = i % 5  # 0=3-slayd, 1=4-slayd, 2=5-slayd, 3=6-slayd, 4=7-slayd
 
         if slide_type == 0:
-            fill_slide_3_blank(slide, data)
+            fill_slide_3_three_columns(slide, data)
         elif slide_type == 1:
             fill_slide_4_two_columns(slide, data)
         elif slide_type == 2:
-            fill_slide_5_one_column_image(slide, data, image_query)
+            fill_slide_5_image_left(slide, data, image_query)
         elif slide_type == 3:
-            fill_slide_6_blank(slide, data)
+            fill_slide_6_quote(slide, data)
         elif slide_type == 4:
-            fill_slide_7_custom_image(slide, data, image_query)
+            fill_slide_7_image_right(slide, data, image_query)
 
         logging.info(f"  Slayd {slide_index + 1} to'ldirildi (tur {slide_type + 3}): {data.get('title', '')}")
 
