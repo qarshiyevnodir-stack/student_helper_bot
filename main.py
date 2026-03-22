@@ -175,11 +175,18 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         plan = context.user_data.get("plan", {})
         
         try:
+            # Load the template file
+            from pptx import Presentation
+            import os
+            template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "1.pptx")
+            prs = Presentation(template_path)
+            
             # Generate presentation using the custom template function
             presentation_bytes = generate_template_1_presentation(
+                prs=prs,
                 topic=topic,
+                requested_slide_count=slide_count,
                 language=language,
-                slide_count=slide_count,
                 name_surname=name_surname,
                 plan=plan
             )
