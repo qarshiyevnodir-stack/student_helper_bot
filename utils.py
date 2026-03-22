@@ -441,9 +441,9 @@ def fill_slide_4_two_columns(slide, content_data):
         col2_text = items[1] if len(items) > 1 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=14, min_font_pt=10)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=16, min_font_pt=10)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=14, min_font_pt=10)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=16, min_font_pt=10)
 
 
 def fill_slide_5_image_left(slide, content_data, image_query):
@@ -567,11 +567,12 @@ def fill_slide_7_image_right(slide, content_data, image_query):
                 p = tf.add_paragraph()
             p.alignment = PP_ALIGN.LEFT
             pPr = p._p.get_or_add_pPr()
-            # Avzasni o'chirish
+            # Barcha bullet/numbering elementlarini o'chirish
             for child in list(pPr):
-                if child.tag.endswith('}buNone') or child.tag.endswith('}buChar') or child.tag.endswith('}buClr'):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct'):
                     pPr.remove(child)
-            buNone = etree.SubElement(pPr, qn('a:buNone'))
+            etree.SubElement(pPr, qn('a:buNone'))
             run = p.add_run()
             run.text = str(item)
             run.font.size = Pt(font_pt)
@@ -699,8 +700,8 @@ def generate_all_content(topic, slide_count, language, slide_titles):
             fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "col3": "...", "image_query": "..."}}'
             desc = "3 ta alohida ustun, har biri 3-5 jumla"
         elif stype == "two_columns":
-            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'
-            desc = "2 ta ustun, har biri 4-6 jumla"
+            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'  
+            desc = "2 ta ustun, har biri kamida 6-8 jumla, matn blokini to'ldirsin"
         elif stype in ("image_left", "image_right"):
             fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
             desc = "2 ta punkt, har biri 3-5 jumla, image_query inglizcha"
