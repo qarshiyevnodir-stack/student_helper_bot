@@ -331,8 +331,13 @@ def fill_slide_1_title(slide, topic, name_surname):
     if title_ph:
         auto_shrink_text(title_ph, topic.upper(), base_font_pt=40, min_font_pt=20, bold=True)
 
-    if subtitle_ph and name_surname and name_surname.strip():
-        auto_shrink_text(subtitle_ph, name_surname, base_font_pt=24, min_font_pt=14)
+    if subtitle_ph:
+        if name_surname and name_surname.strip():
+            auto_shrink_text(subtitle_ph, name_surname, base_font_pt=24, min_font_pt=14)
+        else:
+            # Ism kiritilmasa, placeholder ni bo'sh qilish (shablon matni ko'rinmasin)
+            subtitle_ph.text_frame.clear()
+            subtitle_ph.text_frame.paragraphs[0].text = ""
 
 
 def fill_slide_2_plan(slide, plan_data):
