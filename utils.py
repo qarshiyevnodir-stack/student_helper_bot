@@ -384,11 +384,11 @@ def fill_slide_3_three_columns(slide, content_data):
         col3_text = items[2] if len(items) > 2 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=13, min_font_pt=9)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=14, min_font_pt=9)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=13, min_font_pt=9)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=14, min_font_pt=9)
     if col3_ph:
-        auto_shrink_text(col3_ph, col3_text, base_font_pt=13, min_font_pt=9)
+        auto_shrink_text(col3_ph, col3_text, base_font_pt=14, min_font_pt=9)
 
 
 def fill_slide_4_two_columns(slide, content_data):
@@ -432,8 +432,30 @@ def fill_slide_5_image_left(slide, content_data, image_query):
 
     if body_ph:
         items = content_data.get("content", [])
-        # Faqat 2 ta punkt, lekin uzunroq matn
-        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=9)
+        # Faqat 2 ta paragraf, tartiblanmagan avzasiz, uzunroq matn
+        tf = body_ph.text_frame
+        tf.clear()
+        tf.word_wrap = True
+        total_chars = sum(len(str(i)) for i in items[:2])
+        if total_chars <= 200:
+            font_pt = 13
+        elif total_chars <= 400:
+            font_pt = 11
+        else:
+            font_pt = 9
+        for idx_p, item in enumerate(items[:2]):
+            if idx_p == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            # Avzasni o'chirish
+            from pptx.oxml.ns import qn
+            from lxml import etree
+            pPr = p._p.get_or_add_pPr()
+            buNone = etree.SubElement(pPr, qn('a:buNone'))
+            run = p.add_run()
+            run.text = str(item)
+            run.font.size = Pt(font_pt)
 
     # Rasm yuklab olish va joylashtirish
     query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
@@ -458,10 +480,9 @@ def fill_slide_6_quote(slide, content_data):
     if body_ph:
         items = content_data.get("content", [])
         if items:
-            # Barcha matnni birlashtirib yozish, 14pt
+            # Barcha matnni birlashtirib yozish, 14pt, tepadan tekislash
             full_text = "\n\n".join(str(item) for item in items)
             auto_shrink_text(body_ph, full_text, base_font_pt=14, min_font_pt=10)
-            # Tekislanish tepadan
             from pptx.enum.text import MSO_ANCHOR
             body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
@@ -483,7 +504,29 @@ def fill_slide_7_image_right(slide, content_data, image_query):
 
     if body_ph:
         items = content_data.get("content", [])
-        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=9)
+        # Tartiblanmagan avzasiz, 13pt
+        tf = body_ph.text_frame
+        tf.clear()
+        tf.word_wrap = True
+        total_chars = sum(len(str(i)) for i in items[:2])
+        if total_chars <= 200:
+            font_pt = 13
+        elif total_chars <= 400:
+            font_pt = 11
+        else:
+            font_pt = 9
+        for idx_p, item in enumerate(items[:2]):
+            if idx_p == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            from pptx.oxml.ns import qn
+            from lxml import etree
+            pPr = p._p.get_or_add_pPr()
+            buNone = etree.SubElement(pPr, qn('a:buNone'))
+            run = p.add_run()
+            run.text = str(item)
+            run.font.size = Pt(font_pt)
 
     # Rasm yuklab olish va joylashtirish
     query = image_query or content_data.get("image_query", content_data.get("title", "nature"))

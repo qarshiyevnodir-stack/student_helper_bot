@@ -103,7 +103,13 @@ def get_plan_confirmation_keyboard():
 
 def format_plan_message(topic, slide_count, language_name, plan_items):
     """Foydalanuvchiga ko'rsatiladigan reja xabarini formatlaydi."""
-    plan_lines = "\n".join(plan_items)
+    import re
+    clean_lines = []
+    for idx, item in enumerate(plan_items):
+        # Har qanday N. yoki N.M. prefiksini olib tashlash
+        text = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', str(item)).strip()
+        clean_lines.append(f"{idx+1}. {text}")
+    plan_lines = "\n".join(clean_lines)
     return (
         f"📋 *Reja tayyor!*\n\n"
         f"📌 *Mavzu:* {topic}\n"
