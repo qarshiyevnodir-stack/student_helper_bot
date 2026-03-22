@@ -241,6 +241,7 @@ def main() -> None:
         states={
             LANGUAGE_SELECTION: [
                 CallbackQueryHandler(get_language, pattern="^lang_"),
+                MessageHandler(filters.Regex("^🪄 Slayd yaratish ✨$"), handle_main_menu_selection)
             ],
             TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic)],
             NAME_SURNAME: [
