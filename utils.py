@@ -181,11 +181,13 @@ def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
     else:
         font_pt = max(min_font_pt, base_font_pt - 8)
 
+    from pptx.enum.text import PP_ALIGN
     for i, item in enumerate(items):
         if i == 0:
             p = tf.paragraphs[0]
         else:
             p = tf.add_paragraph()
+        p.alignment = PP_ALIGN.LEFT
         run = p.add_run()
         run.text = str(item)
         run.font.size = Pt(font_pt)
@@ -389,11 +391,11 @@ def fill_slide_3_three_columns(slide, content_data):
         col3_text = items[2] if len(items) > 2 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=20, min_font_pt=12)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=20, min_font_pt=12)
     if col3_ph:
-        auto_shrink_text(col3_ph, col3_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col3_ph, col3_text, base_font_pt=20, min_font_pt=12)
 
 
 def fill_slide_4_two_columns(slide, content_data):
@@ -521,25 +523,33 @@ def fill_slide_7_image_right(slide, content_data, image_query):
 
     if body_ph:
         items = content_data.get("content", [])
-        # Tartiblanmagan avzasiz, 13pt
+        # Tartiblanmagan avzasiz, kattaroq shrift
         tf = body_ph.text_frame
         tf.clear()
         tf.word_wrap = True
         total_chars = sum(len(str(i)) for i in items[:2])
         if total_chars <= 200:
-            font_pt = 13
-        elif total_chars <= 400:
-            font_pt = 11
+            font_pt = 18
+        elif total_chars <= 350:
+            font_pt = 16
+        elif total_chars <= 500:
+            font_pt = 14
         else:
-            font_pt = 9
+            font_pt = 12
+        from pptx.enum.text import PP_ALIGN
+        from pptx.oxml.ns import qn
+        from lxml import etree
         for idx_p, item in enumerate(items[:2]):
             if idx_p == 0:
                 p = tf.paragraphs[0]
             else:
                 p = tf.add_paragraph()
-            from pptx.oxml.ns import qn
-            from lxml import etree
+            p.alignment = PP_ALIGN.LEFT
             pPr = p._p.get_or_add_pPr()
+            # Avzasni o'chirish
+            for child in list(pPr):
+                if child.tag.endswith('}buNone') or child.tag.endswith('}buChar') or child.tag.endswith('}buClr'):
+                    pPr.remove(child)
             buNone = etree.SubElement(pPr, qn('a:buNone'))
             run = p.add_run()
             run.text = str(item)
