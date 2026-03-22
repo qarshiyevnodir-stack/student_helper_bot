@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 client = OpenAI()
 
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 # ─────────────────────────────────────────────
 # Template slide structure (1.pptx):
@@ -193,23 +193,25 @@ def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
 
 def fetch_image(image_query):
     """
-    Unsplash orqali rasm yuklab oladi.
+    Pixabay orqali rasm yuklab oladi.
     Qaytaradi: lokal fayl yo'li yoki None.
     """
-    if not UNSPLASH_ACCESS_KEY:
-        logging.warning("UNSPLASH_ACCESS_KEY yo'q. Rasm o'tkazib yuborildi.")
+    if not PIXABAY_API_KEY:
+        logging.warning("PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
         return None
     try:
-        url = (f"https://api.unsplash.com/search/photos"
-               f"?query={image_query}&per_page=3&orientation=squarish"
-               f"&client_id={UNSPLASH_ACCESS_KEY}")
+        url = (f"https://pixabay.com/api/"
+               f"?key={PIXABAY_API_KEY}"
+               f"&q={requests.utils.quote(image_query)}"
+               f"&image_type=photo&orientation=horizontal"
+               f"&per_page=3&safesearch=true")
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
-        results = resp.json().get("results", [])
-        if not results:
+        hits = resp.json().get("hits", [])
+        if not hits:
             logging.warning(f"Rasm topilmadi: {image_query}")
             return None
-        img_url = results[0]["urls"]["regular"]
+        img_url = hits[0]["webformatURL"]
         img_data = requests.get(img_url, timeout=15).content
         img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.jpg"
         with open(img_path, "wb") as f:
@@ -252,8 +254,9 @@ def generate_slide_content(topic, slide_number, total_slides, language,
     if is_plan:
         prompt = (
             f"Mavzu: '{topic}'. Taqdimot rejasini (plan) yarat. "
-            f"Faqat 3-4 ta asosiy nuqta. Til: {language}. "
-            f"JSON formatida: {{\"title\": \"Reja\", \"content\": [\"...\", \"...\", \"...\"]}}"
+            f"Faqat 3 yoki 4 ta asosiy nuqta yoz (na ko'proq, na kamroq). Til: {language}. "
+            f"JSON formatida qaytarish shart: {{\"title\": \"Reja\", \"content\": [\"1-nuqta\", \"2-nuqta\", \"3-nuqta\"]}}. "
+            f"content massivida faqat 3 yoki 4 ta element bo'lsin."
         )
     elif is_conclusion:
         prompt = (
@@ -341,7 +344,9 @@ def fill_slide_2_plan(slide, plan_data):
     if title_ph:
         auto_shrink_text(title_ph, plan_data.get("title", "Reja"), base_font_pt=32, bold=True)
     if body_ph:
-        set_text_list_auto(body_ph, plan_data.get("content", []), base_font_pt=20)
+        # Maksimal 4 ta nuqta (na ko'proq)
+        content = plan_data.get("content", [])[:4]
+        set_text_list_auto(body_ph, content, base_font_pt=20)
 
 
 def fill_slide_3_three_columns(slide, content_data):
