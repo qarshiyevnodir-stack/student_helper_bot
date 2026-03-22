@@ -269,7 +269,7 @@ def generate_slide_content(topic, slide_number, total_slides, language,
         prompt = (
             f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
             f"Til: {language}. "
-            f"Slaydda 3 ta alohida ustun bor. Har bir ustun uchun 1-2 jumlali qisqa matn yoz. "
+            f"Slaydda 3 ta alohida ustun bor. Har bir ustun uchun 3-5 jumlali batafsil matn yoz. "
             f"JSON formatida: {{\"title\": \"...\", \"col1\": \"...\", \"col2\": \"...\", \"col3\": \"...\", \"image_query\": \"...\"}}"
         )
     elif slide_type == "two_columns":
@@ -277,7 +277,7 @@ def generate_slide_content(topic, slide_number, total_slides, language,
         prompt = (
             f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
             f"Til: {language}. "
-            f"Slaydda 2 ta ustun bor, har biriga 1 ta qisqa paragraf yoz (3-4 jumla). "
+            f"Slaydda 2 ta ustun bor, har biriga 4-6 jumlali batafsil paragraf yoz. "
             f"Faqat 2 ta ustun matni kerak, ko'proq emas. "
             f"JSON formatida: {{\"title\": \"...\", \"col1\": \"...\", \"col2\": \"...\", \"image_query\": \"...\"}}"
         )
@@ -286,7 +286,7 @@ def generate_slide_content(topic, slide_number, total_slides, language,
         prompt = (
             f"Mavzu: '{topic}'. Bu {total_slides} ta slaydli taqdimotning {slide_number}-slaydiga kontent yarat. "
             f"Til: {language}. "
-            f"Faqat 2 ta qisqa punkt matn yetarli (har biri 1-2 jumla). "
+            f"2 ta punkt matn yoz, har biri 3-5 jumlali batafsil bo'lsin. "
             f"JSON formatida: {{\"title\": \"...\", \"content\": [\"...\", \"...\"], \"image_query\": \"...\"}}"
         )
 
@@ -336,17 +336,20 @@ def fill_slide_1_title(slide, topic, name_surname):
 def fill_slide_2_plan(slide, plan_data):
     """
     Slayd 2 — Reja (TITLE_AND_BODY).
-    Sarlavha + reja punktlari ro'yxati.
+    Sarlavha har doim 'Reja', asosiy matn raqamli ro'yxat (1. 2. 3. 4.).
     """
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE
     body_ph  = find_placeholder_by_idx(slide, 1)  # BODY
 
+    # Sarlavha har doim "Reja"
     if title_ph:
-        auto_shrink_text(title_ph, plan_data.get("title", "Reja"), base_font_pt=32, bold=True)
+        auto_shrink_text(title_ph, "Reja", base_font_pt=32, bold=True)
+
     if body_ph:
-        # Maksimal 4 ta nuqta (na ko'proq)
+        # Maksimal 4 ta nuqta, raqamli ro'yxat
         content = plan_data.get("content", [])[:4]
-        set_text_list_auto(body_ph, content, base_font_pt=20)
+        numbered = [f"{i+1}. {item}" for i, item in enumerate(content)]
+        set_text_list_auto(body_ph, numbered, base_font_pt=20)
 
 
 def fill_slide_3_three_columns(slide, content_data):
@@ -381,11 +384,11 @@ def fill_slide_3_three_columns(slide, content_data):
         col3_text = items[2] if len(items) > 2 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=13, min_font_pt=9)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=13, min_font_pt=9)
     if col3_ph:
-        auto_shrink_text(col3_ph, col3_text, base_font_pt=16, min_font_pt=10)
+        auto_shrink_text(col3_ph, col3_text, base_font_pt=13, min_font_pt=9)
 
 
 def fill_slide_4_two_columns(slide, content_data):
@@ -410,9 +413,9 @@ def fill_slide_4_two_columns(slide, content_data):
         col2_text = items[1] if len(items) > 1 else ""
 
     if col1_ph:
-        auto_shrink_text(col1_ph, col1_text, base_font_pt=17, min_font_pt=11)
+        auto_shrink_text(col1_ph, col1_text, base_font_pt=14, min_font_pt=10)
     if col2_ph:
-        auto_shrink_text(col2_ph, col2_text, base_font_pt=17, min_font_pt=11)
+        auto_shrink_text(col2_ph, col2_text, base_font_pt=14, min_font_pt=10)
 
 
 def fill_slide_5_image_left(slide, content_data, image_query):
@@ -429,8 +432,8 @@ def fill_slide_5_image_left(slide, content_data, image_query):
 
     if body_ph:
         items = content_data.get("content", [])
-        # Faqat 2 ta punkt ko'rsatiladi
-        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=10)
+        # Faqat 2 ta punkt, lekin uzunroq matn
+        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=9)
 
     # Rasm yuklab olish va joylashtirish
     query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
@@ -442,8 +445,10 @@ def fill_slide_6_quote(slide, content_data):
     """
     Slayd 6 — Katta iqtibos / diqqat slayd (BLANK_1_1).
     Sarlavha (idx=0) tepada, Asosiy matn (idx=1) pastda.
-    Matn ko'p bo'lsa shrift kichrayadi.
+    Matn ko'p bo'lsa shrift kichrayadi. Tekislanish tepadan.
     """
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (tepada)
     body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (pastda, katta)
 
@@ -453,26 +458,32 @@ def fill_slide_6_quote(slide, content_data):
     if body_ph:
         items = content_data.get("content", [])
         if items:
-            # Barcha matnni birlashtirib yozish
+            # Barcha matnni birlashtirib yozish, 14pt
             full_text = "\n\n".join(str(item) for item in items)
-            auto_shrink_text(body_ph, full_text, base_font_pt=20, min_font_pt=11)
+            auto_shrink_text(body_ph, full_text, base_font_pt=14, min_font_pt=10)
+            # Tekislanish tepadan
+            from pptx.enum.text import MSO_ANCHOR
+            body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
 
 def fill_slide_7_image_right(slide, content_data, image_query):
     """
     Slayd 7 — O'ngda rasm, chapda matn (CUSTOM).
     Sarlavha (idx=0) + Asosiy matn (idx=1) + Rasm (idx=2).
-    Sarlavha va matn tepada, shrift kichrayadi.
+    Sarlavha tepadan 3sm, matn uzunroq, 13pt.
     """
-    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (chapda, tepada)
-    body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (chapda, pastroq)
+    from pptx.util import Cm
+    title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (chapda)
+    body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (chapda)
 
     if title_ph:
+        # Sarlavha tepadan 3sm
+        title_ph.top = Cm(3)
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
 
     if body_ph:
         items = content_data.get("content", [])
-        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=10)
+        set_text_list_auto(body_ph, items[:2], base_font_pt=13, min_font_pt=9)
 
     # Rasm yuklab olish va joylashtirish
     query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
