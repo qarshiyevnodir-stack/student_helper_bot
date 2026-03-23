@@ -1160,34 +1160,30 @@ def fill_t2_slide_5_three_columns(slide, content_data):
         if not text:
             text = ""
         tf = ph.text_frame
-        # Avval barcha mavjud run larni o'chirish (hyperlink larni ham)
-        for para in tf.paragraphs:
-            for run in para.runs:
-                # Hyperlink uslubini o'chirish
-                rPr = run._r.get_or_add_rPr()
-                for hlinkClick in rPr.findall(qn('a:hlinkClick')):
-                    rPr.remove(hlinkClick)
-                run.font.color.rgb = None
-                run.font.underline = False
-        tf.clear()
-        tf.word_wrap = True
-        font_pt = 16 if len(text) <= 200 else 13 if len(text) <= 400 else 11
-        p = tf.paragraphs[0]
-        pPr = p._p.get_or_add_pPr()
-        for tag in ['a:buChar', 'a:buAutoNum']:
-            for el in pPr.findall(qn(tag)):
-                pPr.remove(el)
-        etree.SubElement(pPr, qn('a:buNone'))
+        # XML darajasida to'liq tozalash — barcha paragraflarni o'chirish
+        txBody = tf._txBody
+        # Barcha <a:p> elementlarini o'chirib, bitta yangi qo'shish
+        for p_el in txBody.findall(qn('a:p')):
+            txBody.remove(p_el)
+        # Yangi paragraf qo'shish
+        from lxml import etree as _etree
+        new_p = _etree.SubElement(txBody, qn('a:p'))
+        pPr = _etree.SubElement(new_p, qn('a:pPr'))
+        _etree.SubElement(pPr, qn('a:buNone'))
         pPr.set('marL', '0')
         pPr.set('indent', '0')
-        p.alignment = PP_ALIGN.LEFT
-        run = p.add_run()
-        run.text = text
-        run.font.size = Pt(font_pt)
-        # Hyperlink rangini tozalash
-        rPr = run._r.get_or_add_rPr()
-        for hlinkClick in rPr.findall(qn('a:hlinkClick')):
-            rPr.remove(hlinkClick)
+        # Alignment
+        pPr.set('algn', 'l')
+        # Run qo'shish
+        new_r = _etree.SubElement(new_p, qn('a:r'))
+        rPr = _etree.SubElement(new_r, qn('a:rPr'))
+        rPr.set('lang', 'uz-UZ')
+        rPr.set('dirty', '0')
+        font_pt = 16 if len(text) <= 200 else 13 if len(text) <= 400 else 11
+        rPr.set('sz', str(font_pt * 100))
+        t_el = _etree.SubElement(new_r, qn('a:t'))
+        t_el.text = text
+        tf.word_wrap = True
 
     write_col(col1_ph, col1_text)
     write_col(col2_ph, col2_text)
