@@ -1640,19 +1640,14 @@ def fill_t3_slide_3_one_column(slide, content_data):
         body_ph.height = Inches(3.70)
 
         items = content_data.get("content", [])
+        # Barcha mavjud elementlarni ko'rsat (cheklovsiz), har doim 16pt
+        font_pt = 16
+
         tf = body_ph.text_frame
         tf.clear()
         tf.word_wrap = True
 
-        total_chars = sum(len(str(i)) for i in items[:4])
-        if total_chars <= 300:
-            font_pt = 18
-        elif total_chars <= 600:
-            font_pt = 15
-        else:
-            font_pt = 13
-
-        for idx_p, item in enumerate(items[:4]):
+        for idx_p, item in enumerate(items):
             if idx_p == 0:
                 p = tf.paragraphs[0]
             else:
