@@ -720,7 +720,7 @@ def generate_all_content(topic, slide_count, language, slide_titles):
         stype = SLIDE_TYPE_NAMES.get(i % 5, "image_left")
         if stype == "three_columns":
             fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "col3": "...", "image_query": "..."}}'
-            desc = "3 ta alohida ustun, har biri 3-5 jumla"
+            desc = "3 ta ALOHIDA ustun (col1, col2, col3 — UCHALA MAJBURIY), har biri kamida 4-6 jumla, hech biri bo'sh qolmasin"
         elif stype == "two_columns":
             fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'  
             desc = "2 ta ustun, har biri kamida 6-8 jumla, matn blokini to'ldirsin"
@@ -1153,6 +1153,18 @@ def fill_t2_slide_5_three_columns(slide, content_data):
         col1_text = items[0] if len(items) > 0 else ""
         col2_text = items[1] if len(items) > 1 else ""
         col3_text = items[2] if len(items) > 2 else ""
+    # Fallback: agar col3 bo'sh bo'lsa, col1 yoki col2 dan olinsin
+    if not col3_text and col2_text:
+        # col2 ni ikkiga bo'lib col3 ga berish
+        words = col2_text.split('. ')
+        half = len(words) // 2
+        if half > 0:
+            col3_text = '. '.join(words[half:]).strip()
+            col2_text = '. '.join(words[:half]).strip()
+            if col3_text and not col3_text.endswith('.'):
+                col3_text += '.'
+    if not col3_text and col1_text:
+        col3_text = col1_text
 
     def write_col(ph, text):
         if not ph:
