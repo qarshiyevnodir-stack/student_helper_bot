@@ -1603,11 +1603,12 @@ def fill_t3_slide_2_plan(slide, plan_data):
             pPr = p._p.get_or_add_pPr()
             for child in list(pPr):
                 tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
-                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL'):
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL', 'algn'):
                     pPr.remove(child)
             etree.SubElement(pPr, qn('a:buNone'))
             pPr.set('marL', '0')
             pPr.set('indent', '0')
+            pPr.set('algn', 'l')  # chapga tekislash
             run = p.add_run()
             run.text = item
             run.font.size = Pt(font_pt)
@@ -1630,6 +1631,14 @@ def fill_t3_slide_3_one_column(slide, content_data):
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=28, min_font_pt=14, bold=True)
 
     if body_ph:
+        from pptx.util import Inches, Emu
+        from pptx.dml.color import RGBColor
+        # Placeholder ni kattalashtirish: sarlavha pastidan slayd pastiga qadar
+        body_ph.left   = Inches(1.35)
+        body_ph.top    = Inches(1.50)
+        body_ph.width  = Inches(7.21)
+        body_ph.height = Inches(3.70)
+
         items = content_data.get("content", [])
         tf = body_ph.text_frame
         tf.clear()
@@ -1659,7 +1668,6 @@ def fill_t3_slide_3_one_column(slide, content_data):
             run = p.add_run()
             run.text = str(item)
             run.font.size = Pt(font_pt)
-            from pptx.dml.color import RGBColor
             run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
