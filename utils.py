@@ -686,6 +686,15 @@ SLIDE_TYPE_NAMES = {
     4: "image_right",     # 7-slayd: o'ngda rasm
 }
 
+# 3-shablon uchun slayd turi xaritasi
+SLIDE_TYPE_NAMES_T3 = {
+    0: "one_column",      # 3-slayd: bir ustunli matn
+    1: "two_columns",     # 4-slayd: 2 ustun
+    2: "three_columns",   # 5-slayd: 3 ustun
+    3: "image_left",      # 6-slayd: chapda rasm
+    4: "quote",           # 7-slayd: chapda matn
+}
+
 
 def generate_plan_with_titles(topic, slide_count, language):
     """
@@ -761,22 +770,27 @@ def generate_plan_with_titles(topic, slide_count, language):
         return None
 
 
-def generate_all_content(topic, slide_count, language, slide_titles):
+def generate_all_content(topic, slide_count, language, slide_titles, slide_type_names=None):
     """
     2-BOSQICH: Tasdiqlangan sarlavhalar bo'yicha barcha kontent slaydlar uchun
     matnlarni BITTA GPT so'rovida yaratadi.
 
     Qaytaradi: list of dicts, har biri bir kontent slayd uchun.
     """
+    if slide_type_names is None:
+        slide_type_names = SLIDE_TYPE_NAMES
     content_count = len(slide_titles)
     slides_info = []
     for i, title in enumerate(slide_titles):
-        stype = SLIDE_TYPE_NAMES.get(i % 5, "image_left")
-        if stype == "three_columns":
+        stype = slide_type_names.get(i % 5, "image_left")
+        if stype == "one_column":
+            fmt = f'{{"title": "{title}", "content": ["...", "...", "...", "..."], "image_query": "..."}}'
+            desc = "4-6 ta paragraf, har biri 2-3 jumla, matn blokini to'liq to'ldirsin"
+        elif stype == "three_columns":
             fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "col3": "...", "image_query": "..."}}'
             desc = "3 ta ALOHIDA ustun (col1, col2, col3 — UCHALA MAJBURIY), har biri kamida 4-6 jumla, hech biri bo'sh qolmasin"
         elif stype == "two_columns":
-            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'  
+            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'
             desc = "2 ta ustun, har biri kamida 6-8 jumla, matn blokini to'ldirsin"
         elif stype in ("image_left", "image_right"):
             fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
