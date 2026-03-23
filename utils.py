@@ -564,8 +564,16 @@ def fill_slide_6_quote(slide, content_data):
     """
     from pptx.enum.text import PP_ALIGN
     from pptx.util import Pt
+    from lxml import etree
+    from pptx.oxml.ns import qn
     title_ph = find_placeholder_by_idx(slide, 0)  # TITLE (tepada)
     body_ph  = find_placeholder_by_idx(slide, 1)  # SUBTITLE (pastda, katta)
+
+    # idx=6 bo'sh qo'shimcha placeholder ni o'chirish
+    extra_ph = find_placeholder_by_idx(slide, 6)
+    if extra_ph is not None:
+        sp = extra_ph._element
+        sp.getparent().remove(sp)
 
     if title_ph:
         auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=26, min_font_pt=14, bold=True)
