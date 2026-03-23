@@ -1137,9 +1137,9 @@ def fill_t2_slide_5_three_columns(slide, content_data):
         if not hasattr(shape, 'text_frame'):
             continue
         left_cm = shape.left / 914400 * 2.54 if shape.left else 0
-        if 8.0 <= left_cm <= 11.0:
+        if 8.0 <= left_cm <= 12.0:
             col2_ph = shape
-        elif 15.5 <= left_cm <= 19.0:
+        elif 16.0 <= left_cm <= 21.0:
             col3_ph = shape
 
     if title_ph:
@@ -1155,9 +1155,20 @@ def fill_t2_slide_5_three_columns(slide, content_data):
         col3_text = items[2] if len(items) > 2 else ""
 
     def write_col(ph, text):
-        if not ph or not text:
+        if not ph:
             return
+        if not text:
+            text = ""
         tf = ph.text_frame
+        # Avval barcha mavjud run larni o'chirish (hyperlink larni ham)
+        for para in tf.paragraphs:
+            for run in para.runs:
+                # Hyperlink uslubini o'chirish
+                rPr = run._r.get_or_add_rPr()
+                for hlinkClick in rPr.findall(qn('a:hlinkClick')):
+                    rPr.remove(hlinkClick)
+                run.font.color.rgb = None
+                run.font.underline = False
         tf.clear()
         tf.word_wrap = True
         font_pt = 16 if len(text) <= 200 else 13 if len(text) <= 400 else 11
@@ -1173,6 +1184,10 @@ def fill_t2_slide_5_three_columns(slide, content_data):
         run = p.add_run()
         run.text = text
         run.font.size = Pt(font_pt)
+        # Hyperlink rangini tozalash
+        rPr = run._r.get_or_add_rPr()
+        for hlinkClick in rPr.findall(qn('a:hlinkClick')):
+            rPr.remove(hlinkClick)
 
     write_col(col1_ph, col1_text)
     write_col(col2_ph, col2_text)
