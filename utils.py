@@ -1550,7 +1550,7 @@ def fill_t3_slide_1_cover(slide, topic, name_surname):
     subtitle_ph = find_placeholder_by_idx(slide, 1)
 
     if title_ph:
-        auto_shrink_text(title_ph, topic, base_font_pt=48, min_font_pt=22, bold=False)
+        auto_shrink_text(title_ph, topic.upper(), base_font_pt=48, min_font_pt=22, bold=False)
 
     if subtitle_ph:
         if name_surname and name_surname.strip():
@@ -1659,6 +1659,8 @@ def fill_t3_slide_3_one_column(slide, content_data):
             run = p.add_run()
             run.text = str(item)
             run.font.size = Pt(font_pt)
+            from pptx.dml.color import RGBColor
+            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
 
@@ -1836,12 +1838,12 @@ def fill_t3_slide_6_image_left(slide, content_data, image_query):
     place_image_in_placeholder(slide, 2, img_path)
 
 
-def fill_t3_slide_7_quote(slide, content_data):
+def fill_t3_slide_7_quote(slide, content_data, image_query=None):
     """
-    3-Shablon Slayd 7 — Chapda matn, o'ngda dekorativ (CUSTOM_4_1).
+    3-Shablon Slayd 7 — Chapda matn, o'ngda rasm (CUSTOM_4_1).
     idx=0: TITLE — sarlavha (chapda, yuqorida)
     idx=1: SUBTITLE — katta matn bloki (chapda)
-    O'ng tomondagi GROUP shape dekorativ — o'zgartirmaslik.
+    O'ng tomonda GROUP shape ustiga rasm qo'yiladi.
     """
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     from pptx.oxml.ns import qn
@@ -1885,6 +1887,24 @@ def fill_t3_slide_7_quote(slide, content_data):
             run.font.size = Pt(font_pt)
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
+    # O'ng tomonga rasm qo'yish (GROUP shape o'rniga)
+    query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
+    img_path = fetch_image(query)
+    if img_path:
+        from pptx.util import Inches, Emu
+        # GROUP shape pozitsiyasi: left=4.46", top=1.24", width=4.39", height=2.93"
+        left   = Inches(4.46)
+        top    = Inches(1.24)
+        width  = Inches(4.39)
+        height = Inches(2.93)
+        # GROUP shape ni o'chirish
+        for shape in list(slide.shapes):
+            if shape.shape_type == 6:  # GROUP
+                sp = shape._element
+                sp.getparent().remove(sp)
+                break
+        slide.shapes.add_picture(img_path, left, top, width, height)
+
 
 def fill_t3_slide_8_conclusion(slide, conclusion_data):
     """
@@ -1912,17 +1932,19 @@ def fill_t3_slide_8_conclusion(slide, conclusion_data):
         if shape.has_text_frame and shape.shape_type == 17:  # TEXT_BOX
             items = conclusion_data.get("content", [])
             if items:
+                from pptx.dml.color import RGBColor
                 tf = shape.text_frame
                 tf.clear()
                 tf.word_wrap = True
-                full_text = "\n".join(str(i) for i in items[:3])
-                if tf.paragraphs:
-                    p = tf.paragraphs[0]
-                else:
-                    p = tf.add_paragraph()
-                run = p.add_run()
-                run.text = full_text
-                run.font.size = Pt(16)
+                for i, item in enumerate(items[:3]):
+                    if i == 0:
+                        p = tf.paragraphs[0]
+                    else:
+                        p = tf.add_paragraph()
+                    run = p.add_run()
+                    run.text = str(item)
+                    run.font.size = Pt(16)
+                    run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
             break
 
 
@@ -2010,7 +2032,7 @@ def generate_template_3_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 3:
             fill_t3_slide_6_image_left(slide, data, image_query)
         elif slide_type == 4:
-            fill_t3_slide_7_quote(slide, data)
+            fill_t3_slide_7_quote(slide, data, image_query)
 
         logging.info(f"  [T3] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
