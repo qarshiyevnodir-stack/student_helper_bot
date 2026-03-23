@@ -196,8 +196,10 @@ def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
 def fetch_image(image_query):
     """
     Pixabay orqali rasm yuklab oladi.
+    CDN previewURL dan _640.jpg o'lchamli rasm oladi (rate limit yo'q).
     Qaytaradi: lokal fayl yo'li yoki None.
     """
+    import re
     if not PIXABAY_API_KEY:
         logging.warning("PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
         return None
@@ -206,19 +208,63 @@ def fetch_image(image_query):
                f"?key={PIXABAY_API_KEY}"
                f"&q={requests.utils.quote(image_query)}"
                f"&image_type=photo&orientation=horizontal"
-               f"&per_page=3&safesearch=true")
+               f"&per_page=5&safesearch=true")
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         hits = resp.json().get("hits", [])
         if not hits:
             logging.warning(f"Rasm topilmadi: {image_query}")
             return None
-        img_url = hits[0]["webformatURL"]
-        img_data = requests.get(img_url, timeout=15).content
-        img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.jpg"
+
+        img_data = None
+        img_ext = "jpg"
+
+        for hit in hits:
+            preview_url = hit.get("previewURL", "")
+            if not preview_url:
+                continue
+
+            # Faqat .jpg previewURL larni ishlatamiz (PNG uchun 640px ishlamaydi)
+            if not preview_url.lower().endswith(".jpg"):
+                continue
+
+            # _150.jpg -> _640.jpg (CDN URL, rate limit yo'q)
+            cdn_url = re.sub(r'_\d+\.jpg$', '_640.jpg', preview_url)
+            img_resp = requests.get(cdn_url, timeout=15)
+            if img_resp.status_code == 200 and "image" in img_resp.headers.get("Content-Type", ""):
+                img_data = img_resp.content
+                logging.info(f"Rasm yuklandi (640px): {image_query}")
+                break
+
+            # Fallback: previewURL (150px)
+            img_resp2 = requests.get(preview_url, timeout=15)
+            if img_resp2.status_code == 200 and "image" in img_resp2.headers.get("Content-Type", ""):
+                img_data = img_resp2.content
+                logging.info(f"Rasm yuklandi (150px fallback): {image_query}")
+                break
+
+        # Agar .jpg topilmasa, istalgan previewURL dan yuklab olish
+        if not img_data:
+            for hit in hits:
+                preview_url = hit.get("previewURL", "")
+                if not preview_url:
+                    continue
+                img_resp = requests.get(preview_url, timeout=15)
+                if img_resp.status_code == 200 and "image" in img_resp.headers.get("Content-Type", ""):
+                    img_data = img_resp.content
+                    ct = img_resp.headers.get("Content-Type", "")
+                    img_ext = "png" if "png" in ct else "jpg"
+                    logging.info(f"Rasm yuklandi (preview fallback): {image_query}")
+                    break
+
+        if not img_data:
+            logging.warning(f"Rasm yuklab bo'lmadi: {image_query}")
+            return None
+
+        img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.{img_ext}"
         with open(img_path, "wb") as f:
             f.write(img_data)
-        logging.info(f"Rasm yuklandi: {image_query}")
+        logging.info(f"Rasm saqlandi: {img_path}")
         return img_path
     except Exception as e:
         logging.error(f"Rasm yuklashda xatolik ({image_query}): {e}")
