@@ -8,6 +8,7 @@ from utils import (
     generate_presentation,
     generate_template_1_presentation,
     generate_template_2_presentation,
+    generate_template_3_presentation,
     generate_plan_with_titles,
     generate_all_content,
 )
@@ -335,13 +336,13 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi")
 
-        # ── Prezentatsiya yaratish (2-shablon) ──
-        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "2.pptx")
+        # ── Prezentatsiya yaratish (3-shablon) ──
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "3.pptx")
         prs = Presentation(template_path)
 
         presentation_bytes = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_template_2_presentation(
+            lambda: generate_template_3_presentation(
                 prs=prs,
                 topic=topic,
                 requested_slide_count=slide_count,
