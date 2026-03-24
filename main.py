@@ -9,9 +9,11 @@ from utils import (
     generate_template_1_presentation,
     generate_template_2_presentation,
     generate_template_3_presentation,
+    generate_template_4_presentation,
     generate_plan_with_titles,
     generate_all_content,
     SLIDE_TYPE_NAMES_T3,
+    SLIDE_TYPE_NAMES_T4,
 )
 from pptx import Presentation
 
@@ -330,19 +332,19 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # ── 2-BOSQICH: Barcha kontent bitta GPT so'rovida (3-shablon turi bilan) ──
         content_data_list = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_all_content(topic, slide_count, language, slide_titles, SLIDE_TYPE_NAMES_T3)
+            lambda: generate_all_content(topic, slide_count, language, slide_titles, SLIDE_TYPE_NAMES_T4)
         )
 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi")
 
         # ── Prezentatsiya yaratish (3-shablon) ──
-        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "3.pptx")
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "4.pptx")
         prs = Presentation(template_path)
 
         presentation_bytes = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_template_3_presentation(
+            lambda: generate_template_4_presentation(
                 prs=prs,
                 topic=topic,
                 requested_slide_count=slide_count,

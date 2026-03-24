@@ -2076,3 +2076,529 @@ def generate_template_3_presentation(prs, topic, requested_slide_count, language
 
     logging.info(f"[T3] Taqdimot tayyor: {len(prs.slides)} ta slayd")
     return prs_bytes
+
+
+# ═══════════════════════════════════════════════════════════════
+# 4-SHABLON YORDAMCHI FUNKSIYALAR
+# ═══════════════════════════════════════════════════════════════
+
+# 4-shablon uchun slayd turi xaritasi
+SLIDE_TYPE_NAMES_T4 = {
+    0: "one_column",       # 3-slayd: bir ustunli matn
+    1: "three_columns",    # 4-slayd: uch ustunli
+    2: "two_columns",      # 5-slayd: ikki ustunli
+    3: "image_left",       # 6-slayd: chapda matn, o'ngda rasm
+    4: "three_textboxes",  # 7-slayd: uch TEXT_BOX
+}
+
+# 4-shablon kontent slayd indekslari (template da 3-7 slaydlar)
+CONTENT_SLIDE_TEMPLATE_INDICES_4 = [2, 3, 4, 5, 6]
+
+
+def build_slide_structure_4(prs, requested_content_count):
+    """
+    4-shablon uchun slayd tuzilmasini quradi.
+    1-slayd: muqova, 2-slayd: reja, 3-7: kontent, 8: xulosa
+    """
+    # Kontent slaydlar soni (min=1, max=cheksiz)
+    content_count = max(1, requested_content_count)
+
+    # Mavjud kontent slaydlarni o'chirish (3-7 slaydlar, indeks 2-6)
+    # Faqat 1 ta kontent slayd qoldiramiz, qolganlarini nusxa olamiz
+    base_content_slides = [prs.slides[i] for i in CONTENT_SLIDE_TEMPLATE_INDICES_4]
+
+    # Kerakli slaydlarni qo'shish yoki o'chirish
+    # Avval barcha kontent slaydlarni olib tashlaymiz (oxiridan boshlab)
+    # Keyin kerakli miqdorda nusxa qo'shamiz
+
+    # Hozirgi holat: 8 ta slayd (1 muqova + 1 reja + 5 kontent + 1 xulosa)
+    # Maqsad: 1 muqova + 1 reja + content_count kontent + 1 xulosa
+
+    from pptx.oxml.ns import qn
+    import copy
+
+    # Xulosa slaydini saqlash
+    conclusion_slide_xml = copy.deepcopy(prs.slides[7]._element)
+    conclusion_rId_map = {}
+
+    # Kontent slayd XML larini saqlash (5 ta tur)
+    content_slide_xmls = []
+    for i in CONTENT_SLIDE_TEMPLATE_INDICES_4:
+        content_slide_xmls.append(copy.deepcopy(prs.slides[i]._element))
+
+    # Barcha slaydlarni 2 tadan keyin o'chirish (reja slaydidan keyin)
+    slides_to_remove = list(prs.slides)[2:]
+    for slide in slides_to_remove:
+        sp = slide._element
+        sp.getparent().remove(sp)
+        # rId ni ham o'chirish
+        for rId, rel in list(prs.slides._sldIdLst.getparent().part.rels.items()):
+            if hasattr(rel, '_target') and rel._target is slide:
+                del prs.slides._sldIdLst.getparent().part.rels[rId]
+                break
+
+    # Yangi kontent slaydlarni qo'shish
+    for i in range(content_count):
+        template_idx = i % 5
+        xml_copy = copy.deepcopy(content_slide_xmls[template_idx])
+        # Slaydni qo'shish
+        slide_layout = prs.slides[0].slide_layout  # fallback
+        new_slide = prs.slides.add_slide(slide_layout)
+        # XML ni almashtirish
+        parent = new_slide._element.getparent()
+        idx_in_parent = list(parent).index(new_slide._element)
+        parent.remove(new_slide._element)
+        parent.insert(idx_in_parent, xml_copy)
+
+    # Xulosa slaydini qo'shish
+    xml_copy = copy.deepcopy(conclusion_slide_xml)
+    slide_layout = prs.slides[0].slide_layout
+    new_slide = prs.slides.add_slide(slide_layout)
+    parent = new_slide._element.getparent()
+    idx_in_parent = list(parent).index(new_slide._element)
+    parent.remove(new_slide._element)
+    parent.insert(idx_in_parent, xml_copy)
+
+    return content_count
+
+
+def fill_t4_slide_1_cover(slide, topic, name_surname):
+    """
+    4-Shablon Slayd 1 — Muqova (TITLE layout).
+    idx=0 CENTER_TITLE: katta sarlavha (chapda)
+    idx=1 SUBTITLE: ism-familiya (pastda)
+    """
+    title_ph = find_placeholder_by_idx(slide, 0)
+    sub_ph   = find_placeholder_by_idx(slide, 1)
+
+    if title_ph:
+        auto_shrink_text(title_ph, topic.upper(), base_font_pt=54, min_font_pt=28, bold=True)
+
+    if sub_ph:
+        tf = sub_ph.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = name_surname or ""
+        run.font.size = Pt(16)
+
+
+def fill_t4_slide_2_plan(slide, plan_data):
+    """
+    4-Shablon Slayd 2 — Reja (BLANK_1_1_1_1_1_1 layout).
+    idx=0 TITLE: "REJA" — o'zgartirmaslik
+    idx=1..4 SUBTITLE: reja bandlari (4 ta)
+    """
+    from pptx.oxml.ns import qn
+    from lxml import etree
+
+    items = plan_data.get("content", [])
+
+    for i in range(1, 5):
+        ph = find_placeholder_by_idx(slide, i)
+        if ph and (i - 1) < len(items):
+            text = str(items[i - 1])
+            # Raqam prefiksini olib tashlash (agar bor bo'lsa)
+            import re
+            text = re.sub(r'^\d+[\.\)]\s*', '', text).strip()
+            tf = ph.text_frame
+            txBody = tf._txBody
+            for p_el in txBody.findall(qn('a:p')):
+                txBody.remove(p_el)
+            new_p = etree.SubElement(txBody, qn('a:p'))
+            pPr = etree.SubElement(new_p, qn('a:pPr'))
+            etree.SubElement(pPr, qn('a:buNone'))
+            pPr.set('marL', '0')
+            pPr.set('indent', '0')
+            pPr.set('algn', 'l')
+            new_r = etree.SubElement(new_p, qn('a:r'))
+            rPr = etree.SubElement(new_r, qn('a:rPr'))
+            rPr.set('lang', 'uz-UZ')
+            rPr.set('dirty', '0')
+            rPr.set('sz', '1600')
+            t_el = etree.SubElement(new_r, qn('a:t'))
+            t_el.text = text
+            tf.word_wrap = True
+        elif ph:
+            # Bo'sh qoldirilsin
+            tf = ph.text_frame
+            txBody = tf._txBody
+            for p_el in txBody.findall(qn('a:p')):
+                txBody.remove(p_el)
+            etree.SubElement(txBody, qn('a:p'))
+
+
+def fill_t4_slide_3_one_column(slide, content_data):
+    """
+    4-Shablon Slayd 3 — Bir ustunli matn (CUSTOM_4 layout).
+    idx=0 TITLE: sarlavha (chapda)
+    idx=1 SUBTITLE: asosiy matn bloki (chapda)
+    """
+    from pptx.enum.text import MSO_ANCHOR
+    from pptx.oxml.ns import qn
+    from lxml import etree
+
+    title_ph = find_placeholder_by_idx(slide, 0)
+    body_ph  = find_placeholder_by_idx(slide, 1)
+
+    if title_ph:
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=24, min_font_pt=14, bold=True)
+
+    if body_ph:
+        items = content_data.get("content", [])
+        total_chars = sum(len(str(i)) for i in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=18)
+
+        tf = body_ph.text_frame
+        tf.clear()
+        tf.word_wrap = True
+
+        for idx_p, item in enumerate(items):
+            if idx_p == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            pPr = p._p.get_or_add_pPr()
+            for child in list(pPr):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL'):
+                    pPr.remove(child)
+            etree.SubElement(pPr, qn('a:buNone'))
+            pPr.set('marL', '0')
+            pPr.set('indent', '0')
+            run = p.add_run()
+            run.text = str(item)
+            run.font.size = Pt(font_pt)
+        body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+
+
+def fill_t4_slide_4_three_columns(slide, content_data):
+    """
+    4-Shablon Slayd 4 — Uch ustunli (CUSTOM_6_1_1 layout).
+    idx=0 TITLE: sarlavha
+    idx=1 SUBTITLE: chap ustun
+    idx=2 SUBTITLE: o'rta ustun
+    idx=3 SUBTITLE: o'ng ustun
+    """
+    from pptx.oxml.ns import qn
+    from lxml import etree
+
+    title_ph = find_placeholder_by_idx(slide, 0)
+    col1_ph  = find_placeholder_by_idx(slide, 1)
+    col2_ph  = find_placeholder_by_idx(slide, 2)
+    col3_ph  = find_placeholder_by_idx(slide, 3)
+
+    if title_ph:
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=24, min_font_pt=14, bold=True)
+
+    col1_text = content_data.get("col1", "")
+    col2_text = content_data.get("col2", "")
+    col3_text = content_data.get("col3", "")
+    if not col1_text:
+        items = content_data.get("content", ["", "", ""])
+        col1_text = items[0] if len(items) > 0 else ""
+        col2_text = items[1] if len(items) > 1 else ""
+        col3_text = items[2] if len(items) > 2 else ""
+    if not col3_text and col2_text:
+        words = col2_text.split('. ')
+        half = len(words) // 2
+        if half > 0:
+            col3_text = '. '.join(words[half:]).strip()
+            col2_text = '. '.join(words[:half]).strip()
+
+    def write_col(ph, text):
+        if not ph or not text:
+            return
+        tf = ph.text_frame
+        txBody = tf._txBody
+        for p_el in txBody.findall(qn('a:p')):
+            txBody.remove(p_el)
+        new_p = etree.SubElement(txBody, qn('a:p'))
+        pPr = etree.SubElement(new_p, qn('a:pPr'))
+        etree.SubElement(pPr, qn('a:buNone'))
+        pPr.set('marL', '0')
+        pPr.set('indent', '0')
+        pPr.set('algn', 'l')
+        new_r = etree.SubElement(new_p, qn('a:r'))
+        rPr = etree.SubElement(new_r, qn('a:rPr'))
+        rPr.set('lang', 'uz-UZ')
+        rPr.set('dirty', '0')
+        font_pt = calc_body_font_pt(len(text), base_pt=13, min_pt=9, max_pt=16)
+        rPr.set('sz', str(font_pt * 100))
+        t_el = etree.SubElement(new_r, qn('a:t'))
+        t_el.text = text
+        tf.word_wrap = True
+
+    write_col(col1_ph, col1_text)
+    write_col(col2_ph, col2_text)
+    write_col(col3_ph, col3_text)
+
+
+def fill_t4_slide_5_two_columns(slide, content_data):
+    """
+    4-Shablon Slayd 5 — Ikki ustunli (TITLE_AND_TWO_COLUMNS_1_1 layout).
+    idx=0 TITLE: sarlavha
+    idx=1 SUBTITLE: o'ng ustun
+    idx=2 SUBTITLE: chap ustun
+    """
+    from pptx.oxml.ns import qn
+    from lxml import etree
+
+    title_ph  = find_placeholder_by_idx(slide, 0)
+    right_ph  = find_placeholder_by_idx(slide, 1)
+    left_ph   = find_placeholder_by_idx(slide, 2)
+
+    if title_ph:
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=24, min_font_pt=14, bold=True)
+
+    col1_text = content_data.get("col1", "")
+    col2_text = content_data.get("col2", "")
+    if not col1_text:
+        items = content_data.get("content", ["", ""])
+        col1_text = items[0] if len(items) > 0 else ""
+        col2_text = items[1] if len(items) > 1 else ""
+
+    def write_col(ph, text):
+        if not ph or not text:
+            return
+        tf = ph.text_frame
+        txBody = tf._txBody
+        for p_el in txBody.findall(qn('a:p')):
+            txBody.remove(p_el)
+        new_p = etree.SubElement(txBody, qn('a:p'))
+        pPr = etree.SubElement(new_p, qn('a:pPr'))
+        etree.SubElement(pPr, qn('a:buNone'))
+        pPr.set('marL', '0')
+        pPr.set('indent', '0')
+        pPr.set('algn', 'l')
+        new_r = etree.SubElement(new_p, qn('a:r'))
+        rPr = etree.SubElement(new_r, qn('a:rPr'))
+        rPr.set('lang', 'uz-UZ')
+        rPr.set('dirty', '0')
+        font_pt = calc_body_font_pt(len(text), base_pt=15, min_pt=10, max_pt=18)
+        rPr.set('sz', str(font_pt * 100))
+        t_el = etree.SubElement(new_r, qn('a:t'))
+        t_el.text = text
+        tf.word_wrap = True
+
+    write_col(left_ph, col1_text)
+    write_col(right_ph, col2_text)
+
+
+def fill_t4_slide_6_image_left(slide, content_data, image_query):
+    """
+    4-Shablon Slayd 6 — Chapda matn, o'ngda rasm (CUSTOM_4 layout).
+    idx=0 TITLE: sarlavha
+    idx=1 SUBTITLE: matn bloki (chapda)
+    O'ngda katta gradient shape ustiga rasm qo'yiladi: (5.0",1.53") 5.5"x2.47"
+    """
+    from pptx.enum.text import MSO_ANCHOR
+    from pptx.oxml.ns import qn
+    from lxml import etree
+    from pptx.util import Inches
+
+    title_ph = find_placeholder_by_idx(slide, 0)
+    body_ph  = find_placeholder_by_idx(slide, 1)
+
+    if title_ph:
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=24, min_font_pt=14, bold=True)
+
+    if body_ph:
+        items = content_data.get("content", [])
+        total_chars = sum(len(str(i)) for i in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=18)
+
+        tf = body_ph.text_frame
+        tf.clear()
+        tf.word_wrap = True
+
+        for idx_p, item in enumerate(items):
+            if idx_p == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            pPr = p._p.get_or_add_pPr()
+            for child in list(pPr):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('buChar', 'buAutoNum', 'buNone', 'buClr', 'buFont', 'buSzPct', 'indent', 'marL'):
+                    pPr.remove(child)
+            etree.SubElement(pPr, qn('a:buNone'))
+            pPr.set('marL', '0')
+            pPr.set('indent', '0')
+            run = p.add_run()
+            run.text = str(item)
+            run.font.size = Pt(font_pt)
+        body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+
+    # O'ngdagi gradient shape ustiga rasm qo'yish
+    query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
+    img_path = fetch_image(query)
+    if img_path:
+        left   = Inches(5.0)
+        top    = Inches(1.53)
+        width  = Inches(4.77)
+        height = Inches(2.47)
+        slide.shapes.add_picture(img_path, left, top, width, height)
+
+
+def fill_t4_slide_7_three_textboxes(slide, content_data):
+    """
+    4-Shablon Slayd 7 — Uch TEXT_BOX (TITLE_ONLY layout).
+    idx=0 TITLE: sarlavha
+    TEXT_BOX 1: (0.79",1.44") 3.8"x1.36" — chap yuqori
+    TEXT_BOX 2: (5.41",2.63") 3.8"x1.36" — o'ng o'rta
+    TEXT_BOX 3: (0.79",4.0") 3.8"x1.2" — chap pastki
+    """
+    from pptx.util import Pt
+
+    title_ph = find_placeholder_by_idx(slide, 0)
+
+    if title_ph:
+        auto_shrink_text(title_ph, content_data.get("title", ""), base_font_pt=24, min_font_pt=14, bold=True)
+
+    # 3 ta TEXT_BOX topish (shape_type == 17)
+    textboxes = []
+    for shape in slide.shapes:
+        if shape.shape_type == 17 and shape.has_text_frame:  # TEXT_BOX
+            textboxes.append(shape)
+
+    items = content_data.get("content", [])
+    # col1/col2/col3 dan ham olish
+    if not items:
+        items = [
+            content_data.get("col1", ""),
+            content_data.get("col2", ""),
+            content_data.get("col3", ""),
+        ]
+    items = [str(i) for i in items if i]
+
+    for i, tb in enumerate(textboxes[:3]):
+        if i < len(items):
+            text = items[i]
+            font_pt = calc_body_font_pt(len(text), base_pt=14, min_pt=9, max_pt=16)
+            tf = tb.text_frame
+            tf.clear()
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            run = p.add_run()
+            run.text = text
+            run.font.size = Pt(font_pt)
+
+
+def fill_t4_slide_8_conclusion(slide, conclusion_data):
+    """
+    4-Shablon Slayd 8 — Xulosa (TITLE_ONLY layout).
+    idx=0 TITLE: sarlavha ("Thanks!" o'rniga xulosa sarlavhasi)
+    idx=4294967295 BODY: katta matn maydoni
+    """
+    from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
+
+    title_ph = find_placeholder_by_idx(slide, 0)
+    if title_ph:
+        title_text = conclusion_data.get("title", "Xulosa")
+        auto_shrink_text(title_ph, title_text, base_font_pt=32, min_font_pt=16, bold=True)
+
+    # BODY placeholder (idx=4294967295) ga xulosa matnini yozish
+    for shape in slide.shapes:
+        try:
+            pf = shape.placeholder_format
+            if pf and pf.idx == 4294967295:
+                items = conclusion_data.get("content", [])
+                if items:
+                    tf = shape.text_frame
+                    tf.clear()
+                    tf.word_wrap = True
+                    total_chars = sum(len(str(it)) for it in items)
+                    font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=11, max_pt=20)
+                    for i, item in enumerate(items):
+                        if i == 0:
+                            p = tf.paragraphs[0]
+                        else:
+                            p = tf.add_paragraph()
+                        run = p.add_run()
+                        run.text = str(item)
+                        run.font.size = Pt(font_pt)
+                break
+        except Exception:
+            pass
+
+
+# ═══════════════════════════════════════════════════════════════
+# 4-SHABLON ASOSIY FUNKSIYA
+# ═══════════════════════════════════════════════════════════════
+
+def generate_template_4_presentation(prs, topic, requested_slide_count, language,
+                                      name_surname="", plan=None,
+                                      content_data_list=None):
+    """
+    4-shablon (4.pptx) asosida taqdimot yaratadi.
+    """
+    logging.info(f"[T4] Taqdimot yaratilmoqda: mavzu='{topic}', slaydlar={requested_slide_count}, til={language}")
+
+    # ── 1. Shablon tuzilmasini qurish ──
+    total_content_slides = build_slide_structure_4(prs, requested_slide_count)
+
+    # ── 2. Kontent ma'lumotlarini tayyorlash ──
+    if plan is None or not isinstance(plan, dict) or not plan.get("content"):
+        plan = {"title": "Reja", "content": ["Kirish", "Asosiy qism", "Xulosa"]}
+
+    if content_data_list is None:
+        content_data_list = []
+        for i in range(total_content_slides):
+            stype_name = SLIDE_TYPE_NAMES_T4.get(i % 5, "one_column")
+            if stype_name == "three_columns":
+                stype = "three_columns"
+            elif stype_name == "two_columns":
+                stype = "two_columns"
+            elif stype_name == "image_left":
+                stype = "image_left"
+            elif stype_name == "three_textboxes":
+                stype = "three_columns"  # GPT uchun three_columns formatini ishlatamiz
+            else:
+                stype = None
+            data = generate_slide_content(topic, i + 3, len(prs.slides), language, slide_type=stype)
+            if not data:
+                data = {"title": f"{topic} — {i+1}", "content": ["Asosiy ma'lumot"], "image_query": topic}
+            content_data_list.append(data)
+    else:
+        while len(content_data_list) < total_content_slides:
+            content_data_list.append({"title": topic, "content": ["Ma'lumot"], "image_query": topic})
+
+    conclusion = generate_slide_content(topic, len(prs.slides), len(prs.slides), language, is_conclusion=True)
+    if not conclusion:
+        conclusion = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
+
+    # ── 3. Slaydlarni to'ldirish ──
+    fill_t4_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_t4_slide_2_plan(prs.slides[1], plan)
+
+    for i in range(total_content_slides):
+        slide_index = i + 2
+        slide = prs.slides[slide_index]
+        data = content_data_list[i]
+        image_query = data.get("image_query", topic)
+        slide_type = i % 5
+
+        if slide_type == 0:
+            fill_t4_slide_3_one_column(slide, data)
+        elif slide_type == 1:
+            fill_t4_slide_4_three_columns(slide, data)
+        elif slide_type == 2:
+            fill_t4_slide_5_two_columns(slide, data)
+        elif slide_type == 3:
+            fill_t4_slide_6_image_left(slide, data, image_query)
+        elif slide_type == 4:
+            fill_t4_slide_7_three_textboxes(slide, data)
+
+        logging.info(f"  [T4] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+
+    fill_t4_slide_8_conclusion(prs.slides[-1], conclusion)
+
+    # ── 4. Faylni xotiraga saqlash ──
+    prs_bytes = BytesIO()
+    prs.save(prs_bytes)
+    prs_bytes.seek(0)
+
+    logging.info(f"[T4] Taqdimot tayyor: {len(prs.slides)} ta slayd")
+    return prs_bytes
