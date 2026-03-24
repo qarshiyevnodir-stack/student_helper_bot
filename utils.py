@@ -156,6 +156,26 @@ def auto_shrink_text(shape, text, base_font_pt, min_font_pt=10, bold=False):
         run.font.bold = True
 
 
+def calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=20):
+    """
+    Matn uzunligiga qarab shrift o'lchamini hisoblaydi.
+    Matn qisqa bo'lsa kattaroq, uzun bo'lsa kichikroq shrift.
+    total_chars: barcha matn belgilarining umumiy soni
+    """
+    if total_chars <= 150:
+        return min(max_pt, base_pt + 4)   # 20pt
+    elif total_chars <= 300:
+        return min(max_pt, base_pt + 2)   # 18pt
+    elif total_chars <= 500:
+        return base_pt                    # 16pt
+    elif total_chars <= 800:
+        return max(min_pt, base_pt - 2)   # 14pt
+    elif total_chars <= 1200:
+        return max(min_pt, base_pt - 4)   # 12pt
+    else:
+        return max(min_pt, base_pt - 6)   # 10pt
+
+
 def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
     """
     Ro'yxat matnini yozadi. Elementlar ko'p yoki uzun bo'lsa shriftni kichraytiradi.
@@ -1654,8 +1674,9 @@ def fill_t3_slide_3_one_column(slide, content_data):
         body_ph.height = Inches(3.70)
 
         items = content_data.get("content", [])
-        # Barcha mavjud elementlarni ko'rsat (cheklovsiz), har doim 16pt
-        font_pt = 16
+        # Matn uzunligiga qarab shrift o'lchamini hisoblash
+        total_chars = sum(len(str(i)) for i in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=20)
 
         tf = body_ph.text_frame
         tf.clear()
@@ -1723,7 +1744,7 @@ def fill_t3_slide_4_two_columns(slide, content_data):
         rPr = _etree.SubElement(new_r, qn('a:rPr'))
         rPr.set('lang', 'uz-UZ')
         rPr.set('dirty', '0')
-        font_pt = 16 if len(text) <= 200 else 13 if len(text) <= 400 else 11
+        font_pt = calc_body_font_pt(len(text), base_pt=15, min_pt=10, max_pt=18)
         rPr.set('sz', str(font_pt * 100))
         t_el = _etree.SubElement(new_r, qn('a:t'))
         t_el.text = text
@@ -1789,7 +1810,7 @@ def fill_t3_slide_5_three_columns(slide, content_data):
         rPr = _etree.SubElement(new_r, qn('a:rPr'))
         rPr.set('lang', 'uz-UZ')
         rPr.set('dirty', '0')
-        font_pt = 14 if len(text) <= 200 else 12 if len(text) <= 400 else 10
+        font_pt = calc_body_font_pt(len(text), base_pt=13, min_pt=9, max_pt=16)
         rPr.set('sz', str(font_pt * 100))
         t_el = _etree.SubElement(new_r, qn('a:t'))
         t_el.text = text
@@ -1823,15 +1844,10 @@ def fill_t3_slide_6_image_left(slide, content_data, image_query):
         tf.clear()
         tf.word_wrap = True
 
-        total_chars = sum(len(str(i)) for i in items[:3])
-        if total_chars <= 250:
-            font_pt = 16
-        elif total_chars <= 500:
-            font_pt = 13
-        else:
-            font_pt = 11
+        total_chars = sum(len(str(i)) for i in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
 
-        for idx_p, item in enumerate(items[:3]):
+        for idx_p, item in enumerate(items):
             if idx_p == 0:
                 p = tf.paragraphs[0]
             else:
@@ -1878,15 +1894,10 @@ def fill_t3_slide_7_quote(slide, content_data, image_query=None):
         tf.clear()
         tf.word_wrap = True
 
-        total_chars = sum(len(str(i)) for i in items[:3])
-        if total_chars <= 250:
-            font_pt = 16
-        elif total_chars <= 500:
-            font_pt = 13
-        else:
-            font_pt = 11
+        total_chars = sum(len(str(i)) for i in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
 
-        for idx_p, item in enumerate(items[:3]):
+        for idx_p, item in enumerate(items):
             if idx_p == 0:
                 p = tf.paragraphs[0]
             else:
@@ -1953,14 +1964,16 @@ def fill_t3_slide_8_conclusion(slide, conclusion_data):
                 tf = shape.text_frame
                 tf.clear()
                 tf.word_wrap = True
-                for i, item in enumerate(items[:3]):
+                total_chars = sum(len(str(it)) for it in items)
+                font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=11, max_pt=20)
+                for i, item in enumerate(items):
                     if i == 0:
                         p = tf.paragraphs[0]
                     else:
                         p = tf.add_paragraph()
                     run = p.add_run()
                     run.text = str(item)
-                    run.font.size = Pt(16)
+                    run.font.size = Pt(font_pt)
                     run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
             break
 
