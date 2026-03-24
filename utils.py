@@ -2098,68 +2098,29 @@ CONTENT_SLIDE_TEMPLATE_INDICES_4 = [2, 3, 4, 5, 6]
 def build_slide_structure_4(prs, requested_content_count):
     """
     4-shablon uchun slayd tuzilmasini quradi.
-    1-slayd: muqova, 2-slayd: reja, 3-7: kontent, 8: xulosa
+    3-shablon kabi duplicate_slide va move_slide ishlatadi.
+    1-slayd: muqova, 2-slayd: reja, 3-7: kontent (5 tur), 8: xulosa
     """
-    # Kontent slaydlar soni (min=1, max=cheksiz)
-    content_count = max(1, requested_content_count)
+    full_repeats = max(1, round(requested_content_count / 5))
+    total_content_slides = full_repeats * 5
 
-    # Mavjud kontent slaydlarni o'chirish (3-7 slaydlar, indeks 2-6)
-    # Faqat 1 ta kontent slayd qoldiramiz, qolganlarini nusxa olamiz
-    base_content_slides = [prs.slides[i] for i in CONTENT_SLIDE_TEMPLATE_INDICES_4]
+    logging.info(f"[T4] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
 
-    # Kerakli slaydlarni qo'shish yoki o'chirish
-    # Avval barcha kontent slaydlarni olib tashlaymiz (oxiridan boshlab)
-    # Keyin kerakli miqdorda nusxa qo'shamiz
+    extra_sets_needed = full_repeats - 1
 
-    # Hozirgi holat: 8 ta slayd (1 muqova + 1 reja + 5 kontent + 1 xulosa)
-    # Maqsad: 1 muqova + 1 reja + content_count kontent + 1 xulosa
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_4:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T4] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
 
-    from pptx.oxml.ns import qn
-    import copy
+    # Xulosa slaydini (index 7) oxiriga ko'chirish
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
 
-    # Xulosa slaydini saqlash
-    conclusion_slide_xml = copy.deepcopy(prs.slides[7]._element)
-    conclusion_rId_map = {}
-
-    # Kontent slayd XML larini saqlash (5 ta tur)
-    content_slide_xmls = []
-    for i in CONTENT_SLIDE_TEMPLATE_INDICES_4:
-        content_slide_xmls.append(copy.deepcopy(prs.slides[i]._element))
-
-    # Barcha slaydlarni 2 tadan keyin o'chirish (reja slaydidan keyin)
-    slides_to_remove = list(prs.slides)[2:]
-    for slide in slides_to_remove:
-        sp = slide._element
-        sp.getparent().remove(sp)
-        # rId ni ham o'chirish
-        for rId, rel in list(prs.slides._sldIdLst.getparent().part.rels.items()):
-            if hasattr(rel, '_target') and rel._target is slide:
-                del prs.slides._sldIdLst.getparent().part.rels[rId]
-                break
-
-    # Yangi kontent slaydlarni qo'shish
-    for i in range(content_count):
-        template_idx = i % 5
-        xml_copy = copy.deepcopy(content_slide_xmls[template_idx])
-        # Slaydni qo'shish
-        slide_layout = prs.slides[0].slide_layout  # fallback
-        new_slide = prs.slides.add_slide(slide_layout)
-        # XML ni almashtirish
-        parent = new_slide._element.getparent()
-        idx_in_parent = list(parent).index(new_slide._element)
-        parent.remove(new_slide._element)
-        parent.insert(idx_in_parent, xml_copy)
-
-    # Xulosa slaydini qo'shish
-    xml_copy = copy.deepcopy(conclusion_slide_xml)
-    slide_layout = prs.slides[0].slide_layout
-    new_slide = prs.slides.add_slide(slide_layout)
-    parent = new_slide._element.getparent()
-    idx_in_parent = list(parent).index(new_slide._element)
-    parent.remove(new_slide._element)
-    parent.insert(idx_in_parent, xml_copy)
-
-    return content_count
+    logging.info(f"[T4] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
 
 
 def fill_t4_slide_1_cover(slide, topic, name_surname):
