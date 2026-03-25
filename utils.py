@@ -2695,14 +2695,25 @@ def fill_t5_slide_3_image_right(slide, content_data, image_query):
             run = p.add_run()
             run.text = title
         elif idx == 2:
+            from lxml import etree
+            ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+            total_chars = sum(len(s) for s in items)
+            font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=22)
+            txBody = tf._txBody
+            for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+                txBody.remove(p_elem)
+            for item in items:
+                safe_item = item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                p_xml = (
+                    f'<a:p xmlns:a="{ns_a}">'
+                    f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                    f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
+                    f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
+                    f'<a:t>{safe_item}</a:t></a:r></a:p>'
+                )
+                p_elem = etree.fromstring(p_xml)
+                txBody.append(p_elem)
             tf.word_wrap = True
-            for j, item in enumerate(items):
-                p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-                p.alignment = PP_ALIGN.LEFT
-                run = p.add_run()
-                run.text = item
-                run.font.size = Pt(16)
-                run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
     # Rasm qo'yish (idx=1)
     img_path = fetch_image(image_query)
@@ -2791,16 +2802,25 @@ def fill_t5_slide_5_two_staggered(slide, content_data):
     block2 = items[mid:]
 
     def write_block(tf, items):
-        tf.clear()
+        from lxml import etree
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        total_chars = sum(len(s) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=22)
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+        for item in items:
+            safe_item = item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            p_elem = etree.fromstring(p_xml)
+            txBody.append(p_elem)
         tf.word_wrap = True
-        for j, item in enumerate(items):
-            p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-            p.alignment = PP_ALIGN.LEFT
-            run = p.add_run()
-            run.text = item
-            run.font.size = Pt(16)
-            run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
-
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
