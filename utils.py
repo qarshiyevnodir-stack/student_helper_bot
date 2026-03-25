@@ -2630,11 +2630,10 @@ def fill_t5_slide_2_plan(slide, plan_data):
     """
     5-Shablon Slayd 2 — Reja.
     idx=0: 'REJA' — o'zgartirmaslik
-    idx=1: Reja bandlari ro'yxati — chapga tekislangan
+    idx=1: Reja bandlari ro'yxati — chapga tekislangan, raqamli, bulletsiz
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from pptx.dml.color import RGBColor
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     titles = plan_data.get("content", plan_data.get("titles", []))
     for shape in slide.shapes:
         if not shape.has_text_frame:
@@ -2646,20 +2645,26 @@ def fill_t5_slide_2_plan(slide, plan_data):
             continue  # "REJA" — o'zgartirmaslik
         if idx == 1:
             tf = shape.text_frame
-            tf.clear()
             tf.word_wrap = True
             total_chars = sum(len(t) for t in titles)
             font_pt = calc_body_font_pt(total_chars, base_pt=18, min_pt=12, max_pt=22)
-            for j, title in enumerate(titles):
-                if j == 0:
-                    p = tf.paragraphs[0]
-                else:
-                    p = tf.add_paragraph()
-                p.alignment = PP_ALIGN.LEFT
-                run = p.add_run()
-                run.text = f"{j + 1}. {title}"
-                run.font.size = Pt(font_pt)
-                run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
+            # Remove all existing paragraphs from txBody
+            txBody = tf._txBody
+            for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+                txBody.remove(p_elem)
+            # Add clean numbered paragraphs with buNone (no bullet)
+            for title in titles:
+                # title already has "1. " prefix from generate_plan_with_titles
+                safe_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                p_xml = (
+                    f'<a:p xmlns:a="{ns_a}">' 
+                    f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                    f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
+                    f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
+                    f'<a:t>{safe_title}</a:t></a:r></a:p>'
+                )
+                p_elem = etree.fromstring(p_xml)
+                txBody.append(p_elem)
 
 
 def fill_t5_slide_3_image_right(slide, content_data, image_query):
