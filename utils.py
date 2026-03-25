@@ -1845,7 +1845,7 @@ def fill_t3_slide_6_image_left(slide, content_data, image_query):
         tf.word_wrap = True
 
         total_chars = sum(len(str(i)) for i in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
+        font_pt = calc_body_font_pt(total_chars, base_pt=17, min_pt=12, max_pt=21)
 
         for idx_p, item in enumerate(items):
             if idx_p == 0:
@@ -1895,7 +1895,7 @@ def fill_t3_slide_7_quote(slide, content_data, image_query=None):
         tf.word_wrap = True
 
         total_chars = sum(len(str(i)) for i in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
+        font_pt = calc_body_font_pt(total_chars, base_pt=17, min_pt=12, max_pt=21)
 
         for idx_p, item in enumerate(items):
             if idx_p == 0:
@@ -2698,7 +2698,7 @@ def fill_t5_slide_3_image_right(slide, content_data, image_query):
             from lxml import etree
             ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
             total_chars = sum(len(s) for s in items)
-            font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=22)
+            font_pt = calc_body_font_pt(total_chars, base_pt=18, min_pt=12, max_pt=24)
             txBody = tf._txBody
             for p_elem in txBody.findall(f'{{{ns_a}}}p'):
                 txBody.remove(p_elem)
@@ -2749,7 +2749,7 @@ def fill_t5_slide_4_two_columns(slide, content_data):
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         align_val = 'r' if align == PP_ALIGN.RIGHT else 'l'
         total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=12, max_pt=20)
         # Remove all existing paragraphs from txBody
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
@@ -2805,7 +2805,7 @@ def fill_t5_slide_5_two_staggered(slide, content_data):
         from lxml import etree
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=10, max_pt=22)
+        font_pt = calc_body_font_pt(total_chars, base_pt=18, min_pt=12, max_pt=24)
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
@@ -2869,7 +2869,7 @@ def fill_t5_slide_6_image_right2(slide, content_data, image_query):
         elif idx == 2:
             tf.word_wrap = True
             total_chars = sum(len(s) for s in items)
-            font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
+            font_pt = calc_body_font_pt(total_chars, base_pt=17, min_pt=12, max_pt=21)
             for j, item in enumerate(items):
                 p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
                 p.alignment = PP_ALIGN.LEFT
@@ -2911,7 +2911,7 @@ def fill_t5_slide_7_two_blocks(slide, content_data):
         from lxml import etree
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=13, min_pt=9, max_pt=16)
+        font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=11, max_pt=18)
         # Remove all existing paragraphs from txBody
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
