@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import asyncio
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
@@ -13,6 +14,7 @@ from utils import (
     generate_template_5_presentation,
     generate_plan_with_titles,
     generate_all_content,
+    SLIDE_TYPE_NAMES,
     SLIDE_TYPE_NAMES_T3,
     SLIDE_TYPE_NAMES_T4,
     SLIDE_TYPE_NAMES_T5,
@@ -330,23 +332,41 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     chat_id = query.message.chat_id
 
+    # ── Tasodifiy shablon tanlash (1-5) ──
+    template_num = random.randint(1, 5)
+    template_slide_type_names = {
+        1: SLIDE_TYPE_NAMES,
+        2: SLIDE_TYPE_NAMES,
+        3: SLIDE_TYPE_NAMES_T3,
+        4: SLIDE_TYPE_NAMES_T4,
+        5: SLIDE_TYPE_NAMES_T5,
+    }[template_num]
+    template_generate_func = {
+        1: generate_template_1_presentation,
+        2: generate_template_2_presentation,
+        3: generate_template_3_presentation,
+        4: generate_template_4_presentation,
+        5: generate_template_5_presentation,
+    }[template_num]
+    logger.info(f"Tasodifiy tanlangan shablon: {template_num}")
+
     try:
-        # ── 2-BOSQICH: Barcha kontent bitta GPT so'rovida (5-shablon turi bilan) ──
+        # ── 2-BOSQICH: Barcha kontent bitta GPT so'rovida ──
         content_data_list = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_all_content(topic, slide_count, language, slide_titles, SLIDE_TYPE_NAMES_T5)
+            lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
         )
 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi")
 
-        # ── Prezentatsiya yaratish (5-shablon) ──
-        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", "5.pptx")
+        # ── Prezentatsiya yaratish (tasodifiy shablon) ──
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
         prs = Presentation(template_path)
 
         presentation_bytes = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_template_5_presentation(
+            lambda: template_generate_func(
                 prs=prs,
                 topic=topic,
                 requested_slide_count=slide_count,
