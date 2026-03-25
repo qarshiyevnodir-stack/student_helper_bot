@@ -2743,13 +2743,15 @@ def fill_t5_slide_4_two_columns(slide, content_data):
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
-        # Add clean paragraphs
+        # Add clean paragraphs with buNone (no bullet)
         for item in items:
+            safe_item = item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="{align_val}"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
                 f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
-                f'<a:t>{item}</a:t></a:r></a:p>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
             p_elem = etree.fromstring(p_xml)
             txBody.append(p_elem)
@@ -2770,8 +2772,6 @@ def fill_t5_slide_4_two_columns(slide, content_data):
             write_col(tf, col1, PP_ALIGN.RIGHT)
         elif idx == 4:
             write_col(tf, col2, PP_ALIGN.LEFT)
-
-
 def fill_t5_slide_5_two_staggered(slide, content_data):
     """
     5-Shablon Slayd 5 — Ikki offset blok.
@@ -2896,18 +2896,19 @@ def fill_t5_slide_7_two_blocks(slide, content_data):
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
-        # Add clean paragraphs
+        # Add clean paragraphs with buNone (no bullet)
         for item in items:
+            safe_item = item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
                 f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
-                f'<a:t>{item}</a:t></a:r></a:p>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
             p_elem = etree.fromstring(p_xml)
             txBody.append(p_elem)
         tf.word_wrap = True
-
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
@@ -2924,8 +2925,6 @@ def fill_t5_slide_7_two_blocks(slide, content_data):
             write_block(tf, col1)
         elif idx == 2:
             write_block(tf, col2)
-
-
 def fill_t5_slide_8_conclusion(slide, conclusion_data):
     """
     5-Shablon Slayd 8 — Xulosa.
@@ -2946,7 +2945,11 @@ def fill_t5_slide_8_conclusion(slide, conclusion_data):
             continue
         idx = shape.placeholder_format.idx
         if idx == 0:
-            continue  # "THANKS!" — o'zgartirmaslik
+            tf = shape.text_frame
+            tf.clear()
+            p = tf.paragraphs[0]
+            run = p.add_run()
+            run.text = "XULOSA"
         if idx == 1:
             tf = shape.text_frame
             tf.clear()
