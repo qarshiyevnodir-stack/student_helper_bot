@@ -2635,7 +2635,7 @@ def fill_t5_slide_2_plan(slide, plan_data):
     from pptx.util import Pt
     from pptx.enum.text import PP_ALIGN
     from pptx.dml.color import RGBColor
-    titles = plan_data.get("titles", [])
+    titles = plan_data.get("content", plan_data.get("titles", []))
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
@@ -2691,14 +2691,12 @@ def fill_t5_slide_3_image_right(slide, content_data, image_query):
             run.text = title
         elif idx == 2:
             tf.word_wrap = True
-            total_chars = sum(len(s) for s in items)
-            font_pt = calc_body_font_pt(total_chars, base_pt=15, min_pt=10, max_pt=19)
             for j, item in enumerate(items):
                 p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
                 p.alignment = PP_ALIGN.LEFT
                 run = p.add_run()
                 run.text = item
-                run.font.size = Pt(font_pt)
+                run.font.size = Pt(16)
                 run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
     # Rasm qo'yish (idx=1)
@@ -2726,16 +2724,16 @@ def fill_t5_slide_4_two_columns(slide, content_data):
         col1 = items[:mid]
         col2 = items[mid:]
 
-    def write_col(tf, items):
+    def write_col(tf, items, align):
         tf.clear()
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
         for j, item in enumerate(items):
             p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-            p.alignment = PP_ALIGN.LEFT
+            p.alignment = align
             run = p.add_run()
-            run.text = item
+            run.text = f"• {item}"
             run.font.size = Pt(font_pt)
             run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
@@ -2752,9 +2750,9 @@ def fill_t5_slide_4_two_columns(slide, content_data):
             run = p.add_run()
             run.text = title
         elif idx == 2:
-            write_col(tf, col1)
+            write_col(tf, col1, PP_ALIGN.RIGHT)
         elif idx == 4:
-            write_col(tf, col2)
+            write_col(tf, col2, PP_ALIGN.LEFT)
 
 
 def fill_t5_slide_5_two_staggered(slide, content_data):
@@ -2778,14 +2776,12 @@ def fill_t5_slide_5_two_staggered(slide, content_data):
     def write_block(tf, items):
         tf.clear()
         tf.word_wrap = True
-        total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
         for j, item in enumerate(items):
             p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
             p.alignment = PP_ALIGN.LEFT
             run = p.add_run()
             run.text = item
-            run.font.size = Pt(font_pt)
+            run.font.size = Pt(16)
             run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
     for shape in slide.shapes:
@@ -2879,7 +2875,7 @@ def fill_t5_slide_7_two_blocks(slide, content_data):
             p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
             p.alignment = PP_ALIGN.LEFT
             run = p.add_run()
-            run.text = item
+            run.text = f"• {item}"
             run.font.size = Pt(font_pt)
             run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
@@ -2932,7 +2928,7 @@ def fill_t5_slide_8_conclusion(slide, conclusion_data):
                 p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
                 p.alignment = PP_ALIGN.LEFT
                 run = p.add_run()
-                run.text = item
+                run.text = f"• {item}"
                 run.font.size = Pt(font_pt)
                 run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
