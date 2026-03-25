@@ -2718,25 +2718,37 @@ def fill_t5_slide_4_two_columns(slide, content_data):
     title = content_data.get("title", "")
     col1 = content_data.get("col1", [])
     col2 = content_data.get("col2", [])
+    # string bo'lsa, jumlalarga bo'lib list ga aylantir
+    if isinstance(col1, str):
+        col1 = [s.strip() for s in col1.replace('. ', '.\n').split('\n') if s.strip()]
+    if isinstance(col2, str):
+        col2 = [s.strip() for s in col2.replace('. ', '.\n').split('\n') if s.strip()]
     if not col1 and not col2:
         items = content_data.get("content", [])
         mid = len(items) // 2
         col1 = items[:mid]
         col2 = items[mid:]
-
     def write_col(tf, items, align):
-        tf.clear()
-        tf.word_wrap = True
+        from lxml import etree
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        align_val = 'r' if align == PP_ALIGN.RIGHT else 'l'
         total_chars = sum(len(s) for s in items)
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
-        for j, item in enumerate(items):
-            p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-            p.alignment = align
-            run = p.add_run()
-            run.text = f"• {item}"
-            run.font.size = Pt(font_pt)
-            run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
-
+        # Remove all existing paragraphs from txBody
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+        # Add clean paragraphs
+        for item in items:
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
+                f'<a:t>{item}</a:t></a:r></a:p>'
+            )
+            p_elem = etree.fromstring(p_xml)
+            txBody.append(p_elem)
+        tf.word_wrap = True
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
@@ -2860,24 +2872,36 @@ def fill_t5_slide_7_two_blocks(slide, content_data):
     title = content_data.get("title", "")
     col1 = content_data.get("col1", [])
     col2 = content_data.get("col2", [])
+    # string bo'lsa, jumlalarga bo'lib list ga aylantir
+    if isinstance(col1, str):
+        col1 = [s.strip() for s in col1.replace('. ', '.\n').split('\n') if s.strip()]
+    if isinstance(col2, str):
+        col2 = [s.strip() for s in col2.replace('. ', '.\n').split('\n') if s.strip()]
     if not col1 and not col2:
         items = content_data.get("content", [])
         mid = len(items) // 2
         col1 = items[:mid]
         col2 = items[mid:]
-
     def write_block(tf, items):
-        tf.clear()
-        tf.word_wrap = True
+        from lxml import etree
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         total_chars = sum(len(s) for s in items)
         font_pt = calc_body_font_pt(total_chars, base_pt=13, min_pt=9, max_pt=16)
-        for j, item in enumerate(items):
-            p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-            p.alignment = PP_ALIGN.LEFT
-            run = p.add_run()
-            run.text = f"• {item}"
-            run.font.size = Pt(font_pt)
-            run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
+        # Remove all existing paragraphs from txBody
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+        # Add clean paragraphs
+        for item in items:
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="1A1A2E"/></a:solidFill></a:rPr>'
+                f'<a:t>{item}</a:t></a:r></a:p>'
+            )
+            p_elem = etree.fromstring(p_xml)
+            txBody.append(p_elem)
+        tf.word_wrap = True
 
     for shape in slide.shapes:
         if not shape.has_text_frame:
@@ -2928,7 +2952,7 @@ def fill_t5_slide_8_conclusion(slide, conclusion_data):
                 p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
                 p.alignment = PP_ALIGN.LEFT
                 run = p.add_run()
-                run.text = f"• {item}"
+                run.text = item
                 run.font.size = Pt(font_pt)
                 run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
@@ -2970,9 +2994,11 @@ def generate_template_5_presentation(prs, topic, requested_slide_count, language
             fill_t5_slide_7_two_blocks(slide, data)
         logging.info(f"  [T5] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
-    # Xulosa slayd
+    # Xulosa slayd — alohida GPT so'rovi bilan
     conclusion_slide = prs.slides[-1]
-    conclusion_data = content_data_list[-1] if content_data_list else {}
+    conclusion_data = generate_slide_content(topic, requested_slide_count, requested_slide_count, language, is_conclusion=True)
+    if not conclusion_data:
+        conclusion_data = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
     fill_t5_slide_8_conclusion(conclusion_slide, conclusion_data)
 
     buf = io.BytesIO()
