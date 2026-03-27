@@ -149,13 +149,56 @@ def create_cover_page(document, university_info, topic, name_surname, teacher_na
 
 def create_plan_page(document, topic, language):
     """Creates the plan page (Reja) and returns the plan items."""
+    import re
     add_formatted_paragraph(document, "Reja", font_size=16, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
-    system_msg = f"You are an academic assistant. Create a numbered list for a research paper plan in {language}."
-    prompt = f"Mavzu: '{topic}'. Shu mavzu uchun mustaqil ish rejasini tuzib ber. Reja 'Kirish', 3-4 ta asosiy bo'lim, 'Xulosa' va 'Foydalanilgan adabiyotlar' bo'limlaridan iborat bo'lsin. Faqat numeratsiyalangan ro'yxatni o'zini qaytar."
+
+    system_msg = (
+        f"You are an academic assistant. Create a plan for a research paper in {language}. "
+        f"Rules: 'Kirish', 'Xulosa', 'Foydalanilgan adabiyotlar' must appear WITHOUT any number or prefix. "
+        f"Main content sections (3-4 items) must be numbered starting from 1. "
+        f"Return only the plain list, one item per line, no extra text."
+    )
+    prompt = (
+        f"Mavzu: '{topic}'. Mustaqil ish rejasini tuz. "
+        f"Format: birinchi qatorda 'Kirish' (raqamsiz), keyin 1., 2., 3. (yoki 4.) ta asosiy bo'lim, "
+        f"so'ng 'Xulosa' (raqamsiz), oxirida 'Foydalanilgan adabiyotlar' (raqamsiz). "
+        f"Faqat ro'yxatni qaytar."
+    )
     plan_content = generate_content_from_gpt(prompt, language, system_msg)
-    add_formatted_paragraph(document, plan_content, alignment=WD_ALIGN_PARAGRAPH.LEFT)
+
+    # Raqamsiz bo'lishi kerak bo'lgan kalit so'zlar
+    NO_NUMBER_KEYWORDS = ["kirish", "xulosa", "foydalanilgan", "adabiyot", "introduction",
+                          "conclusion", "references", "bibliography", "введение",
+                          "заключение", "литература"]
+
+    plan_items = []
+    for line in plan_content.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        # Qatorni hujjatga yozish
+        p = document.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_after = Pt(6)
+
+        line_lower = line.lower()
+        is_no_number = any(kw in line_lower for kw in NO_NUMBER_KEYWORDS)
+
+        if is_no_number:
+            # Raqamni olib tashla (agar GPT baribir qo'shgan bo'lsa)
+            clean_line = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', line).strip()
+            r = p.add_run(clean_line)
+        else:
+            r = p.add_run(line)
+
+        r.font.name = 'Times New Roman'
+        r.font.size = Pt(14)
+
+        plan_items.append(line)
+
     document.add_page_break()
-    return [line for line in plan_content.split('\n') if line.strip()]
+    return plan_items
 
 def create_text_section(document, title, topic, prompt_detail, language):
     """Creates a standard text section like Introduction or Conclusion."""
