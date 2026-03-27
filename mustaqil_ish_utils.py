@@ -1,0 +1,179 @@
+
+import logging
+from io import BytesIO
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from openai import OpenAI
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+client = OpenAI()
+
+# --- Helper Functions ---
+
+def set_paragraph_font(paragraph, font_name='Times New Roman', font_size=14, bold=False, italic=False):
+    """Sets font for all runs in a paragraph."""
+    for run in paragraph.runs:
+        run.font.name = font_name
+        run.font.size = Pt(font_size)
+        run.font.bold = bold
+        run.font.italic = italic
+
+def add_formatted_paragraph(document, text, font_size=14, bold=False, italic=False, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, space_after=Pt(6)):
+    """Adds a formatted paragraph to the document."""
+    p = document.add_paragraph()
+    p.alignment = alignment
+    p.paragraph_format.space_after = space_after
+    runner = p.add_run(text)
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(font_size)
+    runner.font.bold = bold
+    runner.font.italic = italic
+    return p
+
+def generate_content_from_gpt(prompt, language, system_message):
+    """Generates content using GPT and returns it as a string."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt}
+            ],
+        )
+        content = response.choices[0].message.content
+        return content.strip()
+    except Exception as e:
+        logging.error(f"GPT content generation failed: {e}")
+        return f"Kontent yaratishda xatolik: {e}"
+
+# --- Document Part Creation ---
+
+def create_cover_page(document, university_info, topic, name_surname, teacher_name):
+    """Creates the title page for the document."""
+    if university_info:
+        p = add_formatted_paragraph(document, university_info.upper(), font_size=14, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(12))
+    
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(72)
+    runner = p.add_run("MUSTAQIL ISH")
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(24)
+    runner.bold = True
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(36)
+    runner = p.add_run(f"Mavzu: \n{topic}")
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(20)
+    runner.bold = True
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p.paragraph_format.space_before = Pt(144)
+    runner = p.add_run(f"Tayyorladi:\n{name_surname or ''}")
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(14)
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p.paragraph_format.space_before = Pt(36)
+    runner = p.add_run(f"Qabul qildi:\n{teacher_name or ''}")
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(14)
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(144)
+    runner = p.add_run("Toshkent - 2026")
+    runner.font.name = 'Times New Roman'
+    runner.font.size = Pt(14)
+    document.add_page_break()
+
+def create_plan_page(document, topic, language):
+    """Creates the plan page (Reja) and returns the plan items."""
+    add_formatted_paragraph(document, "Reja", font_size=16, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+    system_msg = f"You are an academic assistant. Create a numbered list for a research paper plan in {language}."
+    prompt = f"Mavzu: '{topic}'. Shu mavzu uchun mustaqil ish rejasini tuzib ber. Reja 'Kirish', 3-4 ta asosiy bo'lim, 'Xulosa' va 'Foydalanilgan adabiyotlar' bo'limlaridan iborat bo'lsin. Faqat numeratsiyalangan ro'yxatni o'zini qaytar."
+    plan_content = generate_content_from_gpt(prompt, language, system_msg)
+    add_formatted_paragraph(document, plan_content, alignment=WD_ALIGN_PARAGRAPH.LEFT)
+    document.add_page_break()
+    return [line for line in plan_content.split('\n') if line.strip()]
+
+def create_text_section(document, title, topic, prompt_detail, language):
+    """Creates a standard text section like Introduction or Conclusion."""
+    add_formatted_paragraph(document, title, font_size=16, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+    system_msg = f"You are an academic assistant writing a research paper in {language}. Write a detailed, academic paragraph."
+    prompt = f"Mavzu: '{topic}'. {prompt_detail}"
+    content = generate_content_from_gpt(prompt, language, system_msg)
+    add_formatted_paragraph(document, content)
+    document.add_page_break()
+
+def create_main_content(document, topic, plan_items, page_count, language):
+    """Creates the main content based on the plan."""
+    main_plan_items = [item for item in plan_items if "kirish" not in item.lower() and "xulosa" not in item.lower() and "adabiyotlar" not in item.lower()]
+    if not main_plan_items:
+        return
+
+    # Estimate words needed
+    words_per_page = 300
+    # Reserve pages for cover, plan, intro, conclusion, references
+    main_content_pages = max(1, page_count - 5)
+    words_per_item = (main_content_pages * words_per_page) // len(main_plan_items)
+
+    system_msg = f"You are an academic assistant writing a research paper in {language}. Write a detailed, academic text of about {words_per_item} words."
+    for item in main_plan_items:
+        add_formatted_paragraph(document, item, font_size=14, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(12))
+        prompt = f"Mavzu: '{topic}'. Rejaning quyidagi bandi bo'yicha {words_per_item} so'z atrofida batafsil ilmiy matn yozib ber: \n{item}"
+        item_content = generate_content_from_gpt(prompt, language, system_msg)
+        add_formatted_paragraph(document, item_content)
+        document.add_paragraph() # Add space
+
+    document.add_page_break()
+
+def create_references_page(document, topic, language):
+    """Creates the references page."""
+    add_formatted_paragraph(document, "Foydalanilgan adabiyotlar", font_size=16, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+    system_msg = f"You are an academic assistant. Create a numbered list of 8-10 academic references in {language}, prioritizing sources from Uzbekistan."
+    prompt = f"Mavzu: '{topic}'. Shu mavzu bo'yicha 8-10 ta ilmiy adabiyotlar ro'yxatini (kitoblar, maqolalar, web-saytlar) tuzib ber. O'zbekiston manbalariga ustunlik berilsin."
+    content = generate_content_from_gpt(prompt, language, system_msg)
+    add_formatted_paragraph(document, content, alignment=WD_ALIGN_PARAGRAPH.LEFT)
+
+# --- Main Orchestrator Function ---
+
+def generate_mustaqil_ish(topic, page_count, language, name_surname, university_info, teacher_name):
+    """Generates the full 'Mustaqil ish' Word document."""
+    document = Document()
+    style = document.styles['Normal']
+    style.font.name = 'Times New Roman'
+    style.font.size = Pt(14)
+
+    # 1. Cover Page
+    create_cover_page(document, university_info, topic, name_surname, teacher_name)
+
+    # 2. Plan Page
+    plan_items = create_plan_page(document, topic, language)
+
+    # 3. Introduction Page
+    create_text_section(document, "Kirish", topic, "Shu mavzu uchun mustaqil ishga 200-250 so'zdan iborat Kirish qismi yozib ber. Kirishda mavzuning dolzarbligi, maqsadi va vazifalari yoritilsin.", language)
+
+    # 4. Main Content
+    create_main_content(document, topic, plan_items, page_count, language)
+
+    # 5. Conclusion Page
+    create_text_section(document, "Xulosa", topic, "Shu mavzu bo'yicha yozilgan mustaqil ish uchun 200-250 so'zdan iborat Xulosa qismi yozib ber.", language)
+
+    # 6. References Page
+    create_references_page(document, topic, language)
+
+    # Save to a byte stream
+    doc_bytes = BytesIO()
+    document.save(doc_bytes)
+    doc_bytes.seek(0)
+
+    logging.info(f"'Mustaqil ish' generated for topic: {topic}")
+    return doc_bytes

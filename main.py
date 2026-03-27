@@ -19,6 +19,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T4,
     SLIDE_TYPE_NAMES_T5,
 )
+from mustaqil_ish_utils import generate_mustaqil_ish
 from pptx import Presentation
 
 # Load environment variables
@@ -32,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
-# Suhbat holatlari
+# Suhbat holatlari — Slayd yaratish
 # ─────────────────────────────────────────────
 (
     LANGUAGE_SELECTION,  # 0 — til tanlash
@@ -41,6 +42,18 @@ logger = logging.getLogger(__name__)
     SLIDE_COUNT,         # 3 — slayd soni
     PLAN_CONFIRMATION,   # 4 — reja tasdiqlash
 ) = range(5)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Mustaqil ish
+# ─────────────────────────────────────────────
+(
+    MI_LANGUAGE,         # 0
+    MI_TOPIC,            # 1
+    MI_NAME_SURNAME,     # 2
+    MI_PAGE_COUNT,       # 3
+    MI_UNIVERSITY,       # 4
+    MI_TEACHER,          # 5
+) = range(10, 16)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -86,6 +99,19 @@ def get_language_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 
+def get_mi_language_keyboard():
+    """Mustaqil ish uchun til tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("O'zbek tili",  callback_data="mi_lang_uz"),
+         InlineKeyboardButton("Ingliz tili",  callback_data="mi_lang_en")],
+        [InlineKeyboardButton("Rus tili",     callback_data="mi_lang_ru"),
+         InlineKeyboardButton("Kores tili",   callback_data="mi_lang_ko")],
+        [InlineKeyboardButton("Xitoy tili",   callback_data="mi_lang_zh"),
+         InlineKeyboardButton("Nemis tili",   callback_data="mi_lang_de")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def get_slide_count_keyboard():
     keyboard = [
         [InlineKeyboardButton("5",  callback_data="slide_count_5"),
@@ -94,6 +120,18 @@ def get_slide_count_keyboard():
         [InlineKeyboardButton("20", callback_data="slide_count_20"),
          InlineKeyboardButton("25", callback_data="slide_count_25"),
          InlineKeyboardButton("30", callback_data="slide_count_30")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_mi_page_count_keyboard():
+    """Mustaqil ish uchun sahifa soni tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("10", callback_data="mi_pages_10"),
+         InlineKeyboardButton("15", callback_data="mi_pages_15"),
+         InlineKeyboardButton("20", callback_data="mi_pages_20")],
+        [InlineKeyboardButton("25", callback_data="mi_pages_25"),
+         InlineKeyboardButton("30", callback_data="mi_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -115,7 +153,6 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
     import re
     clean_lines = []
     for idx, item in enumerate(plan_items):
-        # Har qanday N. yoki N.M. prefiksini olib tashlash
         text = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', str(item)).strip()
         clean_lines.append(f"{idx+1}. {text}")
     plan_lines = "\n".join(clean_lines)
@@ -131,7 +168,7 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
 
 
 # ─────────────────────────────────────────────
-# Handlerlar
+# Handlerlar — Umumiy
 # ─────────────────────────────────────────────
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -150,18 +187,34 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
 
     if text == "🪄 Slayd yaratish ✨":
         context.user_data.clear()
+        context.user_data["mode"] = "slayd"
         await update.message.reply_text(
             "Qaysi tilda slayd yaratmoqchisiz?",
             reply_markup=get_language_keyboard()
         )
         return LANGUAGE_SELECTION
+
+    elif text == "📄 Mustaqil ish ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "mustaqil_ish"
+        await update.message.reply_text(
+            "📄 *Mustaqil ish* bo'limiga xush kelibsiz!\n\nQaysi tilda yozmoqchisiz?",
+            reply_markup=get_mi_language_keyboard(),
+            parse_mode="Markdown"
+        )
+        return MI_LANGUAGE
+
     else:
         await update.message.reply_text(
-            f"'{text}' xizmati tez kunda ishga tushadi!\nHozircha faqat 'Slayd yaratish' bo'limi ishlamoqda.",
+            f"'{text}' xizmati tez kunda ishga tushadi!\nHozircha faqat 'Slayd yaratish' va 'Mustaqil ish' bo'limlari ishlamoqda.",
             reply_markup=get_main_menu_keyboard()
         )
         return LANGUAGE_SELECTION
 
+
+# ─────────────────────────────────────────────
+# Handlerlar — Slayd yaratish
+# ─────────────────────────────────────────────
 
 async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Til tanlovini qabul qiladi."""
@@ -220,10 +273,7 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """
-    Slayd sonini qabul qiladi va 1-BOSQICH ni ishga tushiradi:
-    GPT dan reja + sarlavhalar so'raladi, foydalanuvchiga ko'rsatiladi.
-    """
+    """Slayd sonini qabul qiladi va 1-BOSQICH ni ishga tushiradi."""
     query = update.callback_query
     await query.answer()
 
@@ -239,7 +289,6 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
 
-    # ── 1-BOSQICH: GPT dan reja + sarlavhalar ──
     try:
         result = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -259,7 +308,6 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         }
 
     context.user_data["stage1_result"] = result
-
     plan_items = result.get("plan", [])
     plan_text = format_plan_message(topic, slide_count, lang_name, plan_items)
 
@@ -272,10 +320,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """
-    Reja tasdiqlash yoki qayta tuzish.
-    Tasdiqlansa — 2-BOSQICH ishga tushadi: barcha kontent bitta GPT so'rovida yaratiladi.
-    """
+    """Reja tasdiqlash yoki qayta tuzish."""
     query = update.callback_query
     await query.answer()
 
@@ -286,7 +331,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lang_name   = LANGUAGE_NAMES.get(language, "O'zbek tili")
 
     if query.data == "plan_confirm_no":
-        # Qayta tuzish
         await query.edit_message_text(text="🔄 Reja qayta tuzilmoqda...")
         try:
             result = await asyncio.get_event_loop().run_in_executor(
@@ -326,10 +370,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     stage1 = context.user_data.get("stage1_result", {})
     plan_items   = stage1.get("plan", [])
     slide_titles = stage1.get("slide_titles", [])
-
-    # plan dict (fill_slide_2_plan uchun)
     plan_dict = {"title": "Reja", "content": plan_items}
-
     chat_id = query.message.chat_id
 
     # ── Tasodifiy shablon tanlash (1-5) ──
@@ -351,7 +392,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     logger.info(f"Tasodifiy tanlangan shablon: {template_num}")
 
     try:
-        # ── 2-BOSQICH: Barcha kontent bitta GPT so'rovida ──
         content_data_list = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
@@ -360,7 +400,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi")
 
-        # ── Prezentatsiya yaratish (tasodifiy shablon) ──
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
         prs = Presentation(template_path)
 
@@ -377,7 +416,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
         )
 
-        # ── Foydalanuvchiga yuborish ──
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'taqdimot'}.pptx"
 
@@ -406,6 +444,192 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 
+# ─────────────────────────────────────────────
+# Handlerlar — Mustaqil ish
+# ─────────────────────────────────────────────
+
+async def mi_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: tilni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+
+    language_code = query.data.split("_", 2)[2]  # mi_lang_uz -> uz
+    context.user_data["mi_language"] = language_code
+    lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
+
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nMustaqil ish mavzusini kiriting:",
+        parse_mode="Markdown"
+    )
+    return MI_TOPIC
+
+
+async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: mavzuni qabul qiladi."""
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return MI_TOPIC
+
+    context.user_data["mi_topic"] = topic
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="mi_skip_name")]
+    ])
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {topic}\n\n"
+        f"Ism-familiyangizni kiriting:\n"
+        f"_(Kiritilgan ism hujjatda 'Tayyorladi:' qatorida yoziladi)_",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return MI_NAME_SURNAME
+
+
+async def mi_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["mi_name_surname"] = ""
+        await query.edit_message_text(
+            text="Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_mi_page_count_keyboard()
+        )
+    else:
+        name_surname = update.message.text.strip()
+        context.user_data["mi_name_surname"] = name_surname
+        await update.message.reply_text(
+            "Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_mi_page_count_keyboard()
+        )
+    return MI_PAGE_COUNT
+
+
+async def mi_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+
+    page_count = int(query.data.split("_")[2])
+    context.user_data["mi_page_count"] = page_count
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="mi_skip_university")]
+    ])
+    await query.edit_message_text(
+        text=(
+            f"📄 Sahifalar soni: *{page_count}*\n\n"
+            f"Universitet yoki muassasa ma'lumotlarini kiriting:\n"
+            f"_(Kiritilsa, taqdimot birinchi sahifasiga avtomatik qo'shiladi)_"
+        ),
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return MI_UNIVERSITY
+
+
+async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["mi_university"] = ""
+        await query.edit_message_text(
+            text=(
+                "O'qituvchi (Qabul qildi) ismini kiriting:\n"
+                "_(Kiritilsa, hujjatda 'Qabul qildi:' qatorida ko'rsatiladi)_"
+            ),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭ Shart emas", callback_data="mi_skip_teacher")]
+            ]),
+            parse_mode="Markdown"
+        )
+    else:
+        university = update.message.text.strip()
+        context.user_data["mi_university"] = university
+        await update.message.reply_text(
+            "O'qituvchi (Qabul qildi) ismini kiriting:\n"
+            "_(Kiritilsa, hujjatda 'Qabul qildi:' qatorida ko'rsatiladi)_",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭ Shart emas", callback_data="mi_skip_teacher")]
+            ]),
+            parse_mode="Markdown"
+        )
+    return MI_TEACHER
+
+
+async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mustaqil ish: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["mi_teacher"] = ""
+        chat_id = query.message.chat_id
+        await query.edit_message_text(
+            text="⏳ Mustaqil ish yaratilmoqda, biroz kuting...",
+            parse_mode="Markdown"
+        )
+    else:
+        teacher = update.message.text.strip()
+        context.user_data["mi_teacher"] = teacher
+        chat_id = update.message.chat_id
+        await update.message.reply_text(
+            "⏳ Mustaqil ish yaratilmoqda, biroz kuting..."
+        )
+
+    # Collect all data
+    topic         = context.user_data.get("mi_topic", "")
+    page_count    = context.user_data.get("mi_page_count", 15)
+    language      = context.user_data.get("mi_language", "uz")
+    name_surname  = context.user_data.get("mi_name_surname", "")
+    university    = context.user_data.get("mi_university", "")
+    teacher       = context.user_data.get("mi_teacher", "")
+
+    try:
+        doc_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_mustaqil_ish(
+                topic=topic,
+                page_count=page_count,
+                language=language,
+                name_surname=name_surname,
+                university_info=university,
+                teacher_name=teacher,
+            )
+        )
+
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'mustaqil_ish'}.docx"
+
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *{topic}* mavzusidagi mustaqil ish tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa"
+            ),
+            parse_mode="Markdown"
+        )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Yana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    except Exception as e:
+        logger.error(f"Mustaqil ish yaratishda xatolik: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Mustaqil ish yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -427,16 +651,19 @@ def main() -> None:
 
     application = Application.builder().token(token).build()
 
-    conv_handler = ConversationHandler(
+    # ── Slayd yaratish ──
+    slayd_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
             MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
         ],
         per_message=False,
         states={
             LANGUAGE_SELECTION: [
                 CallbackQueryHandler(get_language, pattern=r"^lang_"),
                 MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
             ],
             TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
@@ -451,6 +678,28 @@ def main() -> None:
             PLAN_CONFIRMATION: [
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
             ],
+            # ── Mustaqil ish holatlari ──
+            MI_LANGUAGE: [
+                CallbackQueryHandler(mi_get_language, pattern=r"^mi_lang_"),
+            ],
+            MI_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_topic),
+            ],
+            MI_NAME_SURNAME: [
+                CallbackQueryHandler(mi_get_name_surname, pattern=r"^mi_skip_name$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_name_surname),
+            ],
+            MI_PAGE_COUNT: [
+                CallbackQueryHandler(mi_get_page_count, pattern=r"^mi_pages_"),
+            ],
+            MI_UNIVERSITY: [
+                CallbackQueryHandler(mi_get_university, pattern=r"^mi_skip_university$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_university),
+            ],
+            MI_TEACHER: [
+                CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
+            ],
         },
         fallbacks=[
             CommandHandler("start", start),
@@ -458,7 +707,7 @@ def main() -> None:
         ],
     )
 
-    application.add_handler(conv_handler)
+    application.add_handler(slayd_handler)
 
     logger.info("Bot ishga tushmoqda (polling rejimi)...")
     application.run_polling()
