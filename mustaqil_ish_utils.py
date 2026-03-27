@@ -53,45 +53,98 @@ def generate_content_from_gpt(prompt, language, system_message):
 
 def create_cover_page(document, university_info, topic, name_surname, teacher_name):
     """Creates the title page for the document."""
+    # ── Vazirlik (doim chiqadi, markazlashgan, qalin) ──
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(0)
+    r = p.add_run("O'ZBEKISTON RESPUBLIKASI")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(6)
+    r = p.add_run("OLIY TA'LIM, FAN VA INNOVATSIYALAR VAZIRLIGI")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
+
+    # ── Ta'lim muassasasi (agar kiritilsa, vazirlik tagidan) ──
     if university_info:
-        p = add_formatted_paragraph(document, university_info.upper(), font_size=14, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(12))
-    
+        p = document.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(6)
+        p.paragraph_format.space_after = Pt(6)
+        r = p.add_run(university_info.upper())
+        r.font.name = 'Times New Roman'
+        r.font.size = Pt(14)
+        r.bold = True
+
+    # ── MUSTAQIL ISH (katta, markazlashgan) ──
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(72)
-    runner = p.add_run("MUSTAQIL ISH")
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(24)
-    runner.bold = True
+    p.paragraph_format.space_after = Pt(12)
+    r = p.add_run("MUSTAQIL ISH")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(28)
+    r.bold = True
+
+    # ── Mavzu (markazlashgan, qalin) ──
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(12)
+    p.paragraph_format.space_after = Pt(0)
+    r = p.add_run("Mavzu:")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
 
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(36)
-    runner = p.add_run(f"Mavzu: \n{topic}")
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(20)
-    runner.bold = True
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(6)
+    r = p.add_run(topic)
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
 
+    # ── Tayyorladi (chapga, qalin, bir qatorda) ──
     p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.paragraph_format.space_before = Pt(144)
-    runner = p.add_run(f"Tayyorladi:\n{name_surname or ''}")
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(14)
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(120)
+    p.paragraph_format.space_after = Pt(6)
+    r = p.add_run("Tayyorladi: ")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
+    r2 = p.add_run(name_surname or '')
+    r2.font.name = 'Times New Roman'
+    r2.font.size = Pt(14)
+    r2.bold = True
 
+    # ── Qabul qildi (chapga, qalin, bir qatorda) ──
     p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.paragraph_format.space_before = Pt(36)
-    runner = p.add_run(f"Qabul qildi:\n{teacher_name or ''}")
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(14)
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(6)
+    r = p.add_run("Qabul qildi: ")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
+    r.bold = True
+    r2 = p.add_run(teacher_name or '')
+    r2.font.name = 'Times New Roman'
+    r2.font.size = Pt(14)
+    r2.bold = True
 
+    # ── Shahar va yil (markazlashgan, pastda) ──
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(144)
-    runner = p.add_run("Toshkent - 2026")
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(14)
+    p.paragraph_format.space_before = Pt(120)
+    r = p.add_run("Toshkent - 2026")
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(14)
     document.add_page_break()
 
 def create_plan_page(document, topic, language):
