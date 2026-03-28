@@ -94,7 +94,7 @@ def generate_content_from_gpt(prompt, language, system_message):
 
 # --- Document Part Creation ---
 
-def create_cover_page(document, university_info, topic, name_surname, teacher_name):
+def create_cover_page(document, university_info, topic, name_surname, teacher_name, doc_type="MUSTAQIL ISH"):
     """Creates the title page for the document."""
     # ── Vazirlik (doim chiqadi, markazlashgan, qalin) ──
     p = document.add_paragraph()
@@ -129,7 +129,7 @@ def create_cover_page(document, university_info, topic, name_surname, teacher_na
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(72)
     p.paragraph_format.space_after = Pt(12)
-    r = p.add_run("MUSTAQIL ISH")
+    r = p.add_run(doc_type.upper())
     r.font.name = 'Times New Roman'
     r.font.size = Pt(28)
     r.bold = True
@@ -284,8 +284,8 @@ def create_references_page(document, topic, language):
 
 # --- Main Orchestrator Function ---
 
-def generate_mustaqil_ish(topic, page_count, language, name_surname, university_info, teacher_name):
-    """Generates the full 'Mustaqil ish' Word document."""
+def generate_mustaqil_ish(topic, page_count, language, name_surname, university_info, teacher_name, doc_type="MUSTAQIL ISH"):
+    """Generates the full 'Mustaqil ish' or 'Referat' Word document."""
     document = Document()
     style = document.styles['Normal']
     style.font.name = 'Times New Roman'
@@ -295,7 +295,7 @@ def generate_mustaqil_ish(topic, page_count, language, name_surname, university_
     add_page_border(document)
 
     # 1. Cover Page
-    create_cover_page(document, university_info, topic, name_surname, teacher_name)
+    create_cover_page(document, university_info, topic, name_surname, teacher_name, doc_type=doc_type)
 
     # 2. Plan Page
     plan_items = create_plan_page(document, topic, language)

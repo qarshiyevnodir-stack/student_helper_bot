@@ -47,13 +47,25 @@ logger = logging.getLogger(__name__)
 # Suhbat holatlari — Mustaqil ish
 # ─────────────────────────────────────────────
 (
-    MI_LANGUAGE,         # 0
-    MI_TOPIC,            # 1
-    MI_NAME_SURNAME,     # 2
-    MI_PAGE_COUNT,       # 3
-    MI_UNIVERSITY,       # 4
-    MI_TEACHER,          # 5
+    MI_LANGUAGE,         # 10
+    MI_TOPIC,            # 11
+    MI_NAME_SURNAME,     # 12
+    MI_PAGE_COUNT,       # 13
+    MI_UNIVERSITY,       # 14
+    MI_TEACHER,          # 15
 ) = range(10, 16)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Referat
+# ─────────────────────────────────────────────
+(
+    RF_LANGUAGE,         # 20
+    RF_TOPIC,            # 21
+    RF_NAME_SURNAME,     # 22
+    RF_PAGE_COUNT,       # 23
+    RF_UNIVERSITY,       # 24
+    RF_TEACHER,          # 25
+) = range(20, 26)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -108,6 +120,31 @@ def get_mi_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="mi_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="mi_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="mi_lang_de")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_rf_language_keyboard():
+    """Referat uchun til tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("O'zbek tili",  callback_data="rf_lang_uz"),
+         InlineKeyboardButton("Ingliz tili",  callback_data="rf_lang_en")],
+        [InlineKeyboardButton("Rus tili",     callback_data="rf_lang_ru"),
+         InlineKeyboardButton("Kores tili",   callback_data="rf_lang_ko")],
+        [InlineKeyboardButton("Xitoy tili",   callback_data="rf_lang_zh"),
+         InlineKeyboardButton("Nemis tili",   callback_data="rf_lang_de")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_rf_page_count_keyboard():
+    """Referat uchun sahifa soni tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("10", callback_data="rf_pages_10"),
+         InlineKeyboardButton("15", callback_data="rf_pages_15"),
+         InlineKeyboardButton("20", callback_data="rf_pages_20")],
+        [InlineKeyboardButton("25", callback_data="rf_pages_25"),
+         InlineKeyboardButton("30", callback_data="rf_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -203,6 +240,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return MI_LANGUAGE
+
+    elif text == "📚 Referat ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "referat"
+        await update.message.reply_text(
+            "📚 *Referat* bo'limiga xush kelibsiz!\n\nQaysi tilda yozmoqchisiz?",
+            reply_markup=get_rf_language_keyboard(),
+            parse_mode="Markdown"
+        )
+        return RF_LANGUAGE
 
     else:
         await update.message.reply_text(
@@ -445,6 +492,173 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 # ─────────────────────────────────────────────
+# Handlerlar — Referat
+# ─────────────────────────────────────────────
+
+async def rf_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: tilni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    language_code = query.data.split("_", 2)[2]  # rf_lang_uz -> uz
+    context.user_data["rf_language"] = language_code
+    lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nReferat mavzusini kiriting:",
+        parse_mode="Markdown"
+    )
+    return RF_TOPIC
+
+
+async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: mavzuni qabul qiladi."""
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return RF_TOPIC
+    context.user_data["rf_topic"] = topic
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_name")]
+    ])
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {topic}\n\n"
+        f"Ism-familiyangizni kiriting:\n"
+        f"_(Kiritilgan ism hujjatda 'Tayyorladi:' qatorida yoziladi)_",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return RF_NAME_SURNAME
+
+
+async def rf_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["rf_name_surname"] = ""
+        await query.edit_message_text(
+            text="Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_rf_page_count_keyboard()
+        )
+    else:
+        context.user_data["rf_name_surname"] = update.message.text.strip()
+        await update.message.reply_text(
+            "Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_rf_page_count_keyboard()
+        )
+    return RF_PAGE_COUNT
+
+
+async def rf_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    page_count = int(query.data.split("_")[2])
+    context.user_data["rf_page_count"] = page_count
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_university")]
+    ])
+    await query.edit_message_text(
+        text=(
+            f"📄 Sahifalar soni: *{page_count}*\n\n"
+            f"Universitet yoki muassasa ma'lumotlarini kiriting:\n"
+            f"_(Kiritilsa, hujjat birinchi sahifasiga avtomatik qo'shiladi)_"
+        ),
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return RF_UNIVERSITY
+
+
+async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
+    skip_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_teacher")]
+    ])
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["rf_university"] = ""
+        await query.edit_message_text(
+            text=(
+                "O'qituvchi (Qabul qildi) ismini kiriting:\n"
+                "_(Kiritilsa, hujjatda 'Qabul qildi:' qatorida ko'rsatiladi)_"
+            ),
+            reply_markup=skip_kb,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["rf_university"] = update.message.text.strip()
+        await update.message.reply_text(
+            "O'qituvchi (Qabul qildi) ismini kiriting:\n"
+            "_(Kiritilsa, hujjatda 'Qabul qildi:' qatorida ko'rsatiladi)_",
+            reply_markup=skip_kb,
+            parse_mode="Markdown"
+        )
+    return RF_TEACHER
+
+
+async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Referat: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["rf_teacher"] = ""
+        chat_id = query.message.chat_id
+        await query.edit_message_text(text="⏳ Referat yaratilmoqda, biroz kuting...")
+    else:
+        context.user_data["rf_teacher"] = update.message.text.strip()
+        chat_id = update.message.chat_id
+        await update.message.reply_text("⏳ Referat yaratilmoqda, biroz kuting...")
+
+    topic        = context.user_data.get("rf_topic", "")
+    page_count   = context.user_data.get("rf_page_count", 15)
+    language     = context.user_data.get("rf_language", "uz")
+    name_surname = context.user_data.get("rf_name_surname", "")
+    university   = context.user_data.get("rf_university", "")
+    teacher      = context.user_data.get("rf_teacher", "")
+
+    try:
+        doc_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_mustaqil_ish(
+                topic=topic,
+                page_count=page_count,
+                language=language,
+                name_surname=name_surname,
+                university_info=university,
+                teacher_name=teacher,
+                doc_type="REFERAT",
+            )
+        )
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'referat'}.docx"
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *{topic}* mavzusidagi referat tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa"
+            ),
+            parse_mode="Markdown"
+        )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Yana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Referat yaratishda xatolik: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Referat yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
+# ─────────────────────────────────────────────
 # Handlerlar — Mustaqil ish
 # ─────────────────────────────────────────────
 
@@ -657,6 +871,7 @@ def main() -> None:
             CommandHandler("start", start),
             MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
         ],
         per_message=False,
         states={
@@ -664,6 +879,7 @@ def main() -> None:
                 CallbackQueryHandler(get_language, pattern=r"^lang_"),
                 MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
             ],
             TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
@@ -699,6 +915,28 @@ def main() -> None:
             MI_TEACHER: [
                 CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
+            ],
+            # ── Referat holatlari ──
+            RF_LANGUAGE: [
+                CallbackQueryHandler(rf_get_language, pattern=r"^rf_lang_"),
+            ],
+            RF_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_topic),
+            ],
+            RF_NAME_SURNAME: [
+                CallbackQueryHandler(rf_get_name_surname, pattern=r"^rf_skip_name$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_name_surname),
+            ],
+            RF_PAGE_COUNT: [
+                CallbackQueryHandler(rf_get_page_count, pattern=r"^rf_pages_"),
+            ],
+            RF_UNIVERSITY: [
+                CallbackQueryHandler(rf_get_university, pattern=r"^rf_skip_university$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_university),
+            ],
+            RF_TEACHER: [
+                CallbackQueryHandler(rf_get_teacher, pattern=r"^rf_skip_teacher$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_teacher),
             ],
         },
         fallbacks=[
