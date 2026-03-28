@@ -180,10 +180,11 @@ def get_li_language_keyboard():
 def get_li_page_count_keyboard():
     """Loyiha ishi uchun sahifa soni tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("10", callback_data="li_pages_10"),
-         InlineKeyboardButton("15", callback_data="li_pages_15"),
-         InlineKeyboardButton("20", callback_data="li_pages_20")],
-        [InlineKeyboardButton("25", callback_data="li_pages_25"),
+        [InlineKeyboardButton("5",  callback_data="li_pages_5"),
+         InlineKeyboardButton("10", callback_data="li_pages_10"),
+         InlineKeyboardButton("15", callback_data="li_pages_15")],
+        [InlineKeyboardButton("20", callback_data="li_pages_20"),
+         InlineKeyboardButton("25", callback_data="li_pages_25"),
          InlineKeyboardButton("30", callback_data="li_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -564,29 +565,30 @@ async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
         return LI_TOPIC
     context.user_data["li_topic"] = topic
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_name")]])
+    # Ism-familiya MAJBURIY — "Shart emas" yo'q
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\nIsm-familiyangizni kiriting:\n_(Hujjatda 'Bajardi:' qatorida yoziladi)_",
-        reply_markup=keyboard, parse_mode="Markdown"
+        f"📌 *Mavzu:* {topic}\n\n"
+        f"👤 Ism-familiyangizni kiriting:\n"
+        f"_(Hujjatda 'Bajardi:' qatorida yoziladi — majburiy)_",
+        parse_mode="Markdown"
     )
     return LI_NAME_SURNAME
 
 
 async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        context.user_data["li_name_surname"] = ""
-        await query.edit_message_text(
-            text="Hujjat nechta sahifadan iborat bo'lsin?",
-            reply_markup=get_li_page_count_keyboard()
-        )
-    else:
-        context.user_data["li_name_surname"] = update.message.text.strip()
+    # Faqat matn qabul qilinadi (majburiy)
+    name = update.message.text.strip() if update.message else ""
+    if not name:
         await update.message.reply_text(
-            "Hujjat nechta sahifadan iborat bo'lsin?",
-            reply_markup=get_li_page_count_keyboard()
+            "⚠️ Ism-familiyangizni kiriting (majburiy):"
         )
+        return LI_NAME_SURNAME
+    context.user_data["li_name_surname"] = name
+    await update.message.reply_text(
+        f"✅ *Bajardi:* {name}\n\nHujjat nechta sahifadan iborat bo'lsin?",
+        reply_markup=get_li_page_count_keyboard(),
+        parse_mode="Markdown"
+    )
     return LI_PAGE_COUNT
 
 
@@ -599,8 +601,8 @@ async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.edit_message_text(
         text=(
             f"📄 Sahifalar soni: *{page_count}*\n\n"
-            f"Universitet yoki muassasa nomini kiriting:\n"
-            f"_(Kiritilsa, muqova sahifasiga qo'shiladi)_"
+            f"🏢 Ta'lim muassasasi nomini kiriting:\n"
+            f"_(Kiritilsa, muqovada 'TA'LIM MUASSASA NOMI' o'rniga yoziladi)_"
         ),
         reply_markup=keyboard, parse_mode="Markdown"
     )
@@ -614,13 +616,17 @@ async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.answer()
         context.user_data["li_university"] = ""
         await query.edit_message_text(
-            text="Fan nomini kiriting:\n_(Masalan: Biologiya fanidan)_",
+            text=(
+                "📖 Fan yoki yo'nalish nomini kiriting:\n"
+                "_(Kiritilsa, muqovada 'TANLANGAN FANIDAN' o'rniga yoziladi)_"
+            ),
             reply_markup=skip_kb, parse_mode="Markdown"
         )
     else:
         context.user_data["li_university"] = update.message.text.strip()
         await update.message.reply_text(
-            "Fan nomini kiriting:\n_(Masalan: Biologiya fanidan)_",
+            "📖 Fan yoki yo'nalish nomini kiriting:\n"
+            "_(Kiritilsa, muqovada 'TANLANGAN FANIDAN' o'rniga yoziladi)_",
             reply_markup=skip_kb, parse_mode="Markdown"
         )
     return LI_SUBJECT
