@@ -1,5 +1,6 @@
 
 import logging
+import re
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt, Inches
@@ -12,6 +13,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 client = OpenAI()
 
 # --- Helper Functions ---
+
+def strip_markdown(text: str) -> str:
+    """GPT javobidagi markdown belgilarini tozalaydi."""
+    # Sarlavha belgilari: ###, ##, #
+    text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
+    # Qalin va kursiv: **text**, __text__, *text*, _text_
+    text = re.sub(r'\*{1,3}(.*?)\*{1,3}', r'\1', text)
+    text = re.sub(r'_{1,3}(.*?)_{1,3}', r'\1', text)
+    # Inline kod: `text`
+    text = re.sub(r'`(.*?)`', r'\1', text)
+    # Gorizontal chiziq: --- yoki ***
+    text = re.sub(r'^[-\*]{3,}\s*$', '', text, flags=re.MULTILINE)
+    # Ortiqcha bo'sh qatorlarni birlashtirish
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
 
 def set_paragraph_font(paragraph, font_name='Times New Roman', font_size=14, bold=False, italic=False):
     """Sets font for all runs in a paragraph."""
@@ -44,7 +60,7 @@ def generate_content_from_gpt(prompt, language, system_message):
             ],
         )
         content = response.choices[0].message.content
-        return content.strip()
+        return strip_markdown(content.strip())
     except Exception as e:
         logging.error(f"GPT content generation failed: {e}")
         return f"Kontent yaratishda xatolik: {e}"
