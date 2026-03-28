@@ -89,6 +89,7 @@ LANGUAGE_NAMES = {
 def get_main_menu_keyboard():
     keyboard = [
         [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
+        [KeyboardButton("📁 Loyiha ishi ✨")],
         [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
         [KeyboardButton("🎓 Kurs ishi 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
