@@ -248,15 +248,13 @@ def create_plan_page(doc, topic, language):
 
     prompt = (
         f"'{topic}' mavzusida loyiha ishi uchun reja tuzing ({lang_name} tilida).\n"
-        f"Faqat quyidagi formatda yozing:\n"
-        f"Kirish\n"
+        f"Faqat quyidagi formatda yozing (Kirish va Foydalanilgan adabiyotlar bo'lmaydi):\n"
         f"1. [birinchi asosiy bo'lim]\n"
         f"2. [ikkinchi asosiy bo'lim]\n"
         f"3. [uchinchi asosiy bo'lim]\n"
         f"4. [to'rtinchi asosiy bo'lim]\n"
         f"Xulosa\n"
-        f"Foydalanilgan adabiyotlar\n"
-        f"Boshqa hech narsa yozmang."
+        f"Boshqa hech narsa yozmang. Kirish va Foydalanilgan adabiyotlar qo'shmang."
     )
     raw = gpt_generate(prompt)
 
@@ -264,25 +262,33 @@ def create_plan_page(doc, topic, language):
                   size=16, bold=True, space_before=0, space_after=12)
 
     plan_items = []
-    no_number = {"kirish", "xulosa", "foydalanilgan adabiyotlar",
-                 "introduction", "conclusion", "references",
-                 "введение", "заключение", "список литературы"}
+    # Faqat Xulosa special (raqamsiz), Kirish va Adabiyotlar yo'q
+    xulosa_words = {"xulosa", "conclusion", "заключение",
+                    "xulosalar", "conclusions", "заключения"}
+    skip_words   = {"kirish", "foydalanilgan adabiyotlar", "introduction",
+                    "references", "введение", "список литературы"}
 
     for line in raw.splitlines():
         line = line.strip()
         if not line:
             continue
         clean = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', line).strip()
-        is_special = clean.lower() in no_number
+        lower = clean.lower()
+
+        # Kirish va Adabiyotlarni o'tkazib yuboramiz
+        if lower in skip_words:
+            continue
+
+        is_xulosa = lower in xulosa_words
 
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(4)
         r = p.add_run(clean)
-        set_font(r, size=14, bold=is_special)
+        set_font(r, size=14, bold=is_xulosa)
 
-        if not is_special:
+        if not is_xulosa:
             plan_items.append(clean)
 
     doc.add_page_break()
@@ -329,24 +335,7 @@ def create_content_pages(doc, topic, language, plan_items, page_count, topic_ima
             except Exception as e:
                 logging.warning(f"Rasm qo'shishda xatolik: {e}")
 
-    # ── Kirish ──
-    intro = gpt_generate(
-        f"'{topic}' mavzusida loyiha ishi uchun kirish qismini yozing "
-        f"({lang_name} tilida, taxminan {words_per_page} so'z). "
-        f"Mavzuning dolzarbligi, maqsad va vazifalari haqida yozing.",
-        system=sys_msg
-    )
-    add_paragraph(doc, "Kirish", alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=14, bold=True, space_before=12, space_after=6)
-    for para in intro.split('\n'):
-        para = para.strip()
-        if para:
-            add_paragraph(doc, para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                          size=14, space_before=0, space_after=6)
-    insert_image_if_available()   # 1-rasm: kirishdan keyin
-    doc.add_page_break()
-
-    # ── Asosiy bo'limlar ──
+    # ── Asosiy bo'limlar (Kirish va Adabiyotlar yo'q) ──
     for i, section_title in enumerate(plan_items, 1):
         content = gpt_generate(
             f"'{topic}' mavzusida loyiha ishi uchun '{section_title}' bo'limini yozing "
@@ -380,23 +369,6 @@ def create_content_pages(doc, topic, language, plan_items, page_count, topic_ima
             add_paragraph(doc, para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
                           size=14, space_before=0, space_after=6)
     insert_image_if_available()   # xulosadan keyin rasm
-    doc.add_page_break()
-
-    # ── Foydalanilgan adabiyotlar ──
-    refs = gpt_generate(
-        f"'{topic}' mavzusida loyiha ishi uchun foydalanilgan adabiyotlar ro'yxatini tuzing "
-        f"({lang_name} tilida, 8-10 ta manba). "
-        f"Har bir manbani raqamlang: 1. Muallif. Kitob nomi. Nashriyot, yil.",
-        system=sys_msg
-    )
-    add_paragraph(doc, "Foydalanilgan adabiyotlar",
-                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=14, bold=True, space_before=12, space_after=6)
-    for para in refs.split('\n'):
-        para = para.strip()
-        if para:
-            add_paragraph(doc, para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                          size=14, space_before=0, space_after=6)
 
 
 # ─────────────────────────────────────────────
