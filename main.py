@@ -20,6 +20,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T5,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
+from loyiha_ishi_utils import generate_loyiha_ishi
 from pptx import Presentation
 
 # Load environment variables
@@ -66,6 +67,19 @@ logger = logging.getLogger(__name__)
     RF_UNIVERSITY,       # 24
     RF_TEACHER,          # 25
 ) = range(20, 26)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Loyiha ishi
+# ─────────────────────────────────────────────
+(
+    LI_LANGUAGE,         # 30
+    LI_TOPIC,            # 31
+    LI_NAME_SURNAME,     # 32
+    LI_PAGE_COUNT,       # 33
+    LI_UNIVERSITY,       # 34
+    LI_SUBJECT,          # 35
+    LI_TEACHER,          # 36
+) = range(30, 37)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -146,6 +160,31 @@ def get_rf_page_count_keyboard():
          InlineKeyboardButton("20", callback_data="rf_pages_20")],
         [InlineKeyboardButton("25", callback_data="rf_pages_25"),
          InlineKeyboardButton("30", callback_data="rf_pages_30")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_li_language_keyboard():
+    """Loyiha ishi uchun til tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("O'zbek tili",  callback_data="li_lang_uz"),
+         InlineKeyboardButton("Ingliz tili",  callback_data="li_lang_en")],
+        [InlineKeyboardButton("Rus tili",     callback_data="li_lang_ru"),
+         InlineKeyboardButton("Kores tili",   callback_data="li_lang_ko")],
+        [InlineKeyboardButton("Xitoy tili",   callback_data="li_lang_zh"),
+         InlineKeyboardButton("Nemis tili",   callback_data="li_lang_de")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_li_page_count_keyboard():
+    """Loyiha ishi uchun sahifa soni tanlash klaviaturasi."""
+    keyboard = [
+        [InlineKeyboardButton("10", callback_data="li_pages_10"),
+         InlineKeyboardButton("15", callback_data="li_pages_15"),
+         InlineKeyboardButton("20", callback_data="li_pages_20")],
+        [InlineKeyboardButton("25", callback_data="li_pages_25"),
+         InlineKeyboardButton("30", callback_data="li_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -241,6 +280,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return MI_LANGUAGE
+
+    elif text == "📁 Loyiha ishi ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "loyiha_ishi"
+        await update.message.reply_text(
+            "📁 *Loyiha ishi* bo'limiga xush kelibsiz!\n\nQaysi tilda yozmoqchisiz?",
+            reply_markup=get_li_language_keyboard(),
+            parse_mode="Markdown"
+        )
+        return LI_LANGUAGE
 
     elif text == "📚 Referat ✨":
         context.user_data.clear()
@@ -489,6 +538,171 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
 
+    return ConversationHandler.END
+
+
+# ─────────────────────────────────────────────
+# Handlerlar — Loyiha ishi
+# ─────────────────────────────────────────────
+
+async def li_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    language_code = query.data.split("_", 2)[2]  # li_lang_uz -> uz
+    context.user_data["li_language"] = language_code
+    lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nLoyiha ishi mavzusini kiriting:",
+        parse_mode="Markdown"
+    )
+    return LI_TOPIC
+
+
+async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return LI_TOPIC
+    context.user_data["li_topic"] = topic
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_name")]])
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {topic}\n\nIsm-familiyangizni kiriting:\n_(Hujjatda 'Bajardi:' qatorida yoziladi)_",
+        reply_markup=keyboard, parse_mode="Markdown"
+    )
+    return LI_NAME_SURNAME
+
+
+async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["li_name_surname"] = ""
+        await query.edit_message_text(
+            text="Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_li_page_count_keyboard()
+        )
+    else:
+        context.user_data["li_name_surname"] = update.message.text.strip()
+        await update.message.reply_text(
+            "Hujjat nechta sahifadan iborat bo'lsin?",
+            reply_markup=get_li_page_count_keyboard()
+        )
+    return LI_PAGE_COUNT
+
+
+async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    page_count = int(query.data.split("_")[2])
+    context.user_data["li_page_count"] = page_count
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_university")]])
+    await query.edit_message_text(
+        text=(
+            f"📄 Sahifalar soni: *{page_count}*\n\n"
+            f"Universitet yoki muassasa nomini kiriting:\n"
+            f"_(Kiritilsa, muqova sahifasiga qo'shiladi)_"
+        ),
+        reply_markup=keyboard, parse_mode="Markdown"
+    )
+    return LI_UNIVERSITY
+
+
+async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_subject")]])
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["li_university"] = ""
+        await query.edit_message_text(
+            text="Fan nomini kiriting:\n_(Masalan: Biologiya fanidan)_",
+            reply_markup=skip_kb, parse_mode="Markdown"
+        )
+    else:
+        context.user_data["li_university"] = update.message.text.strip()
+        await update.message.reply_text(
+            "Fan nomini kiriting:\n_(Masalan: Biologiya fanidan)_",
+            reply_markup=skip_kb, parse_mode="Markdown"
+        )
+    return LI_SUBJECT
+
+
+async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_teacher")]])
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["li_subject"] = ""
+        await query.edit_message_text(
+            text="O'qituvchi (Qabul qildi) ismini kiriting:",
+            reply_markup=skip_kb, parse_mode="Markdown"
+        )
+    else:
+        context.user_data["li_subject"] = update.message.text.strip()
+        await update.message.reply_text(
+            "O'qituvchi (Qabul qildi) ismini kiriting:",
+            reply_markup=skip_kb, parse_mode="Markdown"
+        )
+    return LI_TEACHER
+
+
+async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["li_teacher"] = ""
+        chat_id = query.message.chat_id
+        await query.edit_message_text(text="⏳ Loyiha ishi yaratilmoqda, biroz kuting...")
+    else:
+        context.user_data["li_teacher"] = update.message.text.strip()
+        chat_id = update.message.chat_id
+        await update.message.reply_text("⏳ Loyiha ishi yaratilmoqda, biroz kuting...")
+
+    topic        = context.user_data.get("li_topic", "")
+    page_count   = context.user_data.get("li_page_count", 15)
+    language     = context.user_data.get("li_language", "uz")
+    name_surname = context.user_data.get("li_name_surname", "")
+    university   = context.user_data.get("li_university", "")
+    subject      = context.user_data.get("li_subject", "")
+    teacher      = context.user_data.get("li_teacher", "")
+
+    try:
+        doc_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_loyiha_ishi(
+                topic=topic,
+                page_count=page_count,
+                language=language,
+                name_surname=name_surname,
+                university_info=university,
+                subject_name=subject,
+                teacher_name=teacher,
+            )
+        )
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'loyiha_ishi'}.docx"
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *{topic}* mavzusidagi loyiha ishi tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa"
+            ),
+            parse_mode="Markdown"
+        )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Yana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Loyiha ishi yaratishda xatolik: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Loyiha ishi yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
     return ConversationHandler.END
 
 
@@ -873,6 +1087,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
         ],
         per_message=False,
         states={
@@ -881,6 +1096,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
             ],
             TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
@@ -916,6 +1132,32 @@ def main() -> None:
             MI_TEACHER: [
                 CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
+            ],
+            # ── Loyiha ishi holatlari ──
+            LI_LANGUAGE: [
+                CallbackQueryHandler(li_get_language, pattern=r"^li_lang_"),
+            ],
+            LI_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_topic),
+            ],
+            LI_NAME_SURNAME: [
+                CallbackQueryHandler(li_get_name_surname, pattern=r"^li_skip_name$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_name_surname),
+            ],
+            LI_PAGE_COUNT: [
+                CallbackQueryHandler(li_get_page_count, pattern=r"^li_pages_"),
+            ],
+            LI_UNIVERSITY: [
+                CallbackQueryHandler(li_get_university, pattern=r"^li_skip_university$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_university),
+            ],
+            LI_SUBJECT: [
+                CallbackQueryHandler(li_get_subject, pattern=r"^li_skip_subject$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_subject),
+            ],
+            LI_TEACHER: [
+                CallbackQueryHandler(li_get_teacher, pattern=r"^li_skip_teacher$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_teacher),
             ],
             # ── Referat holatlari ──
             RF_LANGUAGE: [
