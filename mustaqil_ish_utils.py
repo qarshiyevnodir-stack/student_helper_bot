@@ -14,6 +14,33 @@ client = OpenAI()
 
 # --- Helper Functions ---
 
+def add_page_border(document):
+    """Hujjatning har bir sahifasiga to'rtburchak ramka qo'shadi."""
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    for section in document.sections:
+        sectPr = section._sectPr
+
+        # Eski pgBorders ni o'chirish (agar mavjud bo'lsa)
+        for old in sectPr.findall(qn('w:pgBorders')):
+            sectPr.remove(old)
+
+        pgBorders = OxmlElement('w:pgBorders')
+        # offsetFrom="page" — ramka sahifa chekkasidan o'lchanadi
+        pgBorders.set(qn('w:offsetFrom'), 'page')
+
+        for edge in ('top', 'left', 'bottom', 'right'):
+            border_el = OxmlElement(f'w:{edge}')
+            border_el.set(qn('w:val'),   'single')
+            border_el.set(qn('w:sz'),    '18')    # qalinlik (1/8 pt birligida)
+            border_el.set(qn('w:space'), '24')    # sahiya chetidan masofa
+            border_el.set(qn('w:color'), '000000')
+            pgBorders.append(border_el)
+
+        sectPr.append(pgBorders)
+
+
 def strip_markdown(text: str) -> str:
     """GPT javobidagi markdown belgilarini tozalaydi."""
     # Sarlavha belgilari: ###, ##, #
@@ -263,6 +290,9 @@ def generate_mustaqil_ish(topic, page_count, language, name_surname, university_
     style = document.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(14)
+
+    # Har sahifaga ramka qo'shish
+    add_page_border(document)
 
     # 1. Cover Page
     create_cover_page(document, university_info, topic, name_surname, teacher_name)
