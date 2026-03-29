@@ -3,6 +3,7 @@ import logging
 import os
 import asyncio
 import random
+import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
@@ -23,6 +24,19 @@ from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
 from pptx import Presentation
 
+# ─────────────────────────────────────────────
+# Admin va narx sozlamalari
+# ─────────────────────────────────────────────
+ADMIN_IDS = {6813160650}
+CARD_NUMBER = "5614 6818 1913 0745"
+SERVICE_PRICES = {
+    "slayd":        3000,
+    "mustaqil_ish": 3000,
+    "referat":      3000,
+    "loyiha_ishi":  3000,
+}
+MIN_TOPUP = 3000
+
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
@@ -32,6 +46,14 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Balans to'ldirish
+# ─────────────────────────────────────────────
+(
+    TOPUP_AMOUNT,     # 40
+    TOPUP_SCREENSHOT, # 41
+) = range(40, 42)
 
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Slayd yaratish
@@ -252,6 +274,16 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Botni ishga tushiradi va asosiy menyu ko'rsatadi."""
     context.user_data.clear()
+    user = update.effective_user
+    # Referral tekshirish
+    ref_by = None
+    args = context.args
+    if args and args[0].startswith("ref_"):
+        ref_code = args[0][4:]
+        referrer = db.get_user_by_ref_code(ref_code)
+        if referrer and referrer['user_id'] != user.id:
+            ref_by = referrer['user_id']
+    db.get_or_create_user(user.id, user.username, user.full_name, ref_by)
     await update.message.reply_text(
         "Assalomu alaykum! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
         reply_markup=get_main_menu_keyboard()
@@ -262,6 +294,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Asosiy menyu tugmasini qayta ishlaydi."""
     text = update.message.text
+
+    user = update.effective_user
+    db.get_or_create_user(user.id, user.username, user.full_name)
 
     if text == "🪄 Slayd yaratish ✨":
         context.user_data.clear()
@@ -302,6 +337,23 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return RF_LANGUAGE
 
+    elif text == "💰 Balans & Referral 🔗":
+        user_data = db.get_user(user.id)
+        balance = user_data['balance'] if user_data else 0
+        ref_code = user_data['referral_code'] if user_data else ''
+        bot_username = (await context.bot.get_me()).username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await update.message.reply_text(
+            f"💰 *Balansingiz:* `{balance:,}` so'm\n\n"
+            f"🔗 *Referral havolangiz:*\n`{ref_link}`\n\n"
+            f"Do'stlaringizni taklif qiling va bonuslar oling!",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return LANGUAGE_SELECTION
     else:
         await update.message.reply_text(
             f"'{text}' xizmati tez kunda ishga tushadi!\nHozircha faqat 'Slayd yaratish' va 'Mustaqil ish' bo'limlari ishlamoqda.",
@@ -460,6 +512,23 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return PLAN_CONFIRMATION
 
     # ── Tasdiqlandi: 2-BOSQICH ──
+    # Balans tekshirish
+    user_id = query.from_user.id
+    price = SERVICE_PRICES['slayd']
+    balance = db.get_balance(user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await query.edit_message_text(
+            f"❌ *Balansingiz yetarli emas!*\n\n"
+            f"💰 Joriy balans: *{balance:,} so'm*\n"
+            f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+            f"Iltimos, avval balansni to'ldiring:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
     await query.edit_message_text(
         text="✅ Reja tasdiqlandi!\n\n⏳ Kontent yaratilmoqda, biroz kuting...",
         parse_mode="Markdown"
@@ -517,11 +586,19 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'taqdimot'}.pptx"
 
+        # Balansdan yechish va log
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'slayd', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_document(
             chat_id=chat_id,
             document=presentation_bytes,
             filename=filename,
-            caption=f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n📊 {slide_count} ta slayd",
+            caption=(
+                f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n"
+                f"📊 {slide_count} ta slayd\n"
+                f"💰 Balans: *{new_balance:,} so'm*"
+            ),
             parse_mode="Markdown"
         )
         await context.bot.send_message(
@@ -663,6 +740,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         chat_id = update.message.chat_id
         await update.message.reply_text("⏳ Loyiha ishi yaratilmoqda, biroz kuting...")
 
+    user_id      = update.effective_user.id
     topic        = context.user_data.get("li_topic", "")
     page_count   = context.user_data.get("li_page_count", 15)
     language     = context.user_data.get("li_language", "uz")
@@ -670,6 +748,26 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     university   = context.user_data.get("li_university", "")
     subject      = context.user_data.get("li_subject", "")
     teacher      = context.user_data.get("li_teacher", "")
+
+    # Balans tekshirish
+    price = SERVICE_PRICES['loyiha_ishi']
+    balance = db.get_balance(user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"❌ *Balansingiz yetarli emas!*\n\n"
+                f"💰 Joriy balans: *{balance:,} so'm*\n"
+                f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+                f"Iltimos, avval balansni to'ldiring:"
+            ),
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
 
     try:
         doc_bytes = await asyncio.get_event_loop().run_in_executor(
@@ -686,13 +784,18 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'loyiha_ishi'}.docx"
+        # Balansdan yechish va log
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'loyiha_ishi', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi loyiha ishi tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"📄 Taxminiy {page_count} sahifa\n"
+                f"💰 Balans: *{new_balance:,} so'm*"
             ),
             parse_mode="Markdown"
         )
@@ -831,12 +934,33 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         chat_id = update.message.chat_id
         await update.message.reply_text("⏳ Referat yaratilmoqda, biroz kuting...")
 
+    user_id      = update.effective_user.id
     topic        = context.user_data.get("rf_topic", "")
     page_count   = context.user_data.get("rf_page_count", 15)
     language     = context.user_data.get("rf_language", "uz")
     name_surname = context.user_data.get("rf_name_surname", "")
     university   = context.user_data.get("rf_university", "")
     teacher      = context.user_data.get("rf_teacher", "")
+
+    # Balans tekshirish
+    price = SERVICE_PRICES['referat']
+    balance = db.get_balance(user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"❌ *Balansingiz yetarli emas!*\n\n"
+                f"💰 Joriy balans: *{balance:,} so'm*\n"
+                f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+                f"Iltimos, avval balansni to'ldiring:"
+            ),
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
 
     try:
         doc_bytes = await asyncio.get_event_loop().run_in_executor(
@@ -853,13 +977,18 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'referat'}.docx"
+        # Balansdan yechish va log
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'referat', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi referat tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"📄 Taxminiy {page_count} sahifa\n"
+                f"💰 Balans: *{new_balance:,} so'm*"
             ),
             parse_mode="Markdown"
         )
@@ -1014,12 +1143,33 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
     # Collect all data
+    user_id       = update.effective_user.id
     topic         = context.user_data.get("mi_topic", "")
     page_count    = context.user_data.get("mi_page_count", 15)
     language      = context.user_data.get("mi_language", "uz")
     name_surname  = context.user_data.get("mi_name_surname", "")
     university    = context.user_data.get("mi_university", "")
     teacher       = context.user_data.get("mi_teacher", "")
+
+    # Balans tekshirish
+    price = SERVICE_PRICES['mustaqil_ish']
+    balance = db.get_balance(user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"❌ *Balansingiz yetarli emas!*\n\n"
+                f"💰 Joriy balans: *{balance:,} so'm*\n"
+                f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+                f"Iltimos, avval balansni to'ldiring:"
+            ),
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
 
     try:
         doc_bytes = await asyncio.get_event_loop().run_in_executor(
@@ -1037,13 +1187,18 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'mustaqil_ish'}.docx"
 
+        # Balansdan yechish va log
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'mustaqil_ish', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi mustaqil ish tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"📄 Taxminiy {page_count} sahifa\n"
+                f"💰 Balans: *{new_balance:,} so'm*"
             ),
             parse_mode="Markdown"
         )
@@ -1072,6 +1227,333 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=get_main_menu_keyboard()
     )
     return ConversationHandler.END
+
+
+# ─────────────────────────────────────────────
+# Balans to'ldirish handlerlari
+# ─────────────────────────────────────────────
+
+async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Balans to'ldirish boshlaydi."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        f"💳 *Balans to'ldirish*\n\n"
+        f"Karta raqami: `{CARD_NUMBER}`\n\n"
+        f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+        f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
+        parse_mode="Markdown"
+    )
+    return TOPUP_AMOUNT
+
+
+async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """To'lov miqdorini qabul qiladi."""
+    text = update.message.text.strip().replace(' ', '').replace(',', '')
+    try:
+        amount = int(text)
+    except ValueError:
+        await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting (masalan: 10000):")
+        return TOPUP_AMOUNT
+    if amount < MIN_TOPUP:
+        await update.message.reply_text(
+            f"⚠️ Minimal to'lov miqdori: *{MIN_TOPUP:,} so'm*\nIltimos, qayta kiriting:",
+            parse_mode="Markdown"
+        )
+        return TOPUP_AMOUNT
+    context.user_data['topup_amount'] = amount
+    await update.message.reply_text(
+        f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
+        f"Karta raqami: `{CARD_NUMBER}`\n\n"
+        f"Ushbu kartaga *{amount:,} so'm* o'tkazing va chek (screenshot) rasmini yuboring:",
+        parse_mode="Markdown"
+    )
+    return TOPUP_SCREENSHOT
+
+
+async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Chek rasmini qabul qiladi va adminga yuboradi."""
+    if not update.message.photo:
+        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini yuboring:")
+        return TOPUP_SCREENSHOT
+    user = update.effective_user
+    amount = context.user_data.get('topup_amount', 0)
+    photo_id = update.message.photo[-1].file_id
+    tx_id = db.create_topup_request(user.id, amount, photo_id)
+    # Adminga xabar yuborish
+    for admin_id in ADMIN_IDS:
+        try:
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"admin_approve_{tx_id}"),
+                 InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")]
+            ])
+            await context.bot.send_photo(
+                chat_id=admin_id,
+                photo=photo_id,
+                caption=(
+                    f"💳 *Yangi to'lov so'rovi* #{tx_id}\n\n"
+                    f"👤 Foydalanuvchi: @{user.username or 'nomsiz'} (`{user.id}`)\n"
+                    f"💰 Miqdor: *{amount:,} so'm*"
+                ),
+                reply_markup=kb,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Adminga xabar yuborishda xatolik: {e}")
+    await update.message.reply_text(
+        f"✅ Chekingiz qabul qilindi!\n\n"
+        f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
+        f"Admin tekshirib, balansni tez orada to'ldiradi.",
+        reply_markup=get_main_menu_keyboard(),
+        parse_mode="Markdown"
+    )
+    return ConversationHandler.END
+
+
+async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin to'lovni tasdiqlaydi."""
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in ADMIN_IDS:
+        await query.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    tx_id = int(query.data.split("_")[2])
+    tx = db.approve_topup(tx_id)
+    if not tx:
+        await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
+        return
+    await query.edit_message_caption(
+        caption=query.message.caption + f"\n\n✅ *TASDIQLANDI* — {tx['amount']:,} so'm qo'shildi",
+        parse_mode="Markdown"
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=tx['user_id'],
+            text=f"✅ To'lovingiz tasdiqlandi!\n💰 Balansingizga *{tx['amount']:,} so'm* qo'shildi.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Foydalanuvchiga xabar yuborishda xatolik: {e}")
+
+
+async def admin_reject_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin to'lovni rad etadi."""
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in ADMIN_IDS:
+        await query.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    tx_id = int(query.data.split("_")[2])
+    tx = db.reject_topup(tx_id)
+    if not tx:
+        await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
+        return
+    await query.edit_message_caption(
+        caption=query.message.caption + "\n\n❌ *RAD ETILDI*",
+        parse_mode="Markdown"
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=tx['user_id'],
+            text="❌ To'lovingiz rad etildi. Iltimos, admin bilan bog'laning."
+        )
+    except Exception as e:
+        logger.error(f"Foydalanuvchiga xabar yuborishda xatolik: {e}")
+
+
+# ─────────────────────────────────────────────
+# Admin panel handlerlari
+# ─────────────────────────────────────────────
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin panelini ko'rsatadi."""
+    if update.effective_user.id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Sizda admin huquqi yo'q.")
+        return
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Statistika",           callback_data="adm_stats"),
+         InlineKeyboardButton("👥 Foydalanuvchilar",    callback_data="adm_users")],
+        [InlineKeyboardButton("⏳ Kutayotgan to'lovlar", callback_data="adm_pending"),
+         InlineKeyboardButton("💰 Balans qo'shish",     callback_data="adm_add_bal")],
+        [InlineKeyboardButton("📢 Xabar yuborish",      callback_data="adm_broadcast")],
+    ])
+    await update.message.reply_text(
+        "🔐 *Admin Panel*\n\nQuyidagi bo'limlardan birini tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+
+async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin panel callback handleri."""
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in ADMIN_IDS:
+        await query.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    data = query.data
+
+    if data == "adm_stats":
+        s = db.get_stats()
+        by_svc = s['by_service']
+        text = (
+            f"📊 *Statistika*\n\n"
+            f"👥 Jami foydalanuvchilar: *{s['total_users']:,}*\n"
+            f"🆕 Bugun yangi: *{s['new_today']:,}*\n"
+            f"🔗 Referral orqali: *{s['via_referral']:,}*\n\n"
+            f"📄 Jami generatsiyalar: *{s['total_generations']:,}*\n"
+            f"📅 Bugun: *{s['generations_today']:,}*\n"
+            f"  • Slayd: {by_svc.get('slayd', 0)}\n"
+            f"  • Mustaqil ish: {by_svc.get('mustaqil_ish', 0)}\n"
+            f"  • Referat: {by_svc.get('referat', 0)}\n"
+            f"  • Loyiha ishi: {by_svc.get('loyiha_ishi', 0)}\n\n"
+            f"💵 Jami tushum: *{s['total_income']:,} so'm*\n"
+            f"📅 Bugungi tushum: *{s['income_today']:,} so'm*\n"
+            f"⏳ Kutayotgan to'lovlar: *{s['pending_topups']}*"
+        )
+        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+        await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
+
+    elif data == "adm_users":
+        users = db.get_all_users(limit=10)
+        lines = []
+        for u in users:
+            name = u['full_name'] or u['username'] or str(u['user_id'])
+            lines.append(f"• {name} | 💰 {u['balance']:,} so'm")
+        text = "👥 *So'nggi 10 foydalanuvchi:*\n\n" + "\n".join(lines) if lines else "Foydalanuvchilar yo'q."
+        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+        await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
+
+    elif data == "adm_pending":
+        pending = db.get_pending_topups()
+        if not pending:
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+            await query.edit_message_text("✅ Kutayotgan to'lovlar yo'q.", reply_markup=back_kb)
+            return
+        for tx in pending[:5]:
+            name = tx.get('full_name') or tx.get('username') or str(tx['user_id'])
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"admin_approve_{tx['id']}"),
+                 InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx['id']}")]
+            ])
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_user.id,
+                    photo=tx['screenshot_id'],
+                    caption=(
+                        f"💳 To'lov #{tx['id']}\n"
+                        f"👤 {name} (`{tx['user_id']}`)\n"
+                        f"💰 {tx['amount']:,} so'm"
+                    ),
+                    reply_markup=kb,
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.error(f"Pending to'lov ko'rsatishda xatolik: {e}")
+        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+        await query.edit_message_text(f"⏳ {len(pending)} ta kutayotgan to'lov yuborildi.", reply_markup=back_kb)
+
+    elif data == "adm_add_bal":
+        await query.edit_message_text(
+            "💰 *Balans qo'shish*\n\nFormat: `user_id miqdor`\nMasalan: `123456789 10000`\n\n/admin_addbal buyrug'ini yuboring.",
+            parse_mode="Markdown"
+        )
+
+    elif data == "adm_broadcast":
+        await query.edit_message_text(
+            "📢 *Xabar yuborish*\n\n/broadcast buyrug'ini yuboring.\nFormat: `/broadcast Xabar matni`",
+            parse_mode="Markdown"
+        )
+
+    elif data == "adm_back":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 Statistika",           callback_data="adm_stats"),
+             InlineKeyboardButton("👥 Foydalanuvchilar",    callback_data="adm_users")],
+            [InlineKeyboardButton("⏳ Kutayotgan to'lovlar", callback_data="adm_pending"),
+             InlineKeyboardButton("💰 Balans qo'shish",     callback_data="adm_add_bal")],
+            [InlineKeyboardButton("📢 Xabar yuborish",      callback_data="adm_broadcast")],
+        ])
+        await query.edit_message_text(
+            "🔐 *Admin Panel*\n\nQuyidagi bo'limlardan birini tanlang:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+
+
+async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin qo'lda balans qo'shadi: /admin_addbal user_id miqdor"""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    args = context.args
+    if not args or len(args) < 2:
+        await update.message.reply_text("Format: /admin_addbal user_id miqdor")
+        return
+    try:
+        target_id = int(args[0])
+        amount    = int(args[1])
+    except ValueError:
+        await update.message.reply_text("⚠️ Noto'g'ri format. Masalan: /admin_addbal 123456 5000")
+        return
+    db.add_balance(target_id, amount)
+    db.log_deduction(target_id, amount, note="Admin qo'lda qo'shdi")
+    await update.message.reply_text(f"✅ {target_id} ga {amount:,} so'm qo'shildi.")
+    try:
+        await context.bot.send_message(
+            chat_id=target_id,
+            text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi (admin tomonidan).",
+            parse_mode="Markdown"
+        )
+    except Exception:
+        pass
+
+
+async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Barcha foydalanuvchilarga xabar yuboradi: /broadcast Xabar"""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if not context.args:
+        await update.message.reply_text("Format: /broadcast Xabar matni")
+        return
+    text = " ".join(context.args)
+    users = db.get_all_users(limit=5000)
+    sent = 0
+    failed = 0
+    for u in users:
+        try:
+            await context.bot.send_message(chat_id=u['user_id'], text=text)
+            sent += 1
+        except Exception:
+            failed += 1
+    await update.message.reply_text(f"📢 Yuborildi: {sent} | Muvaffaqiyatsiz: {failed}")
+
+
+async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi haqida ma'lumot: /user_info user_id"""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if not context.args:
+        await update.message.reply_text("Format: /user_info user_id")
+        return
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("⚠️ Noto'g'ri ID")
+        return
+    u = db.get_user(target_id)
+    if not u:
+        await update.message.reply_text("❌ Foydalanuvchi topilmadi.")
+        return
+    await update.message.reply_text(
+        f"👤 *Foydalanuvchi ma'lumotlari*\n\n"
+        f"ID: `{u['user_id']}`\n"
+        f"Ism: {u['full_name'] or 'Nomsiz'}\n"
+        f"Username: @{u['username'] or 'yoq'}\n"
+        f"💰 Balans: *{u['balance']:,} so'm*\n"
+        f"🔗 Referral kodi: `{u['referral_code']}`\n"
+        f"📅 Qo'shilgan: {u['joined_at']}\n"
+        f"⏰ Oxirgi faollik: {u['last_active']}",
+        parse_mode="Markdown"
+    )
 
 
 # ─────────────────────────────────────────────
@@ -1194,7 +1676,45 @@ def main() -> None:
         ],
     )
 
+    # Balans to'ldirish suhbat handleri
+    topup_handler = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+        ],
+        per_message=False,
+        states={
+            TOPUP_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
+            ],
+            TOPUP_SCREENSHOT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_screenshot),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+        ],
+    )
+
     application.add_handler(slayd_handler)
+    application.add_handler(topup_handler)
+
+    # Admin handlerlari
+    application.add_handler(CommandHandler("admin", admin_panel))
+    application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
+    application.add_handler(CommandHandler("broadcast", admin_broadcast))
+    application.add_handler(CommandHandler("user_info", admin_user_info))
+
+    # Admin callback handlerlari
+    application.add_handler(CallbackQueryHandler(admin_callback,      pattern=r"^adm_"))
+    application.add_handler(CallbackQueryHandler(admin_approve_topup, pattern=r"^admin_approve_"))
+    application.add_handler(CallbackQueryHandler(admin_reject_topup,  pattern=r"^admin_reject_"))
+
+    # Balans & Referral menyu handleri
+    application.add_handler(MessageHandler(
+        filters.Regex(r"^💰 Balans & Referral 🔗$"),
+        handle_main_menu_selection
+    ))
 
     logger.info("Bot ishga tushmoqda (polling rejimi)...")
     application.run_polling()
