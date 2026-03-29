@@ -1371,12 +1371,15 @@ async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TY
 
 # Alias — ConversationHandler states ichida hali ishlatilgan joylar uchun
 async def topup_get_amount(update, context):
-    await topup_message_router(update, context)
-
+    # Faqat topup_state aktiv bo'lsa ishlaydi, aks holda handle_main_menu_selection ga o'tkazadi
+    handled = await topup_message_router(update, context)
+    if not handled:
+        await handle_main_menu_selection(update, context)
 
 async def topup_get_screenshot(update, context):
-    await topup_message_router(update, context)
-
+    handled = await topup_message_router(update, context)
+    if not handled and update.message and update.message.photo:
+        pass  # Rasm yuborildi lekin topup aktiv emas — e'tiborsiz qoldiriladi
 
 
 async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1656,7 +1659,9 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
-                # Topup oqimi uchun matn va rasm handlerlari
+                # Balans & Referral tugmasi
+                MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
+                # Topup oqimi uchun matn va rasm handlerlari (faqat topup_state aktiv bo'lsa)
                 MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
             ],
