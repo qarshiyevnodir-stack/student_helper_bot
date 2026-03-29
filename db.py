@@ -159,7 +159,9 @@ def get_or_create_user(user_id: int, username: str = None, full_name: str = None
         if row:
             c.execute("UPDATE users SET last_active = NOW() WHERE user_id = %s", (user_id,))
             conn.commit()
-            return _row_to_dict(c, row)
+            # UPDATE dan keyin cursor.description None bo'ladi, shuning uchun qayta SELECT qilamiz
+            c.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+            return _row_to_dict(c, c.fetchone())
 
         # Yangi foydalanuvchi
         ref_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
