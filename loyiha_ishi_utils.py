@@ -86,50 +86,49 @@ def gpt_generate(prompt: str, system: str = "Siz foydali yordamchisiz.") -> str:
 
 
 # ─────────────────────────────────────────────
-# Rasm yuklash (Unsplash API orqali)
+# Rasm yuklash
 # ─────────────────────────────────────────────
 
-def fetch_topic_images(topic: str, count: int = 4) -> list:
+def fetch_topic_images(topic: str, count: int = 6) -> list:
     """
-    Mavzuga oid rasmlarni Unsplash dan yuklab, vaqtinchalik fayllar ro'yxatini qaytaradi.
-    Agar Unsplash ishlamasa, Wikimedia Commons dan urinib ko'radi.
+    Mavzuga oid rasmlarni Unsplash/Wikimedia dan yuklab,
+    vaqtinchalik fayllar ro'yxatini qaytaradi.
     """
     images = []
+
     # GPT yordamida inglizcha kalit so'z olamiz
     keyword = gpt_generate(
         f"'{topic}' mavzusi uchun eng mos 1-2 ta inglizcha kalit so'z yozing "
         f"(faqat kalit so'zlar, boshqa hech narsa yo'q).",
         system="Siz tarjimon va kalit so'z mutaxassisizsiz."
     ).split('\n')[0].strip()
+    logging.info(f"Rasm qidirish kalit so'zi: {keyword}")
 
-    logging.info(f"Rasm qidirish uchun kalit so'z: {keyword}")
-
-    # Unsplash (API key shart emas — demo endpoint)
+    # Unsplash demo endpoint
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://source.unsplash.com/featured/800x600/?{requests.utils.quote(keyword)}"
+        url = f"https://source.unsplash.com/featured/900x600/?{requests.utils.quote(keyword)}"
         for i in range(count):
-            r = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+            r = requests.get(url, headers=headers, timeout=12, allow_redirects=True)
             if r.status_code == 200 and r.headers.get('content-type', '').startswith('image'):
                 tmp = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
                 tmp.write(r.content)
                 tmp.close()
                 images.append(tmp.name)
-                logging.info(f"Rasm {i+1} yuklandi: {tmp.name}")
+                logging.info(f"Unsplash rasm {i+1}: {tmp.name}")
     except Exception as e:
         logging.warning(f"Unsplash xatolik: {e}")
 
-    # Agar yetarli rasm bo'lmasa — Wikimedia Commons dan urinib ko'ramiz
+    # Wikimedia Commons zaxira
     if len(images) < count:
         try:
             search_url = (
                 f"https://commons.wikimedia.org/w/api.php"
                 f"?action=query&list=search&srsearch={requests.utils.quote(keyword)}"
-                f"&srnamespace=6&srlimit={count * 2}&format=json"
+                f"&srnamespace=6&srlimit={count * 3}&format=json"
             )
             resp = requests.get(search_url, timeout=10)
-            data = resp.json()
-            titles = [r['title'] for r in data.get('query', {}).get('search', [])]
+            titles = [r['title'] for r in resp.json().get('query', {}).get('search', [])]
             for title in titles:
                 if len(images) >= count:
                     break
@@ -138,12 +137,11 @@ def fetch_topic_images(topic: str, count: int = 4) -> list:
                     f"?action=query&titles={requests.utils.quote(title)}"
                     f"&prop=imageinfo&iiprop=url&format=json"
                 )
-                info = requests.get(info_url, timeout=10).json()
-                pages = info.get('query', {}).get('pages', {})
+                pages = requests.get(info_url, timeout=10).json().get('query', {}).get('pages', {})
                 for page in pages.values():
                     img_url = page.get('imageinfo', [{}])[0].get('url', '')
                     if img_url and img_url.lower().endswith(('.jpg', '.jpeg', '.png')):
-                        r2 = requests.get(img_url, timeout=10)
+                        r2 = requests.get(img_url, timeout=12)
                         if r2.status_code == 200:
                             ext = '.png' if img_url.endswith('.png') else '.jpg'
                             tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
@@ -162,17 +160,7 @@ def fetch_topic_images(topic: str, count: int = 4) -> list:
 # ─────────────────────────────────────────────
 
 def create_cover_page(doc, university_info, subject_name, topic, name_surname, teacher_name):
-    """
-    Muqova:
-      - Gerb rasmi (markazlashgan)
-      - Ta'lim muassasasi nomi (agar kiritilsa, aks holda bo'sh)
-      - Fan/yo'nalish nomi (agar kiritilsa, aks holda bo'sh)
-      - LOYIHA ISHI (katta, qalin, markazlashgan)
-      - Bajardi: Ism Familiya (chapga, qalin, bir qatorda)
-      - Qabul qildi: O'qituvchi (chapga, qalin, bir qatorda)
-      - Kitob rasmi (pastda, markazlashgan)
-    """
-    # ── Gerb rasmi ──
+    # Gerb rasmi
     if os.path.exists(GERB_PATH):
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -180,30 +168,30 @@ def create_cover_page(doc, university_info, subject_name, topic, name_surname, t
         p.paragraph_format.space_after  = Pt(6)
         p.add_run().add_picture(GERB_PATH, width=Inches(4.5))
 
-    # ── Ta'lim muassasasi nomi ──
+    # Ta'lim muassasasi
     univ_text = university_info.strip().upper() if university_info and university_info.strip() else ""
     add_paragraph(doc, univ_text,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=14, bold=True, space_before=4, space_after=2)
 
-    # ── Fan / yo'nalish nomi ──
+    # Fan / yo'nalish
     subj_text = subject_name.strip().upper() if subject_name and subject_name.strip() else ""
     add_paragraph(doc, subj_text,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=14, bold=True, space_before=2, space_after=12)
 
-    # ── LOYIHA ISHI ──
+    # LOYIHA ISHI
     add_paragraph(doc, "LOYIHA ISHI",
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=36, bold=True, space_before=18, space_after=12)
 
-    # ── Mavzu ──
+    # Mavzu
     if topic and topic.strip():
         add_paragraph(doc, f"Mavzu: {topic.strip()}",
                       alignment=WD_ALIGN_PARAGRAPH.CENTER,
                       size=14, bold=True, space_before=6, space_after=18)
 
-    # ── Bajardi: Ism Familiya (bir qatorda) ──
+    # Bajardi: Ism Familiya
     p_b = doc.add_paragraph()
     p_b.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p_b.paragraph_format.space_before = Pt(6)
@@ -213,7 +201,7 @@ def create_cover_page(doc, university_info, subject_name, topic, name_surname, t
     r2 = p_b.add_run(name_surname.strip() if name_surname else "")
     set_font(r2, size=14, bold=True)
 
-    # ── Qabul qildi: O'qituvchi (bir qatorda) ──
+    # Qabul qildi: O'qituvchi
     p_q = doc.add_paragraph()
     p_q.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p_q.paragraph_format.space_before = Pt(2)
@@ -223,7 +211,7 @@ def create_cover_page(doc, university_info, subject_name, topic, name_surname, t
     r4 = p_q.add_run(teacher_name.strip() if teacher_name and teacher_name.strip() else "")
     set_font(r4, size=14, bold=True)
 
-    # ── Kitob rasmi ──
+    # Kitob rasmi
     if os.path.exists(KITOB_PATH):
         p_k = doc.add_paragraph()
         p_k.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -235,7 +223,7 @@ def create_cover_page(doc, university_info, subject_name, topic, name_surname, t
 
 
 # ─────────────────────────────────────────────
-# 2-sahifa: Reja
+# 2-sahifa: Reja (5 bo'lim + Xulosa va takliflar)
 # ─────────────────────────────────────────────
 
 def create_plan_page(doc, topic, language):
@@ -248,13 +236,14 @@ def create_plan_page(doc, topic, language):
 
     prompt = (
         f"'{topic}' mavzusida loyiha ishi uchun reja tuzing ({lang_name} tilida).\n"
-        f"Faqat quyidagi formatda yozing (Kirish va Foydalanilgan adabiyotlar bo'lmaydi):\n"
-        f"1. [birinchi asosiy bo'lim]\n"
-        f"2. [ikkinchi asosiy bo'lim]\n"
-        f"3. [uchinchi asosiy bo'lim]\n"
-        f"4. [to'rtinchi asosiy bo'lim]\n"
-        f"Xulosa\n"
-        f"Boshqa hech narsa yozmang. Kirish va Foydalanilgan adabiyotlar qo'shmang."
+        f"Faqat quyidagi formatda yozing (5 ta asosiy bo'lim, Kirish va Adabiyotlar bo'lmaydi):\n"
+        f"1. [birinchi asosiy bo'lim nomi]\n"
+        f"2. [ikkinchi asosiy bo'lim nomi]\n"
+        f"3. [uchinchi asosiy bo'lim nomi]\n"
+        f"4. [to'rtinchi asosiy bo'lim nomi]\n"
+        f"5. [beshinchi asosiy bo'lim nomi]\n"
+        f"Xulosa va takliflar\n"
+        f"Boshqa hech narsa yozmang."
     )
     raw = gpt_generate(prompt)
 
@@ -262,11 +251,14 @@ def create_plan_page(doc, topic, language):
                   size=16, bold=True, space_before=0, space_after=12)
 
     plan_items = []
-    # Faqat Xulosa special (raqamsiz), Kirish va Adabiyotlar yo'q
-    xulosa_words = {"xulosa", "conclusion", "заключение",
-                    "xulosalar", "conclusions", "заключения"}
-    skip_words   = {"kirish", "foydalanilgan adabiyotlar", "introduction",
-                    "references", "введение", "список литературы"}
+    xulosa_words = {
+        "xulosa va takliflar", "xulosa", "conclusion", "conclusions",
+        "заключение", "заключения", "xulosalar"
+    }
+    skip_words = {
+        "kirish", "foydalanilgan adabiyotlar", "introduction",
+        "references", "введение", "список литературы"
+    }
 
     for line in raw.splitlines():
         line = line.strip()
@@ -275,7 +267,6 @@ def create_plan_page(doc, topic, language):
         clean = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', line).strip()
         lower = clean.lower()
 
-        # Kirish va Adabiyotlarni o'tkazib yuboramiz
         if lower in skip_words:
             continue
 
@@ -296,10 +287,15 @@ def create_plan_page(doc, topic, language):
 
 
 # ─────────────────────────────────────────────
-# Kontent sahifalari (rasmlar bilan)
+# Kontent sahifalari
 # ─────────────────────────────────────────────
 
 def create_content_pages(doc, topic, language, plan_items, page_count, topic_images):
+    """
+    1-3-bo'limlar: matn bilan to'ldiriladi
+    4-5-bo'limlar: har sahifaga 2 ta katta rasm (namuna kabi)
+    Oxirgi: Xulosa va takliflar (matn)
+    """
     lang_map = {
         "uz": "o'zbek", "en": "ingliz", "ru": "rus",
         "ko": "kores",  "zh": "xitoy",  "de": "nemis",
@@ -307,11 +303,14 @@ def create_content_pages(doc, topic, language, plan_items, page_count, topic_ima
     }
     lang_name = lang_map.get(language, "o'zbek")
 
-    words_per_page   = 300
-    main_sections    = len(plan_items) if plan_items else 4
-    main_words_each  = max(
+    words_per_page  = 300
+    text_sections   = 3   # 1-2-3 bo'limlar matn
+    image_sections  = 2   # 4-5 bo'limlar rasm
+
+    # Matn bo'limlari uchun so'z soni
+    text_section_words = max(
         words_per_page,
-        int((page_count - 3) * words_per_page / max(main_sections, 1))
+        int((page_count - 2 - image_sections) * words_per_page / max(text_sections, 1))
     )
 
     sys_msg = (
@@ -319,31 +318,44 @@ def create_content_pages(doc, topic, language, plan_items, page_count, topic_ima
         f"Faqat sof matn yozing, markdown belgilari ishlatmang."
     )
 
-    # Rasmlarni bo'limlarga taqsimlash
     img_idx = 0
 
-    def insert_image_if_available():
+    def add_image_page(section_num, section_title):
+        """Bir sahifaga 2 ta katta rasm joylashtiradi (namuna kabi)."""
         nonlocal img_idx
-        if img_idx < len(topic_images):
-            try:
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_before = Pt(6)
-                p.paragraph_format.space_after  = Pt(6)
-                p.add_run().add_picture(topic_images[img_idx], width=Inches(4.0))
-                img_idx += 1
-            except Exception as e:
-                logging.warning(f"Rasm qo'shishda xatolik: {e}")
 
-    # ── Asosiy bo'limlar (Kirish va Adabiyotlar yo'q) ──
-    for i, section_title in enumerate(plan_items, 1):
+        # Bo'lim sarlavhasi
+        add_paragraph(doc, f"{section_num}. {section_title}",
+                      alignment=WD_ALIGN_PARAGRAPH.CENTER,
+                      size=14, bold=True, space_before=6, space_after=12)
+
+        # 2 ta rasm ketma-ket
+        imgs_added = 0
+        for _ in range(2):
+            if img_idx < len(topic_images):
+                try:
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.paragraph_format.space_before = Pt(4)
+                    p.paragraph_format.space_after  = Pt(4)
+                    p.add_run().add_picture(topic_images[img_idx], width=Inches(5.5))
+                    img_idx += 1
+                    imgs_added += 1
+                except Exception as e:
+                    logging.warning(f"Rasm qo'shishda xatolik: {e}")
+
+        doc.add_page_break()
+
+    # ── 1-2-3 bo'limlar: MATN ──
+    for i in range(min(text_sections, len(plan_items))):
+        section_title = plan_items[i]
         content = gpt_generate(
             f"'{topic}' mavzusida loyiha ishi uchun '{section_title}' bo'limini yozing "
-            f"({lang_name} tilida, taxminan {main_words_each} so'z). "
+            f"({lang_name} tilida, taxminan {text_section_words} so'z). "
             f"Ilmiy uslubda, batafsil yozing.",
             system=sys_msg
         )
-        add_paragraph(doc, f"{i}. {section_title}",
+        add_paragraph(doc, f"{i+1}. {section_title}",
                       alignment=WD_ALIGN_PARAGRAPH.CENTER,
                       size=14, bold=True, space_before=12, space_after=6)
         for para in content.split('\n'):
@@ -351,24 +363,28 @@ def create_content_pages(doc, topic, language, plan_items, page_count, topic_ima
             if para:
                 add_paragraph(doc, para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
                               size=14, space_before=0, space_after=6)
-        insert_image_if_available()   # har bo'limdan keyin rasm
         doc.add_page_break()
 
-    # ── Xulosa ──
+    # ── 4-5 bo'limlar: RASMLAR (2 ta rasm / sahifa) ──
+    for i in range(text_sections, min(text_sections + image_sections, len(plan_items))):
+        section_title = plan_items[i]
+        add_image_page(i + 1, section_title)
+
+    # ── Xulosa va takliflar ──
     conclusion = gpt_generate(
-        f"'{topic}' mavzusida loyiha ishi uchun xulosa qismini yozing "
+        f"'{topic}' mavzusida loyiha ishi uchun 'Xulosa va takliflar' qismini yozing "
         f"({lang_name} tilida, taxminan {words_per_page} so'z). "
-        f"Asosiy natijalar va tavsiyalarni yozing.",
+        f"Asosiy natijalar, xulosalar va amaliy tavsiyalarni yozing.",
         system=sys_msg
     )
-    add_paragraph(doc, "Xulosa", alignment=WD_ALIGN_PARAGRAPH.CENTER,
+    add_paragraph(doc, "Xulosa va takliflar",
+                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=14, bold=True, space_before=12, space_after=6)
     for para in conclusion.split('\n'):
         para = para.strip()
         if para:
             add_paragraph(doc, para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
                           size=14, space_before=0, space_after=6)
-    insert_image_if_available()   # xulosadan keyin rasm
 
 
 # ─────────────────────────────────────────────
@@ -380,12 +396,11 @@ def generate_loyiha_ishi(topic, page_count, language,
                          subject_name, teacher_name):
     """To'liq loyiha ishi hujjatini yaratadi va BytesIO qaytaradi."""
 
-    # Rasmlarni oldindan yuklab olamiz
-    # Sahifa soniga qarab rasm soni: min 3, max page_count//3
-    img_count = max(3, min(page_count // 3, 8))
+    # Rasm soni: 4-5 bo'limlar uchun 2 tadan = 4 ta minimum
+    img_count = max(4, min(page_count // 3, 8))
     logging.info(f"Mavzu uchun {img_count} ta rasm yuklanmoqda: {topic}")
     topic_images = fetch_topic_images(topic, count=img_count)
-    logging.info(f"Yuklangan rasmlar soni: {len(topic_images)}")
+    logging.info(f"Yuklangan rasmlar: {len(topic_images)}")
 
     doc = Document()
     style = doc.styles['Normal']
@@ -408,10 +423,10 @@ def generate_loyiha_ishi(topic, page_count, language,
     # 2. Reja
     plan_items = create_plan_page(doc, topic, language)
 
-    # 3. Kontent + rasmlar
+    # 3. Kontent
     create_content_pages(doc, topic, language, plan_items, page_count, topic_images)
 
-    # Vaqtinchalik rasm fayllarini tozalash
+    # Vaqtinchalik rasmlarni tozalash
     for img_path in topic_images:
         try:
             os.unlink(img_path)
