@@ -910,6 +910,8 @@ async def rf_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
+    if await topup_message_router(update, context):
+        return
     skip_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_teacher")]
     ])
@@ -1116,6 +1118,8 @@ async def mi_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1255,6 +1259,23 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ─────────────────────────────────────────────
 # ─────────────────────────────────────────────
 # Balans to'ldirish handlerlari
+
+def _get_topup_state(context, user_id):
+    """topup_state ni bot_data dan oladi (user_data.clear() dan ta'sirlanmaydi)."""
+    return context.bot_data.get(f'topup_state_{user_id}')
+
+def _set_topup_state(context, user_id, state):
+    """topup_state ni bot_data ga saqlaydi."""
+    context.bot_data[f'topup_state_{user_id}'] = state
+
+def _get_topup_amount(context, user_id):
+    """topup_amount ni bot_data dan oladi."""
+    return context.bot_data.get(f'topup_amount_{user_id}', 0)
+
+def _set_topup_amount(context, user_id, amount):
+    """topup_amount ni bot_data ga saqlaydi."""
+    context.bot_data[f'topup_amount_{user_id}'] = amount
+
 # ConversationHandler dan MUSTAQIL — context.user_data['topup_state'] orqali
 # topup_state: None | 'amount' | 'screenshot'
 # ─────────────────────────────────────────────
@@ -1278,14 +1299,14 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
             parse_mode="Markdown"
         )
-    context.user_data['topup_state'] = 'amount'
-    context.user_data['topup_amount'] = 0
+    _set_topup_state(context, update.effective_user.id, 'amount')
+    _set_topup_amount(context, update.effective_user.id, 0)
     logger.info(f"topup_start: user {update.effective_user.id} topup boshladi")
 
 
 async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Matn/rasm xabarlarni topup holatiga qarab yo'naltiradi."""
-    topup_state = context.user_data.get('topup_state')
+    topup_state = _get_topup_state(context, update.effective_user.id)
     if topup_state == 'amount':
         await _topup_get_amount(update, context)
         return True
@@ -1309,8 +1330,8 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
         return
-    context.user_data['topup_amount'] = amount
-    context.user_data['topup_state'] = 'screenshot'
+    _set_topup_amount(context, update.effective_user.id, amount)
+    _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
         f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
         f"Karta raqami: `{CARD_NUMBER}`\n\n"
@@ -1326,7 +1347,7 @@ async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return
     user = update.effective_user
-    amount = context.user_data.get('topup_amount', 0)
+    amount = _get_topup_amount(context, user.id)
     photo_id = update.message.photo[-1].file_id
     tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, photo_id)
     full_name = (user.full_name or '').strip() or 'Nomsiz'
@@ -1357,8 +1378,8 @@ async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TY
             logger.error(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
     if not admin_notified:
         logger.error(f"Hech bir adminga to'lov #{tx_id} yuborilmadi!")
-    context.user_data['topup_state'] = None
-    context.user_data['topup_amount'] = 0
+    _set_topup_state(context, user.id, None)
+    _set_topup_amount(context, user.id, 0)
     await update.message.reply_text(
         f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
