@@ -1591,6 +1591,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
+            CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
         per_message=False,
         states={
@@ -1711,8 +1712,9 @@ def main() -> None:
         ],
     )
 
-    application.add_handler(slayd_handler)
+    # topup_handler slayd_handler dan OLDIN qo'shilishi kerak
     application.add_handler(topup_handler)
+    application.add_handler(slayd_handler)
 
     # Admin handlerlari
     application.add_handler(CommandHandler("admin", admin_panel))
