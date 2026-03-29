@@ -67,6 +67,16 @@ def init_db():
         )
     """)
 
+    # Topup holati jadvali (restart bo'lsa ham yo'qolmaydi)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS user_topup_state (
+            user_id    INTEGER PRIMARY KEY,
+            state      TEXT NOT NULL,
+            amount     INTEGER DEFAULT 0,
+            updated_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -316,6 +326,41 @@ def get_stats() -> dict:
         "income_today":       income_today,
         "pending_topups":     pending_topups,
     }
+
+
+# ─────────────────────────────────────────────
+# Topup holati (DB da saqlanadi — restart da yo'qolmaydi)
+# ─────────────────────────────────────────────
+
+def set_user_topup_state(user_id: int, state: str | None, amount: int = 0):
+    """Foydalanuvchining topup holatini DB ga saqlaydi."""
+    conn = get_conn()
+    c = conn.cursor()
+    if state is None:
+        c.execute("DELETE FROM user_topup_state WHERE user_id = ?", (user_id,))
+    else:
+        c.execute("""
+            INSERT INTO user_topup_state (user_id, state, amount, updated_at)
+            VALUES (?, ?, ?, datetime('now','localtime'))
+            ON CONFLICT(user_id) DO UPDATE SET
+                state = excluded.state,
+                amount = excluded.amount,
+                updated_at = datetime('now','localtime')
+        """, (user_id, state, amount))
+    conn.commit()
+    conn.close()
+
+
+def get_user_topup_state(user_id: int) -> dict | None:
+    """Foydalanuvchining topup holatini DB dan oladi."""
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT state, amount FROM user_topup_state WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {"state": row["state"], "amount": row["amount"]}
+    return None
 
 
 # Modulni import qilganda DB ni ishga tushir

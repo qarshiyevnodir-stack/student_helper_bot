@@ -1261,20 +1261,27 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Balans to'ldirish handlerlari
 
 def _get_topup_state(context, user_id):
-    """topup_state ni bot_data dan oladi (user_data.clear() dan ta'sirlanmaydi)."""
-    return context.bot_data.get(f'topup_state_{user_id}')
+    """topup_state ni DB dan oladi (restart bo'lsa ham yo'qolmaydi)."""
+    row = db.get_user_topup_state(user_id)
+    return row['state'] if row else None
 
 def _set_topup_state(context, user_id, state):
-    """topup_state ni bot_data ga saqlaydi."""
-    context.bot_data[f'topup_state_{user_id}'] = state
+    """topup_state ni DB ga saqlaydi."""
+    if state is None:
+        db.set_user_topup_state(user_id, None)
+    else:
+        current_amount = _get_topup_amount(context, user_id)
+        db.set_user_topup_state(user_id, state, current_amount)
 
 def _get_topup_amount(context, user_id):
-    """topup_amount ni bot_data dan oladi."""
-    return context.bot_data.get(f'topup_amount_{user_id}', 0)
+    """topup_amount ni DB dan oladi."""
+    row = db.get_user_topup_state(user_id)
+    return row['amount'] if row else 0
 
 def _set_topup_amount(context, user_id, amount):
-    """topup_amount ni bot_data ga saqlaydi."""
-    context.bot_data[f'topup_amount_{user_id}'] = amount
+    """topup_amount ni DB ga saqlaydi."""
+    current_state = _get_topup_state(context, user_id) or 'amount'
+    db.set_user_topup_state(user_id, current_state, amount)
 
 # ConversationHandler dan MUSTAQIL — context.user_data['topup_state'] orqali
 # topup_state: None | 'amount' | 'screenshot'
@@ -1305,13 +1312,16 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Matn/rasm xabarlarni topup holatiga qarab yo'naltiradi."""
+    """Routes text messages based on the user's top-up state."""
+    # This router now only handles TEXT messages during the top-up flow.
+    # Photo messages are handled by the global topup_get_screenshot handler.
     topup_state = _get_topup_state(context, update.effective_user.id)
     if topup_state == 'amount':
         await _topup_get_amount(update, context)
         return True
+    # If the user sends text when we expect a screenshot, we remind them.
     elif topup_state == 'screenshot':
-        await _topup_get_screenshot(update, context)
+        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return True
     return False
 
@@ -1341,8 +1351,17 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
 
 
-async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Chek rasmini qabul qiladi va adminga yuboradi."""
+async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles photo submissions globally. Only processes if the user is in 'screenshot' state."""
+    user_id = update.effective_user.id
+    topup_state = _get_topup_state(context, user_id)
+
+    # Only process if the user is expecting to send a screenshot
+    if topup_state != 'screenshot':
+        # Not in a topup flow — ignore silently to avoid interfering with other flows.
+        logger.info(f"Photo from user {user_id} ignored, topup_state is '{topup_state}'.")
+        return
+
     if not update.message.photo:
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return
@@ -1390,17 +1409,9 @@ async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
-# Alias — ConversationHandler states ichida hali ishlatilgan joylar uchun
-async def topup_get_amount(update, context):
-    # Faqat topup_state aktiv bo'lsa ishlaydi, aks holda handle_main_menu_selection ga o'tkazadi
-    handled = await topup_message_router(update, context)
-    if not handled:
-        await handle_main_menu_selection(update, context)
 
-async def topup_get_screenshot(update, context):
-    handled = await topup_message_router(update, context)
-    if not handled and update.message and update.message.photo:
-        pass  # Rasm yuborildi lekin topup aktiv emas — e'tiborsiz qoldiriladi
+
+
 
 
 async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1683,147 +1694,121 @@ def main() -> None:
                 # Balans & Referral tugmasi
                 MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
                 # Topup oqimi uchun matn va rasm handlerlari (faqat topup_state aktiv bo'lsa)
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
             ],
             TOPIC: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             NAME_SURNAME: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(get_name_surname, pattern=r"^skip_name_surname$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname),
             ],
             SLIDE_COUNT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(get_slide_count, pattern=r"^slide_count_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             PLAN_CONFIRMATION: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Mustaqil ish holatlari ──
             MI_LANGUAGE: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_language, pattern=r"^mi_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_TOPIC: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_NAME_SURNAME: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_name_surname, pattern=r"^mi_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_name_surname),
             ],
             MI_PAGE_COUNT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_page_count, pattern=r"^mi_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_UNIVERSITY: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_university, pattern=r"^mi_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_university),
             ],
             MI_TEACHER: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
             ],
             # ── Loyiha ishi holatlari ──
             LI_LANGUAGE: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_language, pattern=r"^li_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_TOPIC: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_NAME_SURNAME: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_name_surname, pattern=r"^li_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_name_surname),
             ],
             LI_PAGE_COUNT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_page_count, pattern=r"^li_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_UNIVERSITY: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_university, pattern=r"^li_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_university),
             ],
             LI_SUBJECT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_subject, pattern=r"^li_skip_subject$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_subject),
             ],
             LI_TEACHER: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_teacher, pattern=r"^li_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_teacher),
             ],
             # ── Referat holatlari ──
             RF_LANGUAGE: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_language, pattern=r"^rf_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_TOPIC: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_NAME_SURNAME: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_name_surname, pattern=r"^rf_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_name_surname),
             ],
             RF_PAGE_COUNT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_page_count, pattern=r"^rf_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_UNIVERSITY: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_university, pattern=r"^rf_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_university),
             ],
             RF_TEACHER: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_teacher, pattern=r"^rf_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_teacher),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
-                MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_screenshot),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
         },
@@ -1851,6 +1836,9 @@ def main() -> None:
         filters.Regex(r"^💰 Balans & Referral 🔗$"),
         handle_main_menu_selection
     ))
+
+    # Global handler for photo submissions for top-up
+    application.add_handler(MessageHandler(filters.PHOTO, topup_get_screenshot), group=-1)
 
     logger.info("Bot ishga tushmoqda (polling rejimi)...")
     application.run_polling()
