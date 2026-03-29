@@ -586,32 +586,29 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'taqdimot'}.pptx"
 
-        # Balansdan yechish va log
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'slayd', topic)
-        new_balance = db.get_balance(user_id)
+        # Fayl yuborildi — faqat shundan keyin balansdan yechish
         await context.bot.send_document(
             chat_id=chat_id,
             document=presentation_bytes,
             filename=filename,
-            caption=(
-                f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n"
-                f"📊 {slide_count} ta slayd\n"
-                f"💰 Balans: *{new_balance:,} so'm*"
-            ),
+            caption=f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n📊 {slide_count} ta slayd",
             parse_mode="Markdown"
         )
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'slayd', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Yana biror narsa kerakmi?",
-            reply_markup=get_main_menu_keyboard()
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
 
     except Exception as e:
         logger.error(f"Prezentatsiya yaratishda xatolik: {e}")
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Prezentatsiya yaratishda xatolik yuz berdi:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            text=f"❌ Prezentatsiya yaratishda xatolik yuz berdi:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
@@ -784,31 +781,31 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'loyiha_ishi'}.docx"
-        # Balansdan yechish va log
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'loyiha_ishi', topic)
-        new_balance = db.get_balance(user_id)
+        # Fayl yuborildi — faqat shundan keyin balansdan yechish
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi loyiha ishi tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa\n"
-                f"💰 Balans: *{new_balance:,} so'm*"
+                f"📄 Taxminiy {page_count} sahifa"
             ),
             parse_mode="Markdown"
         )
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'loyiha_ishi', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Yana biror narsa kerakmi?",
-            reply_markup=get_main_menu_keyboard()
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
     except Exception as e:
         logger.error(f"Loyiha ishi yaratishda xatolik: {e}")
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Loyiha ishi yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            text=f"❌ Loyiha ishi yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
@@ -977,31 +974,31 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'referat'}.docx"
-        # Balansdan yechish va log
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'referat', topic)
-        new_balance = db.get_balance(user_id)
+        # Fayl yuborildi — faqat shundan keyin balansdan yechish
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi referat tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa\n"
-                f"💰 Balans: *{new_balance:,} so'm*"
+                f"📄 Taxminiy {page_count} sahifa"
             ),
             parse_mode="Markdown"
         )
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'referat', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Yana biror narsa kerakmi?",
-            reply_markup=get_main_menu_keyboard()
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
     except Exception as e:
         logger.error(f"Referat yaratishda xatolik: {e}")
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Referat yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            text=f"❌ Referat yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
@@ -1187,32 +1184,32 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'mustaqil_ish'}.docx"
 
-        # Balansdan yechish va log
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'mustaqil_ish', topic)
-        new_balance = db.get_balance(user_id)
+        # Fayl yuborildi — faqat shundan keyin balansdan yechish
         await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
                 f"✅ *{topic}* mavzusidagi mustaqil ish tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa\n"
-                f"💰 Balans: *{new_balance:,} so'm*"
+                f"📄 Taxminiy {page_count} sahifa"
             ),
             parse_mode="Markdown"
         )
+        db.deduct_balance(user_id, price)
+        db.log_generation(user_id, 'mustaqil_ish', topic)
+        new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Yana biror narsa kerakmi?",
-            reply_markup=get_main_menu_keyboard()
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
 
     except Exception as e:
         logger.error(f"Mustaqil ish yaratishda xatolik: {e}")
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Mustaqil ish yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring.",
+            text=f"❌ Mustaqil ish yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
