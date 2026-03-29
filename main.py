@@ -1274,13 +1274,22 @@ async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Chek rasmini qabul qiladi va adminga yuboradi."""
     if not update.message.photo:
-        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini yuboring:")
+        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return TOPUP_SCREENSHOT
+
     user = update.effective_user
     amount = context.user_data.get('topup_amount', 0)
     photo_id = update.message.photo[-1].file_id
+
+    # DB ga saqlash
     tx_id = db.create_topup_request(user.id, amount, photo_id)
-    # Adminga xabar yuborish
+
+    # Foydalanuvchi to'liq ismi
+    full_name = (user.full_name or '').strip() or 'Nomsiz'
+    username_str = f"@{user.username}" if user.username else "username yo'q"
+
+    # Adminga darhol yuborish
+    admin_notified = False
     for admin_id in ADMIN_IDS:
         try:
             kb = InlineKeyboardMarkup([
@@ -1292,18 +1301,27 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                 photo=photo_id,
                 caption=(
                     f"💳 *Yangi to'lov so'rovi* #{tx_id}\n\n"
-                    f"👤 Foydalanuvchi: @{user.username or 'nomsiz'} (`{user.id}`)\n"
-                    f"💰 Miqdor: *{amount:,} so'm*"
+                    f"👤 Ism: {full_name}\n"
+                    f"📱 {username_str} | ID: `{user.id}`\n"
+                    f"💰 Miqdor: *{amount:,} so'm*\n\n"
+                    f"Tasdiqlash yoki rad etish uchun tugmani bosing:"
                 ),
                 reply_markup=kb,
                 parse_mode="Markdown"
             )
+            admin_notified = True
+            logger.info(f"Admin {admin_id} ga to'lov #{tx_id} yuborildi (user: {user.id}, {amount} so'm)")
         except Exception as e:
-            logger.error(f"Adminga xabar yuborishda xatolik: {e}")
+            logger.error(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
+
+    if not admin_notified:
+        logger.error(f"Hech bir adminga to'lov #{tx_id} yuborilmadi!")
+
     await update.message.reply_text(
-        f"✅ Chekingiz qabul qilindi!\n\n"
+        f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
-        f"Admin tekshirib, balansni tez orada to'ldiradi.",
+        f"🔢 So'rov raqami: #{tx_id}\n\n"
+        f"Admin tekshirib, balansni tez orada to'ldiradi. ⏳",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
