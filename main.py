@@ -1666,113 +1666,137 @@ def main() -> None:
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
             ],
             TOPIC: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             NAME_SURNAME: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(get_name_surname, pattern=r"^skip_name_surname$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname),
             ],
             SLIDE_COUNT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(get_slide_count, pattern=r"^slide_count_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             PLAN_CONFIRMATION: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Mustaqil ish holatlari ──
             MI_LANGUAGE: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_language, pattern=r"^mi_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_TOPIC: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_NAME_SURNAME: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_name_surname, pattern=r"^mi_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_name_surname),
             ],
             MI_PAGE_COUNT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_page_count, pattern=r"^mi_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_UNIVERSITY: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_university, pattern=r"^mi_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_university),
             ],
             MI_TEACHER: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
             ],
             # ── Loyiha ishi holatlari ──
             LI_LANGUAGE: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_language, pattern=r"^li_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_TOPIC: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_NAME_SURNAME: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_name_surname, pattern=r"^li_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_name_surname),
             ],
             LI_PAGE_COUNT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_page_count, pattern=r"^li_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_UNIVERSITY: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_university, pattern=r"^li_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_university),
             ],
             LI_SUBJECT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_subject, pattern=r"^li_skip_subject$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_subject),
             ],
             LI_TEACHER: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(li_get_teacher, pattern=r"^li_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_teacher),
             ],
             # ── Referat holatlari ──
             RF_LANGUAGE: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_language, pattern=r"^rf_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_TOPIC: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_NAME_SURNAME: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_name_surname, pattern=r"^rf_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_name_surname),
             ],
             RF_PAGE_COUNT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_page_count, pattern=r"^rf_pages_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_UNIVERSITY: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_university, pattern=r"^rf_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_university),
             ],
             RF_TEACHER: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 CallbackQueryHandler(rf_get_teacher, pattern=r"^rf_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_teacher),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
