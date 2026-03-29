@@ -1656,6 +1656,9 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
+                # Topup oqimi uchun matn va rasm handlerlari
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_get_amount),
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
             ],
             TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
