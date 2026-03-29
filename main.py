@@ -280,10 +280,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     args = context.args
     if args and args[0].startswith("ref_"):
         ref_code = args[0][4:]
-        referrer = db.get_user_by_ref_code(ref_code)
+        referrer = await asyncio.to_thread(db.get_user_by_ref_code, ref_code)
         if referrer and referrer['user_id'] != user.id:
             ref_by = referrer['user_id']
-    db.get_or_create_user(user.id, user.username, user.full_name, ref_by)
+    await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name, ref_by)
     await update.message.reply_text(
         "Assalomu alaykum! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
         reply_markup=get_main_menu_keyboard()
@@ -296,7 +296,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     text = update.message.text
 
     user = update.effective_user
-    db.get_or_create_user(user.id, user.username, user.full_name)
+    await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name)
 
     if text == "🪄 Slayd yaratish ✨":
         context.user_data.clear()
@@ -338,7 +338,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         return RF_LANGUAGE
 
     elif text == "💰 Balans & Referral 🔗":
-        user_data = db.get_user(user.id)
+        user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
         ref_code = user_data['referral_code'] if user_data else ''
         bot_username = (await context.bot.get_me()).username
@@ -519,7 +519,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Balans tekshirish
     user_id = query.from_user.id
     price = SERVICE_PRICES['slayd']
-    balance = db.get_balance(user_id)
+    balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
@@ -598,9 +598,9 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             caption=f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n📊 {slide_count} ta slayd",
             parse_mode="Markdown"
         )
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'slayd', topic, price)
-        new_balance = db.get_balance(user_id)
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
@@ -762,7 +762,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Balans tekshirish
     price = SERVICE_PRICES['loyiha_ishi']
-    balance = db.get_balance(user_id)
+    balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
@@ -806,9 +806,9 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'loyiha_ishi', topic, price)
-        new_balance = db.get_balance(user_id)
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'loyiha_ishi', topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
@@ -961,7 +961,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Balans tekshirish
     price = SERVICE_PRICES['referat']
-    balance = db.get_balance(user_id)
+    balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
@@ -1005,9 +1005,9 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'referat', topic, price)
-        new_balance = db.get_balance(user_id)
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'referat', topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
@@ -1176,7 +1176,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Balans tekshirish
     price = SERVICE_PRICES['mustaqil_ish']
-    balance = db.get_balance(user_id)
+    balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
@@ -1221,9 +1221,9 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
-        db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'mustaqil_ish', topic, price)
-        new_balance = db.get_balance(user_id)
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'mustaqil_ish', topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
@@ -1328,7 +1328,7 @@ async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TY
     user = update.effective_user
     amount = context.user_data.get('topup_amount', 0)
     photo_id = update.message.photo[-1].file_id
-    tx_id = db.create_topup_request(user.id, amount, photo_id)
+    tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, photo_id)
     full_name = (user.full_name or '').strip() or 'Nomsiz'
     username_str = f"@{user.username}" if user.username else "username yo'q"
     admin_notified = False
@@ -1390,7 +1390,7 @@ async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("Ruxsat yo'q!", show_alert=True)
         return
     tx_id = int(query.data.split("_")[2])
-    tx = db.approve_topup(tx_id)
+    tx = await asyncio.to_thread(db.approve_topup, tx_id)
     if not tx:
         await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
         return
@@ -1416,7 +1416,7 @@ async def admin_reject_topup(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer("Ruxsat yo'q!", show_alert=True)
         return
     tx_id = int(query.data.split("_")[2])
-    tx = db.reject_topup(tx_id)
+    tx = await asyncio.to_thread(db.reject_topup, tx_id)
     if not tx:
         await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
         return
@@ -1466,7 +1466,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "adm_stats":
-        s = db.get_stats()
+        s = await asyncio.to_thread(db.get_stats)
         by_svc = s['by_service']
         text = (
             f"📊 *Statistika*\n\n"
@@ -1487,7 +1487,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
 
     elif data == "adm_users":
-        users = db.get_all_users(limit=10)
+        users = await asyncio.to_thread(db.get_all_users, limit=10)
         lines = []
         for u in users:
             name = u['full_name'] or u['username'] or str(u['user_id'])
@@ -1497,7 +1497,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
 
     elif data == "adm_pending":
-        pending = db.get_pending_topups()
+        pending = await asyncio.to_thread(db.get_pending_topups)
         if not pending:
             back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
             await query.edit_message_text("✅ Kutayotgan to'lovlar yo'q.", reply_markup=back_kb)
@@ -1566,8 +1566,8 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("⚠️ Noto'g'ri format. Masalan: /admin_addbal 123456 5000")
         return
-    db.add_balance(target_id, amount)
-    db.log_deduction(target_id, amount, note="Admin qo'lda qo'shdi")
+    await asyncio.to_thread(db.add_balance, target_id, amount)
+    await asyncio.to_thread(db.log_deduction, target_id, amount, note="Admin qo'lda qo'shdi")
     await update.message.reply_text(f"✅ {target_id} ga {amount:,} so'm qo'shildi.")
     try:
         await context.bot.send_message(
@@ -1587,7 +1587,7 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Format: /broadcast Xabar matni")
         return
     text = " ".join(context.args)
-    users = db.get_all_users(limit=5000)
+    users = await asyncio.to_thread(db.get_all_users, limit=5000)
     sent = 0
     failed = 0
     for u in users:
@@ -1611,7 +1611,7 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("⚠️ Noto'g'ri ID")
         return
-    u = db.get_user(target_id)
+    u = await asyncio.to_thread(db.get_user, target_id)
     if not u:
         await update.message.reply_text("❌ Foydalanuvchi topilmadi.")
         return
