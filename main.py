@@ -384,6 +384,8 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mavzuni qabul qiladi."""
+    if await topup_message_router(update, context):
+        return
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -404,6 +406,8 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -634,6 +638,8 @@ async def li_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if await topup_message_router(update, context):
+        return
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -650,6 +656,8 @@ async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if await topup_message_router(update, context):
+        return
     # Faqat matn qabul qilinadi (majburiy)
     name = update.message.text.strip() if update.message else ""
     if not name:
@@ -684,6 +692,8 @@ async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if await topup_message_router(update, context):
+        return
     skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_subject")]])
     if update.callback_query:
         query = update.callback_query
@@ -707,6 +717,8 @@ async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if await topup_message_router(update, context):
+        return
     skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_teacher")]])
     if update.callback_query:
         query = update.callback_query
@@ -726,6 +738,8 @@ async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -832,6 +846,8 @@ async def rf_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: mavzuni qabul qiladi."""
+    if await topup_message_router(update, context):
+        return
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -852,6 +868,8 @@ async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def rf_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -920,6 +938,8 @@ async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1027,6 +1047,8 @@ async def mi_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: mavzuni qabul qiladi."""
+    if await topup_message_router(update, context):
+        return
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -1049,6 +1071,8 @@ async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def mi_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1122,6 +1146,8 @@ async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
+    if await topup_message_router(update, context):
+        return
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1227,65 +1253,84 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 # ─────────────────────────────────────────────
-# Balans to'ldirish handlerlari
 # ─────────────────────────────────────────────
+# Balans to'ldirish handlerlari
+# ConversationHandler dan MUSTAQIL — context.user_data['topup_state'] orqali
+# topup_state: None | 'amount' | 'screenshot'
+# ─────────────────────────────────────────────
+async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Balans to'ldirish boshlaydi — callback yoki message orqali."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(
+            f"💳 *Balans to'ldirish*\n\n"
+            f"Karta raqami: `{CARD_NUMBER}`\n\n"
+            f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+            f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            f"💳 *Balans to'ldirish*\n\n"
+            f"Karta raqami: `{CARD_NUMBER}`\n\n"
+            f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+            f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
+            parse_mode="Markdown"
+        )
+    context.user_data['topup_state'] = 'amount'
+    context.user_data['topup_amount'] = 0
+    logger.info(f"topup_start: user {update.effective_user.id} topup boshladi")
 
-async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Balans to'ldirish boshlaydi."""
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        f"💳 *Balans to'ldirish*\n\n"
-        f"Karta raqami: `{CARD_NUMBER}`\n\n"
-        f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
-        f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
-        parse_mode="Markdown"
-    )
-    return TOPUP_AMOUNT
+
+async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Matn/rasm xabarlarni topup holatiga qarab yo'naltiradi."""
+    topup_state = context.user_data.get('topup_state')
+    if topup_state == 'amount':
+        await _topup_get_amount(update, context)
+        return True
+    elif topup_state == 'screenshot':
+        await _topup_get_screenshot(update, context)
+        return True
+    return False
 
 
-async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """To'lov miqdorini qabul qiladi."""
     text = update.message.text.strip().replace(' ', '').replace(',', '')
     try:
         amount = int(text)
     except ValueError:
         await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting (masalan: 10000):")
-        return TOPUP_AMOUNT
+        return
     if amount < MIN_TOPUP:
         await update.message.reply_text(
             f"⚠️ Minimal to'lov miqdori: *{MIN_TOPUP:,} so'm*\nIltimos, qayta kiriting:",
             parse_mode="Markdown"
         )
-        return TOPUP_AMOUNT
+        return
     context.user_data['topup_amount'] = amount
+    context.user_data['topup_state'] = 'screenshot'
     await update.message.reply_text(
         f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
         f"Karta raqami: `{CARD_NUMBER}`\n\n"
         f"Ushbu kartaga *{amount:,} so'm* o'tkazing va chek (screenshot) rasmini yuboring:",
         parse_mode="Markdown"
     )
-    return TOPUP_SCREENSHOT
+    logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
 
 
-async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def _topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Chek rasmini qabul qiladi va adminga yuboradi."""
     if not update.message.photo:
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
-        return TOPUP_SCREENSHOT
-
+        return
     user = update.effective_user
     amount = context.user_data.get('topup_amount', 0)
     photo_id = update.message.photo[-1].file_id
-
-    # DB ga saqlash
     tx_id = db.create_topup_request(user.id, amount, photo_id)
-
-    # Foydalanuvchi to'liq ismi
     full_name = (user.full_name or '').strip() or 'Nomsiz'
     username_str = f"@{user.username}" if user.username else "username yo'q"
-
-    # Adminga darhol yuborish
     admin_notified = False
     for admin_id in ADMIN_IDS:
         try:
@@ -1310,10 +1355,10 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
             logger.info(f"Admin {admin_id} ga to'lov #{tx_id} yuborildi (user: {user.id}, {amount} so'm)")
         except Exception as e:
             logger.error(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
-
     if not admin_notified:
         logger.error(f"Hech bir adminga to'lov #{tx_id} yuborilmadi!")
-
+    context.user_data['topup_state'] = None
+    context.user_data['topup_amount'] = 0
     await update.message.reply_text(
         f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
@@ -1322,7 +1367,16 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
-    return ConversationHandler.END
+
+
+# Alias — ConversationHandler states ichida hali ishlatilgan joylar uchun
+async def topup_get_amount(update, context):
+    await topup_message_router(update, context)
+
+
+async def topup_get_screenshot(update, context):
+    await topup_message_router(update, context)
+
 
 
 async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
