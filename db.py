@@ -36,6 +36,11 @@ _pool = None
 def _get_pool():
     global _pool
     if _pool is None:
+        if not DATABASE_URL:
+            raise RuntimeError(
+                "DATABASE_URL muhit o'zgaruvchisi topilmadi!\n"
+                "Railway da PostgreSQL qo'shib, DATABASE_URL ni bot servisiga ulang."
+            )
         _pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,
             maxconn=10,

@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libreoffice \
     poppler-utils \
     git \
+    libpq-dev \
+    gcc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
