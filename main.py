@@ -595,7 +595,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'slayd', topic)
+        db.log_generation(user_id, 'slayd', topic, price)
         new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -793,7 +793,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
         db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'loyiha_ishi', topic)
+        db.log_generation(user_id, 'loyiha_ishi', topic, price)
         new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -986,7 +986,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
         db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'referat', topic)
+        db.log_generation(user_id, 'referat', topic, price)
         new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -1196,7 +1196,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
         db.deduct_balance(user_id, price)
-        db.log_generation(user_id, 'mustaqil_ish', topic)
+        db.log_generation(user_id, 'mustaqil_ish', topic, price)
         new_balance = db.get_balance(user_id)
         await context.bot.send_message(
             chat_id=chat_id,
