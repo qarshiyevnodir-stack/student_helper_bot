@@ -294,9 +294,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Asosiy menyu tugmasini qayta ishlaydi."""
     text = update.message.text
-
     user = update.effective_user
     await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name)
+    # Har qanday menyu tugmasi bosilganda topup holatini tozalash
+    # (foydalanuvchi topup oqimini bekor qilib boshqa xizmatga o'tgan bo'lishi mumkin)
+    _set_topup_state(context, user.id, None)
 
     if text == "🪄 Slayd yaratish ✨":
         context.user_data.clear()
