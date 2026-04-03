@@ -22,6 +22,7 @@ from utils import (
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
+from infografika_utils import generate_infografika
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -34,6 +35,7 @@ SERVICE_PRICES = {
     "mustaqil_ish": 3000,
     "referat":      3000,
     "loyiha_ishi":  3000,
+    "infografika":  3000,
 }
 MIN_TOPUP = 3000
 
@@ -102,6 +104,15 @@ logger = logging.getLogger(__name__)
     LI_SUBJECT,          # 35
     LI_TEACHER,          # 36
 ) = range(30, 37)
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Infografika
+# ─────────────────────────────────────────────
+(
+    IG_LANGUAGE,         # 50
+    IG_TYPE,             # 51
+    IG_COLOR,            # 52
+    IG_TOPIC,            # 53
+) = range(50, 54)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -125,7 +136,7 @@ LANGUAGE_NAMES = {
 def get_main_menu_keyboard():
     keyboard = [
         [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
-        [KeyboardButton("📁 Loyiha ishi ✨")],
+        [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📊 Infografika ✨")],
         [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
         [KeyboardButton("🎓 Kurs ishi 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
@@ -343,6 +354,21 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return LI_LANGUAGE
 
+    elif text == "📊 Infografika ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "infografika"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="ig_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ig_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ig_lang_ru"),
+             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ig_lang_de")],
+        ])
+        await update.message.reply_text(
+            "📊 *Infografika* bo'limiga xush kelibsiz!\n\nQaysi tilda infografika yaratmoqchisiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return IG_LANGUAGE
     elif text == "📚 Referat ✨":
         context.user_data.clear()
         context.user_data["mode"] = "referat"
@@ -853,10 +879,161 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
+## ─────────────────────────────────────────────
+# Handlerlar — Infografika
+# ─────────────────────────────────────────────
+async def ig_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Infografika: tilni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang_code = query.data.split("_", 2)[2]  # ig_lang_uz -> uz
+    context.user_data["ig_language"] = lang_code
+    lang_name = LANGUAGE_NAMES.get(lang_code, "O'zbek tili")
+    # Infografika turi tanlash
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Statistik",   callback_data="ig_type_statistik"),
+         InlineKeyboardButton("🔄 Jarayon",    callback_data="ig_type_jarayon")],
+        [InlineKeyboardButton("↔️ Taqqoslash", callback_data="ig_type_taqqoslash"),
+         InlineKeyboardButton("📌 Umumiy",     callback_data="ig_type_umumiy")],
+    ])
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nInfografika turini tanlang:\n\n"
+             f"📊 *Statistik* — grafiklar va diagrammalar\n"
+             f"🔄 *Jarayon* — qadamba-qadam ko'rsatma\n"
+             f"↔️ *Taqqoslash* — ikki narsa taqqoslash\n"
+             f"📌 *Umumiy* — umumiy ma'lumotli infografika",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return IG_TYPE
+
+
+async def ig_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Infografika: turini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    infotype = query.data.split("_", 2)[2]  # ig_type_statistik -> statistik
+    context.user_data["ig_type"] = infotype
+    type_names = {
+        "statistik": "📊 Statistik",
+        "jarayon":   "🔄 Jarayon",
+        "taqqoslash": "↔️ Taqqoslash",
+        "umumiy":    "📌 Umumiy",
+    }
+    type_name = type_names.get(infotype, infotype)
+    # Rang sxemasi tanlash
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔵 Ko'k",        callback_data="ig_color_ko'k"),
+         InlineKeyboardButton("🟢 Yashil",     callback_data="ig_color_yashil")],
+        [InlineKeyboardButton("🔴 Qizil",       callback_data="ig_color_qizil"),
+         InlineKeyboardButton("🟣 Binafsha",   callback_data="ig_color_binafsha")],
+        [InlineKeyboardButton("🟠 To'q sariq", callback_data="ig_color_to'q sariq")],
+    ])
+    await query.edit_message_text(
+        text=f"✅ Tur: *{type_name}*\n\nRang sxemasini tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return IG_COLOR
+
+
+async def ig_get_color(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Infografika: rang sxemasini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    # ig_color_ko'k -> ko'k
+    color = "_".join(query.data.split("_")[2:])
+    context.user_data["ig_color"] = color
+    color_names = {
+        "ko'k": "🔵 Ko'k", "yashil": "🟢 Yashil",
+        "qizil": "🔴 Qizil", "binafsha": "🟣 Binafsha",
+        "to'q sariq": "🟠 To'q sariq",
+    }
+    color_name = color_names.get(color, color)
+    await query.edit_message_text(
+        text=f"✅ Rang: *{color_name}*\n\nInfografika mavzusini kiriting:\n"
+             f"_(masalan: Sun'iy intellekt, Iqlim o'zgarishi, Sog'lom ovqatlanish...)_",
+        parse_mode="Markdown"
+    )
+    return IG_TOPIC
+
+
+async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Infografika: mavzuni qabul qiladi va generatsiya qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return IG_TOPIC
+    user_id    = update.effective_user.id
+    lang_code  = context.user_data.get("ig_language", "uz")
+    infotype   = context.user_data.get("ig_type", "umumiy")
+    color      = context.user_data.get("ig_color", "ko'k")
+    lang_name  = LANGUAGE_NAMES.get(lang_code, "O'zbek tili")
+    # Balans tekshirish
+    price = SERVICE_PRICES.get('infografika', 3000)
+    balance = await asyncio.to_thread(db.get_balance, user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await update.message.reply_text(
+            f"❌ *Balansingiz yetarli emas!*\n\n"
+            f"💰 Joriy balans: *{balance:,} so'm*\n"
+            f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+            f"Iltimos, avval balansni to'ldiring:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+    await update.message.reply_text(
+        f"⏳ *{topic}* mavzusida infografika yaratilmoqda...\n"
+        f"Bu biroz vaqt olishi mumkin, kuting!",
+        parse_mode="Markdown"
+    )
+    try:
+        import tempfile, os
+        tmp_path = tempfile.mktemp(suffix=".png")
+        out_path = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_infografika(
+                topic=topic,
+                infotype=infotype,
+                lang=lang_name,
+                color_scheme=color,
+                output_path=tmp_path
+            )
+        )
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_deduction, user_id, price, f"Infografika: {topic}")
+        # PNG yuborish
+        with open(out_path, "rb") as f:
+            await update.message.reply_photo(
+                photo=f,
+                caption=f"✅ *{topic}* — infografika tayyor!\n"
+                        f"💰 Balansingizdan *{price:,} so'm* yechildi.",
+                parse_mode="Markdown"
+            )
+        # Temp faylni o'chirish
+        try:
+            os.unlink(out_path)
+        except Exception:
+            pass
+    except Exception as e:
+        logger.error(f"Infografika xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Infografika yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard()
+        )
+    return ConversationHandler.END
+
+
 # ─────────────────────────────────────────────
 # Handlerlar — Referat
 # ─────────────────────────────────────────────
-
 async def rf_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: tilni qabul qiladi."""
     query = update.callback_query
@@ -1841,6 +2018,23 @@ def main() -> None:
                 CallbackQueryHandler(rf_get_teacher, pattern=r"^rf_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_teacher),
+            ],
+            # ── Infografika holatlari ──
+            IG_LANGUAGE: [
+                CallbackQueryHandler(ig_get_language, pattern=r"^ig_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IG_TYPE: [
+                CallbackQueryHandler(ig_get_type, pattern=r"^ig_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IG_COLOR: [
+                CallbackQueryHandler(ig_get_color, pattern=r"^ig_color_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IG_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ig_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
