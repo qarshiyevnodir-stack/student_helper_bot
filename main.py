@@ -384,8 +384,9 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mavzuni qabul qiladi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -406,8 +407,9 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -638,8 +640,9 @@ async def li_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -656,8 +659,9 @@ async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     # Faqat matn qabul qilinadi (majburiy)
     name = update.message.text.strip() if update.message else ""
     if not name:
@@ -692,8 +696,9 @@ async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_subject")]])
     if update.callback_query:
         query = update.callback_query
@@ -717,8 +722,9 @@ async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="li_skip_teacher")]])
     if update.callback_query:
         query = update.callback_query
@@ -738,8 +744,9 @@ async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -846,8 +853,9 @@ async def rf_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: mavzuni qabul qiladi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -868,8 +876,9 @@ async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def rf_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -910,8 +919,9 @@ async def rf_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     skip_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_teacher")]
     ])
@@ -940,8 +950,9 @@ async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1049,8 +1060,9 @@ async def mi_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: mavzuni qabul qiladi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     topic = update.message.text.strip()
     if not topic:
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
@@ -1073,8 +1085,9 @@ async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def mi_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1118,8 +1131,9 @@ async def mi_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1150,8 +1164,9 @@ async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
-    if await topup_message_router(update, context):
-        return
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
     if update.callback_query:
         query = update.callback_query
         await query.answer()
@@ -1309,21 +1324,26 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _set_topup_state(context, update.effective_user.id, 'amount')
     _set_topup_amount(context, update.effective_user.id, 0)
     logger.info(f"topup_start: user {update.effective_user.id} topup boshladi")
+    return TOPUP_AMOUNT
 
 
 async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Routes text messages based on the user's top-up state."""
+    """Routes text messages based on the user's top-up state.
+    
+    Returns:
+        int or None: TOPUP_AMOUNT, TOPUP_SCREENSHOT yoki None (topup aktiv emas)
+    """
     # This router now only handles TEXT messages during the top-up flow.
     # Photo messages are handled by the global topup_get_screenshot handler.
     topup_state = _get_topup_state(context, update.effective_user.id)
     if topup_state == 'amount':
         await _topup_get_amount(update, context)
-        return True
+        return TOPUP_SCREENSHOT
     # If the user sends text when we expect a screenshot, we remind them.
     elif topup_state == 'screenshot':
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
-        return True
-    return False
+        return TOPUP_SCREENSHOT
+    return None
 
 
 async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
