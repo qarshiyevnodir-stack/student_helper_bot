@@ -301,9 +301,9 @@ async def archive_send_document(
         username_str = f"@{user.username}" if user.username else "username yo'q"
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
         caption = (
-            f"📥 *Yangi fayl arxivlandi!*\n\n"
+            f"📥 Yangi fayl arxivlandi!\n\n"
             f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
-            f"🆔 ID: `{user.id}`\n"
+            f"🆔 ID: {user.id}\n"
             f"📋 Xizmat: {service_name}\n"
             f"📝 Mavzu: {topic}\n"
             f"🌐 Til: {language}\n"
@@ -315,8 +315,7 @@ async def archive_send_document(
             chat_id=ARCHIVE_CHANNEL,
             document=document_bytes,
             filename=filename,
-            caption=caption,
-            parse_mode="Markdown"
+            caption=caption
         )
     except Exception as e:
         logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}")
@@ -338,9 +337,9 @@ async def archive_send_photo(
         username_str = f"@{user.username}" if user.username else "username yo'q"
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
         caption = (
-            f"📥 *Yangi fayl arxivlandi!*\n\n"
+            f"📥 Yangi fayl arxivlandi!\n\n"
             f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
-            f"🆔 ID: `{user.id}`\n"
+            f"🆔 ID: {user.id}\n"
             f"📋 Xizmat: {service_name}\n"
             f"📝 Mavzu: {topic}\n"
             f"🌐 Til: {language}\n"
@@ -351,8 +350,7 @@ async def archive_send_photo(
             await bot.send_photo(
                 chat_id=ARCHIVE_CHANNEL,
                 photo=f,
-                caption=caption,
-                parse_mode="Markdown"
+                caption=caption
             )
     except Exception as e:
         logger.warning(f"Arxiv kanalga rasm yuborishda xatolik: {e}")
