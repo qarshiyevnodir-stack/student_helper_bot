@@ -29,7 +29,7 @@ from pptx import Presentation
 # Admin va narx sozlamalari
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
-ARCHIVE_CHANNEL = -1006813160650  # Arxiv kanal ID
+ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 SERVICE_PRICES = {
     "slayd":        3000,
