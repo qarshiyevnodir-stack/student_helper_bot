@@ -519,8 +519,134 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
 
 
 # ─────────────────────────────────────────────
-# Asosiy generator
+# OXIRGI SAHIFA: Xulosa + jadval + rasm
 # ─────────────────────────────────────────────
+
+def create_final_page(doc, topic, language, topic_images, img_idx):
+    """
+    Oxirgi sahifa: Xulosa va takliflar matni + taqqoslash jadvali + rasm.
+    Bu sahifa har doim to'liq ma'lumot bilan to'ldiriladi.
+    """
+    lang_map = {
+        'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
+        'ko': "kores",  'zh': "xitoy", 'de': "nemis"
+    }
+    lang_name = lang_map.get(language, "o'zbek")
+
+    # Sarlavha
+    add_paragraph(doc, "Xulosa va takliflar",
+                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
+                  size=18, bold=True, space_before=6, space_after=4)
+
+    # Sariq chiziq
+    add_gold_line(doc, 25)
+
+    # Xulosa matni (GPT)
+    sys_msg = (
+        f"Siz {lang_name} tilida akademik matn yozuvchi mutaxassississiz. "
+        f"Faqat sof matn yozing, markdown belgilari ishlatmang."
+    )
+    conclusion = gpt_generate(
+        f"'{topic}' mavzusida loyiha ishi uchun 'Xulosa va takliflar' qismini yozing "
+        f"({lang_name} tilida, taxminan 120 so'z). "
+        f"Asosiy natijalar va amaliy tavsiyalarni yozing.",
+        system=sys_msg
+    )
+    for para in conclusion.split('\n'):
+        para = para.strip()
+        if para:
+            add_paragraph(doc, para,
+                          alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+                          size=12, space_before=0, space_after=4)
+
+    # Jadval: Mavzu bo'yicha asosiy tushunchalar
+    table_data_raw = gpt_generate(
+        f"'{topic}' mavzusi bo'yicha 4 ta asosiy tushuncha va ularning qisqacha ta'rifini "
+        f"yozing ({lang_name} tilida). "
+        f"Har bir qator: 'Tushuncha | Ta'rif' formatida, faqat 4 ta qator, boshqa hech narsa yo'q.",
+        system="Siz akademik jadval tuzuvchi mutaxassississiz. Faqat so'ralgan formatda javob bering."
+    )
+
+    # Jadval sarlavhasi
+    add_paragraph(doc, "Asosiy tushunchalar jadvali",
+                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
+                  size=13, bold=True, space_before=10, space_after=4,
+                  color=GOLD_COLOR)
+
+    # Jadval yaratish (5 qator: 1 sarlavha + 4 ma'lumot)
+    try:
+        table = doc.add_table(rows=5, cols=2)
+        table.style = 'Table Grid'
+
+        # Sarlavha qatori
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Tushuncha"
+        hdr_cells[1].text = "Ta'rif"
+        for cell in hdr_cells:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    set_font(run, size=12, bold=True, color=GOLD_COLOR)
+            cell._tc.get_or_add_tcPr()
+
+        # Ma'lumot qatorlari
+        rows_data = []
+        for line in table_data_raw.split('\n'):
+            line = line.strip()
+            if '|' in line:
+                parts = [p.strip() for p in line.split('|', 1)]
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    rows_data.append(parts)
+            if len(rows_data) >= 4:
+                break
+
+        # Yetarli ma'lumot bo'lmasa, bo'sh qatorlar bilan to'ldirish
+        while len(rows_data) < 4:
+            rows_data.append(["-", "-"])
+
+        for i, (term, definition) in enumerate(rows_data[:4]):
+            row_cells = table.rows[i + 1].cells
+            row_cells[0].text = term
+            row_cells[1].text = definition
+            for cell in row_cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        set_font(run, size=11)
+    except Exception as e:
+        logging.warning(f"Jadval yaratishda xatolik: {e}")
+
+    # Rasm (mavzuga mos)
+    img = topic_images[img_idx % len(topic_images)] if topic_images else None
+    if img and os.path.exists(img):
+        try:
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(10)
+            p.paragraph_format.space_after  = Pt(4)
+            p.add_run().add_picture(img, width=Inches(4.5))
+        except Exception as e:
+            logging.warning(f"Oxirgi sahifa rasmi: {e}")
+
+    # Adabiyotlar (qisqa)
+    add_paragraph(doc, "Foydalanilgan adabiyotlar",
+                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                  size=13, bold=True, space_before=10, space_after=4)
+    refs = gpt_generate(
+        f"'{topic}' mavzusi bo'yicha 3 ta qisqa adabiyot manbasi yozing "
+        f"({lang_name} tilida). Har biri yangi qatorda, raqam bilan. "
+        f"Faqat 3 ta manba, boshqa hech narsa yo'q.",
+        system="Siz akademik adabiyot ro'yxati tuzuvchisisiz."
+    )
+    for line in refs.split('\n'):
+        line = line.strip()
+        if line:
+            add_paragraph(doc, line,
+                          alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                          size=11, space_before=0, space_after=3)
+
+
+# ─────────────────────────────
+# Asosiy generator
+# ───────────────────────────────────────────
 
 def generate_loyiha_ishi(topic, page_count, language,
                          name_surname, university_info,
@@ -644,6 +770,9 @@ def generate_loyiha_ishi(topic, page_count, language,
             left_text  = '\n'.join(paragraphs[:mid]) if mid > 0 else content
             right_text = '\n'.join(paragraphs[mid:]) if mid < len(paragraphs) else content
             create_content_page_D(doc, section_title, left_text, right_text)
+
+    # ── OXIRGI SAHIFA: Xulosa + jadval + rasm ──
+    create_final_page(doc, topic, language, topic_images, img_idx)
 
     # ── Vaqtinchalik rasmlarni tozalash ──
     for img_path in topic_images:
