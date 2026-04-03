@@ -28,7 +28,7 @@ from pptx import Presentation
 # Admin va narx sozlamalari
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
-CARD_NUMBER = "5614 6818 1913 0745"
+CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 SERVICE_PRICES = {
     "slayd":        3000,
     "mustaqil_ish": 3000,
