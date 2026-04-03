@@ -371,9 +371,13 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return LANGUAGE_SELECTION
     else:
+        # Xizmat nomini emoji bilan birga chiroyli ko'rsatish
+        service_name = text if text else "Bu xizmat"
         await update.message.reply_text(
-            f"'{text}' xizmati tez kunda ishga tushadi!\nHozircha faqat 'Slayd yaratish' va 'Mustaqil ish' bo'limlari ishlamoqda.",
-            reply_markup=get_main_menu_keyboard()
+            f"⏳ *{service_name}* hozircha ishlab chiqilmoqda.\n"
+            f"Tez orada ishga tushiriladi! Kuzatib boring. 🚀",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
         return LANGUAGE_SELECTION
 
