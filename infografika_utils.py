@@ -1,687 +1,805 @@
 """
-infografika_utils.py — Infografika generatsiya moduli
-
-Turlari:
-  - statistik   : grafiklar va diagrammalar
-  - jarayon     : qadamba-qadam ko'rsatma
-  - taqqoslash  : ikki narsa/tushuncha taqqoslash
-  - umumiy      : matn + ikonkalar + ranglar
-
-Rang sxemalari:
-  - ko'k        : professional ko'k
-  - yashil      : tabiiy yashil
-  - qizil       : issiq qizil
-  - binafsha    : zamonaviy binafsha
-  - to'q sariq  : quyosh sariq
+infografika_utils.py — Professional infografika generatsiya moduli
+Yuqori sifatli, ko'p ustunli, ikonkalar va diagrammalar bilan.
 """
-
 import os
 import io
 import json
 import logging
 import textwrap
 import tempfile
+import math
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch, Circle, Wedge, FancyArrowPatch
+from matplotlib.gridspec import GridSpec
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from openai import OpenAI
 
-client = OpenAI()
 logger = logging.getLogger(__name__)
+client = OpenAI()
 
-# ─────────────────────────────────────────────
-# Font sozlamalari
-# ─────────────────────────────────────────────
-FONT_REGULAR = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-FONT_BOLD    = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-
-# ─────────────────────────────────────────────
-# Rang sxemalari
-# ─────────────────────────────────────────────
+# ─── Rang sxemalari ───────────────────────────────────────────────────────────
 COLOR_SCHEMES = {
     "ko'k": {
-        "primary":    "#1565C0",
-        "secondary":  "#42A5F5",
-        "accent":     "#E3F2FD",
-        "text":       "#0D1B2A",
-        "light":      "#BBDEFB",
-        "bg":         "#F0F7FF",
-        "header_bg":  "#1565C0",
-        "header_fg":  "#FFFFFF",
+        "primary":   "#1565C0",
+        "secondary": "#42A5F5",
+        "accent":    "#FFC107",
+        "light":     "#E3F2FD",
+        "dark":      "#0D47A1",
+        "text":      "#1A237E",
+        "white":     "#FFFFFF",
+        "card":      "#BBDEFB",
     },
     "yashil": {
-        "primary":    "#2E7D32",
-        "secondary":  "#66BB6A",
-        "accent":     "#E8F5E9",
-        "text":       "#1B2E1C",
-        "light":      "#C8E6C9",
-        "bg":         "#F1FBF1",
-        "header_bg":  "#2E7D32",
-        "header_fg":  "#FFFFFF",
+        "primary":   "#2E7D32",
+        "secondary": "#66BB6A",
+        "accent":    "#FF9800",
+        "light":     "#E8F5E9",
+        "dark":      "#1B5E20",
+        "text":      "#1B5E20",
+        "white":     "#FFFFFF",
+        "card":      "#C8E6C9",
     },
     "qizil": {
-        "primary":    "#C62828",
-        "secondary":  "#EF5350",
-        "accent":     "#FFEBEE",
-        "text":       "#2D0A0A",
-        "light":      "#FFCDD2",
-        "bg":         "#FFF5F5",
-        "header_bg":  "#C62828",
-        "header_fg":  "#FFFFFF",
+        "primary":   "#C62828",
+        "secondary": "#EF5350",
+        "accent":    "#FFC107",
+        "light":     "#FFEBEE",
+        "dark":      "#B71C1C",
+        "text":      "#B71C1C",
+        "white":     "#FFFFFF",
+        "card":      "#FFCDD2",
     },
     "binafsha": {
-        "primary":    "#6A1B9A",
-        "secondary":  "#AB47BC",
-        "accent":     "#F3E5F5",
-        "text":       "#1A0A2E",
-        "light":      "#E1BEE7",
-        "bg":         "#F9F0FF",
-        "header_bg":  "#6A1B9A",
-        "header_fg":  "#FFFFFF",
+        "primary":   "#6A1B9A",
+        "secondary": "#AB47BC",
+        "accent":    "#FF9800",
+        "light":     "#F3E5F5",
+        "dark":      "#4A148C",
+        "text":      "#4A148C",
+        "white":     "#FFFFFF",
+        "card":      "#E1BEE7",
     },
     "to'q sariq": {
-        "primary":    "#E65100",
-        "secondary":  "#FFA726",
-        "accent":     "#FFF3E0",
-        "text":       "#2E1A00",
-        "light":      "#FFE0B2",
-        "bg":         "#FFFAF0",
-        "header_bg":  "#E65100",
-        "header_fg":  "#FFFFFF",
+        "primary":   "#E65100",
+        "secondary": "#FFA726",
+        "accent":    "#1565C0",
+        "light":     "#FFF3E0",
+        "dark":      "#BF360C",
+        "text":      "#BF360C",
+        "white":     "#FFFFFF",
+        "card":      "#FFE0B2",
     },
 }
 
-# ─────────────────────────────────────────────
-# GPT yordamchi
-# ─────────────────────────────────────────────
-def gpt_generate(prompt: str, system: str = "Siz foydali yordamchisiz.") -> str:
+# ─── GPT dan ma'lumot olish ────────────────────────────────────────────────────
+def _get_infografika_data(topic: str, ig_type: str, language: str) -> dict:
+    """GPT dan infografika uchun strukturali ma'lumot oladi."""
+    lang_map = {
+        "O'zbek tili": "O'zbek tilida",
+        "Ingliz tili": "English",
+        "Rus tili":    "На русском языке",
+        "Nemis tili":  "Auf Deutsch",
+    }
+    lang_instruction = lang_map.get(language, "O'zbek tilida")
+
+    if ig_type == "statistik":
+        prompt = f"""
+{lang_instruction} "{topic}" mavzusida statistik infografika uchun ma'lumot ber.
+JSON formatida qaytargin (boshqa hech narsa yozma):
+{{
+  "title": "Katta sarlavha (4-7 so'z, BOSH HARFLAR)",
+  "subtitle": "Kichik tavsif (10-15 so'z)",
+  "sections": [
+    {{
+      "title": "Bo'lim sarlavhasi (2-4 so'z)",
+      "icon": "emoji",
+      "items": ["qisqa fakt 1", "qisqa fakt 2", "qisqa fakt 3"]
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "chart_data": {{
+        "labels": ["A", "B", "C", "D"],
+        "values": [35, 25, 25, 15],
+        "center_text": "Asosiy"
+      }}
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "stats": [
+        {{"value": "85%", "label": "qisqa tavsif"}},
+        {{"value": "3x", "label": "qisqa tavsif"}},
+        {{"value": "500+", "label": "qisqa tavsif"}}
+      ]
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "items": ["fakt 1", "fakt 2", "fakt 3"]
+    }}
+  ],
+  "footer": "Manba: qisqa manba nomi"
+}}
+"""
+    elif ig_type == "jarayon":
+        prompt = f"""
+{lang_instruction} "{topic}" mavzusida jarayon/qadamlar infografika uchun ma'lumot ber.
+JSON formatida qaytargin:
+{{
+  "title": "Katta sarlavha (4-7 so'z, BOSH HARFLAR)",
+  "subtitle": "Kichik tavsif (10-15 so'z)",
+  "steps": [
+    {{"number": "01", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}},
+    {{"number": "02", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}},
+    {{"number": "03", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}},
+    {{"number": "04", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}},
+    {{"number": "05", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}},
+    {{"number": "06", "title": "Qadam sarlavhasi", "icon": "emoji", "description": "20-25 so'zlik tavsif"}}
+  ],
+  "key_stats": [
+    {{"value": "raqam", "label": "tavsif"}},
+    {{"value": "raqam", "label": "tavsif"}},
+    {{"value": "raqam", "label": "tavsif"}}
+  ],
+  "footer": "Manba: qisqa manba nomi"
+}}
+"""
+    elif ig_type == "taqqoslash":
+        prompt = f"""
+{lang_instruction} "{topic}" mavzusida taqqoslash infografika uchun ma'lumot ber.
+JSON formatida qaytargin:
+{{
+  "title": "Katta sarlavha (4-7 so'z, BOSH HARFLAR)",
+  "subtitle": "Kichik tavsif (10-15 so'z)",
+  "left": {{
+    "name": "1-tomonning nomi",
+    "icon": "emoji",
+    "color_hint": "ijobiy/salbiy",
+    "points": [
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}}
+    ]
+  }},
+  "right": {{
+    "name": "2-tomonning nomi",
+    "icon": "emoji",
+    "color_hint": "ijobiy/salbiy",
+    "points": [
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}},
+      {{"label": "mezon", "value": "qiymat"}}
+    ]
+  }},
+  "chart_data": {{
+    "labels": ["Mezon 1", "Mezon 2", "Mezon 3", "Mezon 4"],
+    "left_values": [80, 60, 90, 70],
+    "right_values": [60, 85, 50, 80]
+  }},
+  "verdict": "Qisqa xulosa (15-20 so'z)",
+  "footer": "Manba: qisqa manba nomi"
+}}
+"""
+    else:  # umumiy
+        prompt = f"""
+{lang_instruction} "{topic}" mavzusida umumiy infografika uchun ma'lumot ber.
+JSON formatida qaytargin:
+{{
+  "title": "Katta sarlavha (4-7 so'z, BOSH HARFLAR)",
+  "subtitle": "Kichik tavsif (10-15 so'z)",
+  "intro": "Kirish matni (25-30 so'z)",
+  "sections": [
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "content": "20-25 so'zlik matn"
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "content": "20-25 so'zlik matn"
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "content": "20-25 so'zlik matn"
+    }},
+    {{
+      "title": "Bo'lim sarlavhasi",
+      "icon": "emoji",
+      "content": "20-25 so'zlik matn"
+    }}
+  ],
+  "key_facts": [
+    {{"value": "raqam/fakt", "label": "qisqa tavsif"}},
+    {{"value": "raqam/fakt", "label": "qisqa tavsif"}},
+    {{"value": "raqam/fakt", "label": "qisqa tavsif"}}
+  ],
+  "conclusion": "Xulosa matni (20-25 so'z)",
+  "footer": "Manba: qisqa manba nomi"
+}}
+"""
+
     try:
         resp = client.chat.completions.create(
             model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": prompt},
-            ],
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
+            max_tokens=1200,
         )
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        logger.error(f"GPT xatolik: {e}")
-        return ""
-
-
-def gpt_json(prompt: str, system: str) -> dict | list:
-    """GPT dan JSON formatda javob oladi."""
-    raw = gpt_generate(prompt, system)
-    # JSON blokni ajratib olish
-    if "```json" in raw:
-        raw = raw.split("```json")[1].split("```")[0].strip()
-    elif "```" in raw:
-        raw = raw.split("```")[1].split("```")[0].strip()
-    try:
+        raw = resp.choices[0].message.content.strip()
+        # JSON ni tozalash
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
         return json.loads(raw)
-    except Exception:
+    except Exception as e:
+        logger.error(f"GPT xatosi: {e}")
         return {}
 
 
-# ─────────────────────────────────────────────
-# Rang yordamchisi
-# ─────────────────────name─────────────────────
-def hex_to_rgb(hex_color: str) -> tuple:
-    h = hex_color.lstrip("#")
+# ─── PIL yordamida gradient fon ───────────────────────────────────────────────
+def _make_gradient_bg(width: int, height: int, color1: str, color2: str) -> Image.Image:
+    """Yuqoridan pastga gradient fon yaratadi."""
+    img = Image.new("RGB", (width, height))
+    draw = ImageDraw.Draw(img)
+    r1, g1, b1 = int(color1[1:3], 16), int(color1[3:5], 16), int(color1[5:7], 16)
+    r2, g2, b2 = int(color2[1:3], 16), int(color2[3:5], 16), int(color2[5:7], 16)
+    for y in range(height):
+        t = y / height
+        r = int(r1 + (r2 - r1) * t)
+        g = int(g1 + (g2 - g1) * t)
+        b = int(b1 + (b2 - b1) * t)
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+    return img
+
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    h = hex_color.lstrip('#')
     return tuple(int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4))
 
 
-# ─────────────────────────────────────────────
-# PIL yordamchilari
-# ─────────────────────────────────────────────
-def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    path = FONT_BOLD if bold else FONT_REGULAR
-    try:
-        return ImageFont.truetype(path, size)
-    except Exception:
-        return ImageFont.load_default()
+def _hex_to_rgb_int(hex_color: str) -> tuple:
+    h = hex_color.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 
-def draw_wrapped_text(draw, text, x, y, max_width, font, fill, line_spacing=8):
-    """Matnni qatorlarga bo'lib chizadi, y koordinatini qaytaradi."""
-    words = text.split()
-    lines = []
-    current = ""
-    for word in words:
-        test = (current + " " + word).strip()
-        bbox = draw.textbbox((0, 0), test, font=font)
-        if bbox[2] - bbox[0] <= max_width:
-            current = test
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-
-    for line in lines:
-        draw.text((x, y), line, font=font, fill=fill)
-        bbox = draw.textbbox((0, 0), line, font=font)
-        y += (bbox[3] - bbox[1]) + line_spacing
-    return y
+# ─── Matnni o'rashga yordam ───────────────────────────────────────────────────
+def _wrap(text: str, width: int = 35) -> str:
+    return '\n'.join(textwrap.wrap(str(text), width=width))
 
 
-def draw_rounded_rect(draw, x1, y1, x2, y2, radius, fill, outline=None, outline_width=2):
-    """Yumaloq burchakli to'rtburchak chizadi."""
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=radius, fill=fill,
-                           outline=outline, width=outline_width)
-
-
-# ─────────────────────────────────────────────
-# 1. STATISTIK infografika
-# ─────────────────────────────────────────────
-def generate_statistik(topic: str, lang: str, colors: dict) -> Image.Image:
-    """Bar chart + pie chart kombinatsiyasi."""
-    system = f"Siz infografika mazmuni tayyorlovchi mutaxassissiz. Javobni faqat JSON formatida bering."
-    prompt = f"""
-Mavzu: "{topic}"
-Til: {lang}
-
-Quyidagi JSON strukturasida ma'lumot bering:
-{{
-  "title": "Infografika sarlavhasi",
-  "subtitle": "Qisqa tavsif (1 jumla)",
-  "bar_chart": {{
-    "title": "Grafik sarlavhasi",
-    "labels": ["Kategoriya1", "Kategoriya2", "Kategoriya3", "Kategoriya4", "Kategoriya5"],
-    "values": [85, 72, 60, 45, 30],
-    "unit": "foiz yoki boshqa birlik"
-  }},
-  "pie_chart": {{
-    "title": "Taqsimot sarlavhasi",
-    "labels": ["Qism1", "Qism2", "Qism3", "Qism4"],
-    "values": [40, 30, 20, 10]
-  }},
-  "key_facts": [
-    "Muhim fakt 1",
-    "Muhim fakt 2",
-    "Muhim fakt 3"
-  ],
-  "footer": "Manba yoki qo'shimcha ma'lumot"
-}}
-Faqat JSON qaytaring, boshqa hech narsa yozmang.
-"""
-    data = gpt_json(prompt, system)
-    if not data:
-        data = {
-            "title": topic,
-            "subtitle": "Ma'lumotlar tahlili",
-            "bar_chart": {"title": "Ko'rsatkichlar", "labels": ["A","B","C","D","E"], "values": [80,65,55,40,25], "unit": "%"},
-            "pie_chart": {"title": "Taqsimot", "labels": ["1-qism","2-qism","3-qism","4-qism"], "values": [40,30,20,10]},
-            "key_facts": ["Fakt 1", "Fakt 2", "Fakt 3"],
-            "footer": "Ma'lumotlar asosida tayyorlandi"
-        }
-
-    W, H = 1200, 1600
-    img = Image.new("RGB", (W, H), color=data.get("bg", colors["bg"]) if "bg" in colors else colors["bg"])
-    draw = ImageDraw.Draw(img)
+# ─── STATISTIK infografika ────────────────────────────────────────────────────
+def _draw_statistik(data: dict, colors: dict, out_path: str) -> str:
+    W, H = 1400, 900
+    fig = plt.figure(figsize=(W/100, H/100), dpi=100, facecolor=colors["light"])
 
     # Header
-    draw_rounded_rect(draw, 0, 0, W, 140, 0, fill=colors["primary"])
-    title_font = get_font(42, bold=True)
-    sub_font   = get_font(22)
-    draw.text((W//2, 45), data.get("title", topic), font=title_font, fill=colors["header_fg"], anchor="mm")
-    draw.text((W//2, 105), data.get("subtitle", ""), font=sub_font, fill=colors["light"], anchor="mm")
+    ax_header = fig.add_axes([0, 0.85, 1, 0.15])
+    ax_header.set_facecolor(colors["primary"])
+    ax_header.set_xlim(0, 1); ax_header.set_ylim(0, 1)
+    ax_header.axis('off')
+    title = data.get("title", "INFOGRAFIKA")
+    subtitle = data.get("subtitle", "")
+    ax_header.text(0.5, 0.65, title, ha='center', va='center',
+                   fontsize=28, fontweight='bold', color=colors["white"],
+                   fontfamily='DejaVu Sans')
+    ax_header.text(0.5, 0.25, subtitle, ha='center', va='center',
+                   fontsize=13, color=colors["card"],
+                   fontfamily='DejaVu Sans')
 
-    # Bar chart (matplotlib)
-    bar_data = data.get("bar_chart", {})
-    labels = bar_data.get("labels", [])
-    values = bar_data.get("values", [])
-    if labels and values:
-        fig, ax = plt.subplots(figsize=(9, 4), dpi=120)
-        bar_colors = [colors["primary"], colors["secondary"]] * (len(labels) // 2 + 1)
-        bars = ax.barh(labels, values, color=bar_colors[:len(labels)], edgecolor="white", linewidth=1.5)
-        ax.set_title(bar_data.get("title", ""), fontsize=14, fontweight="bold", color=colors["text"], pad=10)
-        ax.set_xlabel(bar_data.get("unit", ""), fontsize=11, color=colors["text"])
-        ax.tick_params(colors=colors["text"])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        ax.set_facecolor(colors["bg"])
-        fig.patch.set_facecolor(colors["bg"])
-        for bar, val in zip(bars, values):
-            ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
-                    f"{val}", va="center", fontsize=11, color=colors["text"], fontweight="bold")
-        buf = io.BytesIO()
-        plt.savefig(buf, format="PNG", bbox_inches="tight", facecolor=colors["bg"])
-        plt.close(fig)
-        buf.seek(0)
-        bar_img = Image.open(buf).convert("RGBA")
-        bar_img = bar_img.resize((1100, 440))
-        img.paste(bar_img, (50, 160), bar_img)
+    sections = data.get("sections", [])
+    n = len(sections)
+    col_w = 1.0 / max(n, 1)
 
-    # Pie chart
-    pie_data = data.get("pie_chart", {})
-    pie_labels = pie_data.get("labels", [])
-    pie_values = pie_data.get("values", [])
-    if pie_labels and pie_values:
-        pie_colors = [colors["primary"], colors["secondary"], colors["light"], colors["accent"]]
-        fig2, ax2 = plt.subplots(figsize=(5, 4), dpi=120)
-        wedges, texts, autotexts = ax2.pie(
-            pie_values, labels=pie_labels,
-            colors=pie_colors[:len(pie_labels)],
-            autopct="%1.0f%%", startangle=140,
-            textprops={"fontsize": 10, "color": colors["text"]}
-        )
-        for at in autotexts:
-            at.set_color("white")
-            at.set_fontweight("bold")
-        ax2.set_title(pie_data.get("title", ""), fontsize=13, fontweight="bold", color=colors["text"])
-        fig2.patch.set_facecolor(colors["bg"])
-        buf2 = io.BytesIO()
-        plt.savefig(buf2, format="PNG", bbox_inches="tight", facecolor=colors["bg"])
-        plt.close(fig2)
-        buf2.seek(0)
-        pie_img = Image.open(buf2).convert("RGBA")
-        pie_img = pie_img.resize((560, 440))
-        img.paste(pie_img, (50, 620), pie_img)
+    for i, sec in enumerate(sections[:4]):
+        x0 = i * col_w + 0.01
+        ax = fig.add_axes([x0, 0.06, col_w - 0.02, 0.77])
+        ax.set_facecolor(colors["white"])
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.axis('off')
 
-    # Key facts
-    facts = data.get("key_facts", [])
-    fact_font = get_font(24)
-    fact_title_font = get_font(28, bold=True)
-    y_facts = 1090
-    draw_rounded_rect(draw, 30, y_facts - 10, W - 30, y_facts + 50, 10, fill=colors["primary"])
-    draw.text((W//2, y_facts + 20), "Asosiy faktlar", font=fact_title_font, fill=colors["header_fg"], anchor="mm")
-    y_facts += 70
-    for i, fact in enumerate(facts[:4]):
-        draw_rounded_rect(draw, 50, y_facts, W - 50, y_facts + 70, 12, fill=colors["accent"], outline=colors["secondary"], outline_width=2)
-        draw.text((90, y_facts + 22), f"✦  {fact}", font=fact_font, fill=colors["text"])
-        y_facts += 90
+        # Card border
+        rect = FancyBboxPatch((0.02, 0.02), 0.96, 0.96,
+                               boxstyle="round,pad=0.02",
+                               facecolor=colors["white"],
+                               edgecolor=colors["secondary"], linewidth=2)
+        ax.add_patch(rect)
+
+        # Section header
+        hdr = FancyBboxPatch((0.02, 0.82), 0.96, 0.16,
+                              boxstyle="round,pad=0.01",
+                              facecolor=colors["primary"],
+                              edgecolor='none')
+        ax.add_patch(hdr)
+
+        icon = sec.get("icon", "📌")
+        stitle = sec.get("title", f"Bo'lim {i+1}")
+        ax.text(0.5, 0.905, f"{icon}  {stitle}",
+                ha='center', va='center',
+                fontsize=12, fontweight='bold', color=colors["white"])
+
+        # Content
+        if "chart_data" in sec:
+            cd = sec["chart_data"]
+            labels = cd.get("labels", [])
+            values = cd.get("values", [])
+            center_text = cd.get("center_text", "")
+            if labels and values:
+                ax_donut = fig.add_axes([x0 + 0.02, 0.12, col_w - 0.06, 0.65])
+                ax_donut.set_aspect('equal')
+                pie_colors = [colors["primary"], colors["secondary"],
+                               colors["accent"], colors["card"]]
+                wedges, texts, autotexts = ax_donut.pie(
+                    values, labels=None, autopct='%1.0f%%',
+                    colors=pie_colors[:len(values)],
+                    wedgeprops=dict(width=0.5, edgecolor='white', linewidth=2),
+                    pctdistance=0.75, startangle=90
+                )
+                for at in autotexts:
+                    at.set_fontsize(9)
+                    at.set_color('white')
+                    at.set_fontweight('bold')
+                ax_donut.text(0, 0, center_text, ha='center', va='center',
+                              fontsize=11, fontweight='bold',
+                              color=colors["text"])
+                # Legend
+                for j, (lbl, val) in enumerate(zip(labels, values)):
+                    ax_donut.text(-1.6, 0.6 - j * 0.35,
+                                  f"■ {lbl}: {val}%",
+                                  fontsize=8, color=colors["text"],
+                                  fontfamily='DejaVu Sans')
+                ax_donut.axis('off')
+
+        elif "stats" in sec:
+            stats = sec["stats"]
+            for j, st in enumerate(stats[:3]):
+                y_pos = 0.72 - j * 0.22
+                bg = FancyBboxPatch((0.08, y_pos - 0.08), 0.84, 0.18,
+                                    boxstyle="round,pad=0.01",
+                                    facecolor=colors["card"],
+                                    edgecolor='none')
+                ax.add_patch(bg)
+                ax.text(0.5, y_pos + 0.02, st.get("value", ""),
+                        ha='center', va='center',
+                        fontsize=20, fontweight='bold', color=colors["primary"])
+                ax.text(0.5, y_pos - 0.05, _wrap(st.get("label", ""), 25),
+                        ha='center', va='center',
+                        fontsize=9, color=colors["text"])
+
+        elif "items" in sec:
+            items = sec.get("items", [])
+            for j, item in enumerate(items[:5]):
+                y_pos = 0.73 - j * 0.15
+                ax.text(0.08, y_pos, "▶", fontsize=11, color=colors["accent"],
+                        va='center')
+                ax.text(0.18, y_pos, _wrap(item, 28),
+                        fontsize=10, color=colors["text"], va='center',
+                        fontfamily='DejaVu Sans')
 
     # Footer
-    footer_font = get_font(18)
-    draw_rounded_rect(draw, 0, H - 60, W, H, 0, fill=colors["primary"])
-    draw.text((W//2, H - 30), data.get("footer", ""), font=footer_font, fill=colors["light"], anchor="mm")
+    ax_footer = fig.add_axes([0, 0, 1, 0.06])
+    ax_footer.set_facecolor(colors["dark"])
+    ax_footer.axis('off')
+    ax_footer.text(0.5, 0.5, data.get("footer", ""),
+                   ha='center', va='center',
+                   fontsize=11, color=colors["card"])
 
-    return img
+    plt.savefig(out_path, dpi=100, bbox_inches='tight',
+                facecolor=colors["light"], edgecolor='none')
+    plt.close(fig)
+    return out_path
 
 
-# ─────────────────────────────────────────────
-# 2. JARAYON infografika
-# ─────────────────────────────────────────────
-def generate_jarayon(topic: str, lang: str, colors: dict) -> Image.Image:
-    """Qadamba-qadam jarayon ko'rsatmasi."""
-    system = "Siz infografika mazmuni tayyorlovchi mutaxassissiz. Faqat JSON qaytaring."
-    prompt = f"""
-Mavzu: "{topic}"
-Til: {lang}
-
-JSON strukturasi:
-{{
-  "title": "Jarayon sarlavhasi",
-  "subtitle": "Qisqa tavsif",
-  "steps": [
-    {{"number": 1, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif (1-2 jumla)"}},
-    {{"number": 2, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif"}},
-    {{"number": 3, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif"}},
-    {{"number": 4, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif"}},
-    {{"number": 5, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif"}},
-    {{"number": 6, "title": "Qadam sarlavhasi", "description": "Qisqa tavsif"}}
-  ],
-  "conclusion": "Xulosa yoki natija (1 jumla)",
-  "footer": "Manba"
-}}
-Faqat JSON qaytaring.
-"""
-    data = gpt_json(prompt, system)
-    if not data or "steps" not in data:
-        data = {
-            "title": topic, "subtitle": "Jarayon bosqichlari",
-            "steps": [{"number": i, "title": f"Qadam {i}", "description": "Tavsif"} for i in range(1, 7)],
-            "conclusion": "Muvaffaqiyatli natija",
-            "footer": "Infografika"
-        }
-
-    steps = data.get("steps", [])[:6]
-    W, H = 1000, 1600
-    img = Image.new("RGB", (W, H), color=colors["bg"])
-    draw = ImageDraw.Draw(img)
+# ─── JARAYON infografika ──────────────────────────────────────────────────────
+def _draw_jarayon(data: dict, colors: dict, out_path: str) -> str:
+    W, H = 1400, 950
+    fig = plt.figure(figsize=(W/100, H/100), dpi=100, facecolor=colors["light"])
 
     # Header
-    draw_rounded_rect(draw, 0, 0, W, 150, 0, fill=colors["primary"])
-    draw.text((W//2, 55), data.get("title", topic), font=get_font(40, bold=True),
-              fill=colors["header_fg"], anchor="mm")
-    draw.text((W//2, 115), data.get("subtitle", ""), font=get_font(22),
-              fill=colors["light"], anchor="mm")
+    ax_h = fig.add_axes([0, 0.88, 1, 0.12])
+    ax_h.set_facecolor(colors["primary"])
+    ax_h.axis('off')
+    ax_h.set_xlim(0, 1); ax_h.set_ylim(0, 1)
+    ax_h.text(0.5, 0.65, data.get("title", "JARAYON"),
+              ha='center', va='center', fontsize=26, fontweight='bold',
+              color=colors["white"])
+    ax_h.text(0.5, 0.25, data.get("subtitle", ""),
+              ha='center', va='center', fontsize=12, color=colors["card"])
 
-    # Steps
-    step_h = 195
-    y = 180
-    for i, step in enumerate(steps):
-        # Connector line
-        if i < len(steps) - 1:
-            draw.line([(W//2, y + step_h - 10), (W//2, y + step_h + 25)],
-                      fill=colors["secondary"], width=4)
+    steps = data.get("steps", [])
+    n = len(steps)
+    cols = 3
+    rows = math.ceil(n / cols)
+    step_w = 1.0 / cols
+    step_h = 0.82 / rows
+
+    for idx, step in enumerate(steps[:6]):
+        col = idx % cols
+        row = idx // cols
+        x0 = col * step_w + 0.01
+        y0 = 0.06 + (rows - 1 - row) * step_h + 0.01
+
+        ax = fig.add_axes([x0, y0, step_w - 0.02, step_h - 0.02])
+        ax.set_facecolor(colors["white"])
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.axis('off')
 
         # Card
-        is_left = i % 2 == 0
-        card_x1 = 40 if is_left else W // 2 + 20
-        card_x2 = W // 2 - 20 if is_left else W - 40
-        draw_rounded_rect(draw, card_x1, y, card_x2, y + step_h - 20, 16,
-                          fill=colors["accent"], outline=colors["secondary"], outline_width=2)
+        rect = FancyBboxPatch((0.02, 0.02), 0.96, 0.96,
+                               boxstyle="round,pad=0.02",
+                               facecolor=colors["white"],
+                               edgecolor=colors["secondary"], linewidth=2)
+        ax.add_patch(rect)
 
         # Number circle
-        cx = card_x1 + 45 if is_left else card_x2 - 45
-        cy = y + (step_h - 20) // 2
-        draw.ellipse([cx - 30, cy - 30, cx + 30, cy + 30], fill=colors["primary"])
-        draw.text((cx, cy), str(step.get("number", i+1)), font=get_font(26, bold=True),
-                  fill=colors["header_fg"], anchor="mm")
+        circle = Circle((0.15, 0.82), 0.12,
+                         facecolor=colors["primary"], edgecolor='none',
+                         transform=ax.transData)
+        ax.add_patch(circle)
+        ax.text(0.15, 0.82, step.get("number", str(idx+1)),
+                ha='center', va='center',
+                fontsize=14, fontweight='bold', color=colors["white"])
 
-        # Text
-        tx = card_x1 + 90 if is_left else card_x1 + 10
-        tw = (card_x2 - card_x1) - 110
-        ty = y + 20
-        ty = draw_wrapped_text(draw, step.get("title", ""), tx, ty, tw,
-                               get_font(22, bold=True), colors["primary"])
-        draw_wrapped_text(draw, step.get("description", ""), tx, ty + 5, tw,
-                          get_font(18), colors["text"])
-        y += step_h
+        # Icon + Title
+        icon = step.get("icon", "📌")
+        stitle = step.get("title", "")
+        ax.text(0.35, 0.85, f"{icon}", fontsize=18, va='center')
+        ax.text(0.55, 0.82, _wrap(stitle, 18),
+                ha='center', va='center',
+                fontsize=11, fontweight='bold', color=colors["text"])
 
-    # Conclusion
-    conc_y = y + 10
-    draw_rounded_rect(draw, 40, conc_y, W - 40, conc_y + 80, 16, fill=colors["primary"])
-    draw.text((W//2, conc_y + 40), "✓  " + data.get("conclusion", ""),
-              font=get_font(24, bold=True), fill=colors["header_fg"], anchor="mm")
+        # Divider
+        ax.axhline(y=0.68, xmin=0.05, xmax=0.95,
+                   color=colors["card"], linewidth=1.5)
 
-    # Footer
-    draw_rounded_rect(draw, 0, H - 55, W, H, 0, fill=colors["secondary"])
-    draw.text((W//2, H - 28), data.get("footer", ""), font=get_font(18),
-              fill=colors["header_fg"], anchor="mm")
+        # Description
+        desc = step.get("description", "")
+        ax.text(0.5, 0.38, _wrap(desc, 32),
+                ha='center', va='center',
+                fontsize=9.5, color=colors["text"],
+                linespacing=1.5)
 
-    return img
+    # Key stats bar
+    key_stats = data.get("key_stats", [])
+    if key_stats:
+        ax_stats = fig.add_axes([0, 0, 1, 0.06])
+        ax_stats.set_facecolor(colors["dark"])
+        ax_stats.axis('off')
+        ax_stats.set_xlim(0, 1); ax_stats.set_ylim(0, 1)
+        n_stats = len(key_stats[:3])
+        for j, ks in enumerate(key_stats[:3]):
+            x = (j + 0.5) / n_stats
+            ax_stats.text(x, 0.65, ks.get("value", ""),
+                          ha='center', va='center',
+                          fontsize=16, fontweight='bold', color=colors["accent"])
+            ax_stats.text(x, 0.25, ks.get("label", ""),
+                          ha='center', va='center',
+                          fontsize=9, color=colors["card"])
+    else:
+        ax_f = fig.add_axes([0, 0, 1, 0.06])
+        ax_f.set_facecolor(colors["dark"])
+        ax_f.axis('off')
+        ax_f.text(0.5, 0.5, data.get("footer", ""),
+                  ha='center', va='center', fontsize=11, color=colors["card"])
+
+    plt.savefig(out_path, dpi=100, bbox_inches='tight',
+                facecolor=colors["light"], edgecolor='none')
+    plt.close(fig)
+    return out_path
 
 
-# ─────────────────────────────────────────────
-# 3. TAQQOSLASH infografika
-# ─────────────────────────────────────────────
-def generate_taqqoslash(topic: str, lang: str, colors: dict) -> Image.Image:
-    """Ikki narsa/tushuncha taqqoslash."""
-    system = "Siz infografika mazmuni tayyorlovchi mutaxassissiz. Faqat JSON qaytaring."
-    prompt = f"""
-Mavzu: "{topic}"
-Til: {lang}
-
-JSON strukturasi:
-{{
-  "title": "Taqqoslash sarlavhasi",
-  "item_a": {{
-    "name": "Birinchi narsa nomi",
-    "icon": "A",
-    "points": ["Xususiyat 1", "Xususiyat 2", "Xususiyat 3", "Xususiyat 4", "Xususiyat 5"]
-  }},
-  "item_b": {{
-    "name": "Ikkinchi narsa nomi",
-    "icon": "B",
-    "points": ["Xususiyat 1", "Xususiyat 2", "Xususiyat 3", "Xususiyat 4", "Xususiyat 5"]
-  }},
-  "common": ["Umumiy xususiyat 1", "Umumiy xususiyat 2"],
-  "verdict": "Xulosa yoki tavsiya",
-  "footer": "Manba"
-}}
-Faqat JSON qaytaring.
-"""
-    data = gpt_json(prompt, system)
-    if not data or "item_a" not in data:
-        data = {
-            "title": topic,
-            "item_a": {"name": "A", "icon": "A", "points": ["Xususiyat " + str(i) for i in range(1,6)]},
-            "item_b": {"name": "B", "icon": "B", "points": ["Xususiyat " + str(i) for i in range(1,6)]},
-            "common": ["Umumiy 1", "Umumiy 2"],
-            "verdict": "Xulosa",
-            "footer": "Infografika"
-        }
-
-    W, H = 1100, 1500
-    img = Image.new("RGB", (W, H), color=colors["bg"])
-    draw = ImageDraw.Draw(img)
+# ─── TAQQOSLASH infografika ───────────────────────────────────────────────────
+def _draw_taqqoslash(data: dict, colors: dict, out_path: str) -> str:
+    W, H = 1400, 900
+    fig = plt.figure(figsize=(W/100, H/100), dpi=100, facecolor=colors["light"])
 
     # Header
-    draw_rounded_rect(draw, 0, 0, W, 140, 0, fill=colors["primary"])
-    draw.text((W//2, 70), data.get("title", topic), font=get_font(40, bold=True),
-              fill=colors["header_fg"], anchor="mm")
+    ax_h = fig.add_axes([0, 0.88, 1, 0.12])
+    ax_h.set_facecolor(colors["primary"])
+    ax_h.axis('off')
+    ax_h.set_xlim(0, 1); ax_h.set_ylim(0, 1)
+    ax_h.text(0.5, 0.65, data.get("title", "TAQQOSLASH"),
+              ha='center', va='center', fontsize=26, fontweight='bold',
+              color=colors["white"])
+    ax_h.text(0.5, 0.25, data.get("subtitle", ""),
+              ha='center', va='center', fontsize=12, color=colors["card"])
 
-    # Column headers
-    col_w = (W - 60) // 2
-    # A column
-    draw_rounded_rect(draw, 30, 160, 30 + col_w, 260, 16, fill=colors["primary"])
-    draw.text((30 + col_w//2, 210), data["item_a"]["name"], font=get_font(30, bold=True),
-              fill=colors["header_fg"], anchor="mm")
-    # B column
-    draw_rounded_rect(draw, W - 30 - col_w, 160, W - 30, 260, 16, fill=colors["secondary"])
-    draw.text((W - 30 - col_w//2, 210), data["item_b"]["name"], font=get_font(30, bold=True),
-              fill=colors["header_fg"], anchor="mm")
+    left = data.get("left", {})
+    right = data.get("right", {})
+    chart_data = data.get("chart_data", {})
 
-    # VS divider
-    draw.ellipse([W//2 - 35, 185, W//2 + 35, 255], fill=colors["accent"], outline=colors["primary"], width=3)
-    draw.text((W//2, 220), "VS", font=get_font(26, bold=True), fill=colors["primary"], anchor="mm")
+    # Left panel
+    ax_l = fig.add_axes([0.01, 0.08, 0.32, 0.78])
+    ax_l.set_facecolor(colors["white"])
+    ax_l.set_xlim(0, 1); ax_l.set_ylim(0, 1)
+    ax_l.axis('off')
+    rect_l = FancyBboxPatch((0.02, 0.02), 0.96, 0.96,
+                             boxstyle="round,pad=0.02",
+                             facecolor=colors["white"],
+                             edgecolor=colors["primary"], linewidth=3)
+    ax_l.add_patch(rect_l)
 
-    # Points
-    y = 290
-    a_pts = data["item_a"].get("points", [])[:5]
-    b_pts = data["item_b"].get("points", [])[:5]
-    for i in range(max(len(a_pts), len(b_pts))):
-        row_color = colors["accent"] if i % 2 == 0 else colors["bg"]
-        draw_rounded_rect(draw, 30, y, 30 + col_w, y + 75, 10, fill=row_color, outline=colors["light"], outline_width=1)
-        if i < len(a_pts):
-            draw.text((50, y + 15), "✦", font=get_font(20), fill=colors["primary"])
-            draw_wrapped_text(draw, a_pts[i], 80, y + 12, col_w - 60, get_font(20), colors["text"])
+    hdr_l = FancyBboxPatch((0.02, 0.84), 0.96, 0.14,
+                            boxstyle="round,pad=0.01",
+                            facecolor=colors["primary"], edgecolor='none')
+    ax_l.add_patch(hdr_l)
+    ax_l.text(0.5, 0.915, f"{left.get('icon','🔵')}  {left.get('name','')}",
+              ha='center', va='center',
+              fontsize=13, fontweight='bold', color=colors["white"])
 
-        draw_rounded_rect(draw, W - 30 - col_w, y, W - 30, y + 75, 10, fill=row_color, outline=colors["light"], outline_width=1)
-        if i < len(b_pts):
-            draw.text((W - 30 - col_w + 20, y + 15), "✦", font=get_font(20), fill=colors["secondary"])
-            draw_wrapped_text(draw, b_pts[i], W - 30 - col_w + 50, y + 12, col_w - 60, get_font(20), colors["text"])
-        y += 85
+    for j, pt in enumerate(left.get("points", [])[:5]):
+        y = 0.72 - j * 0.16
+        bg = FancyBboxPatch((0.05, y - 0.06), 0.90, 0.12,
+                             boxstyle="round,pad=0.01",
+                             facecolor=colors["light"], edgecolor='none')
+        ax_l.add_patch(bg)
+        ax_l.text(0.12, y, "✓", fontsize=12, color=colors["primary"], va='center')
+        ax_l.text(0.22, y + 0.025, pt.get("label", ""),
+                  fontsize=9, color=colors["text"], fontweight='bold')
+        ax_l.text(0.22, y - 0.025, pt.get("value", ""),
+                  fontsize=10, color=colors["primary"], fontweight='bold')
 
-    # Common
-    common = data.get("common", [])
-    if common:
-        y += 10
-        draw_rounded_rect(draw, 30, y, W - 30, y + 50, 10, fill=colors["primary"])
-        draw.text((W//2, y + 25), "Umumiy xususiyatlar", font=get_font(24, bold=True),
-                  fill=colors["header_fg"], anchor="mm")
-        y += 60
-        for c in common:
-            draw_rounded_rect(draw, 50, y, W - 50, y + 60, 10, fill=colors["accent"], outline=colors["secondary"], outline_width=1)
-            draw.text((W//2, y + 30), "⟳  " + c, font=get_font(22), fill=colors["text"], anchor="mm")
-            y += 70
+    # Right panel
+    ax_r = fig.add_axes([0.67, 0.08, 0.32, 0.78])
+    ax_r.set_facecolor(colors["white"])
+    ax_r.set_xlim(0, 1); ax_r.set_ylim(0, 1)
+    ax_r.axis('off')
+    rect_r = FancyBboxPatch((0.02, 0.02), 0.96, 0.96,
+                             boxstyle="round,pad=0.02",
+                             facecolor=colors["white"],
+                             edgecolor=colors["secondary"], linewidth=3)
+    ax_r.add_patch(rect_r)
+
+    hdr_r = FancyBboxPatch((0.02, 0.84), 0.96, 0.14,
+                            boxstyle="round,pad=0.01",
+                            facecolor=colors["secondary"], edgecolor='none')
+    ax_r.add_patch(hdr_r)
+    ax_r.text(0.5, 0.915, f"{right.get('icon','🟢')}  {right.get('name','')}",
+              ha='center', va='center',
+              fontsize=13, fontweight='bold', color=colors["white"])
+
+    for j, pt in enumerate(right.get("points", [])[:5]):
+        y = 0.72 - j * 0.16
+        bg = FancyBboxPatch((0.05, y - 0.06), 0.90, 0.12,
+                             boxstyle="round,pad=0.01",
+                             facecolor=colors["light"], edgecolor='none')
+        ax_r.add_patch(bg)
+        ax_r.text(0.12, y, "✓", fontsize=12, color=colors["secondary"], va='center')
+        ax_r.text(0.22, y + 0.025, pt.get("label", ""),
+                  fontsize=9, color=colors["text"], fontweight='bold')
+        ax_r.text(0.22, y - 0.025, pt.get("value", ""),
+                  fontsize=10, color=colors["secondary"], fontweight='bold')
+
+    # Center chart
+    ax_c = fig.add_axes([0.34, 0.12, 0.32, 0.72])
+    ax_c.set_facecolor(colors["light"])
+    ax_c.set_xlim(0, 1); ax_c.set_ylim(0, 1)
+    ax_c.axis('off')
+
+    if chart_data:
+        labels = chart_data.get("labels", [])
+        lv = chart_data.get("left_values", [])
+        rv = chart_data.get("right_values", [])
+        n_bars = len(labels)
+        bar_h = 0.65 / max(n_bars, 1)
+
+        for j, (lbl, lval, rval) in enumerate(zip(labels, lv, rv)):
+            y = 0.85 - j * bar_h
+            ax_c.text(0.5, y, lbl, ha='center', va='center',
+                      fontsize=9, fontweight='bold', color=colors["text"])
+            # Left bar
+            bar_len_l = lval / 100 * 0.45
+            ax_c.barh(y - 0.04, bar_len_l, height=0.04,
+                      left=0.5 - bar_len_l,
+                      color=colors["primary"], alpha=0.8)
+            ax_c.text(0.5 - bar_len_l - 0.02, y - 0.04, f"{lval}%",
+                      ha='right', va='center', fontsize=8,
+                      color=colors["primary"], fontweight='bold')
+            # Right bar
+            bar_len_r = rval / 100 * 0.45
+            ax_c.barh(y - 0.04, bar_len_r, height=0.04,
+                      left=0.5,
+                      color=colors["secondary"], alpha=0.8)
+            ax_c.text(0.5 + bar_len_r + 0.02, y - 0.04, f"{rval}%",
+                      ha='left', va='center', fontsize=8,
+                      color=colors["secondary"], fontweight='bold')
+
+    # VS badge
+    circle_vs = Circle((0.5, 0.5), 0.12,
+                        facecolor=colors["accent"], edgecolor='white',
+                        linewidth=3, zorder=5)
+    ax_c.add_patch(circle_vs)
+    ax_c.text(0.5, 0.5, "VS", ha='center', va='center',
+              fontsize=16, fontweight='bold', color='white', zorder=6)
 
     # Verdict
-    y += 15
-    draw_rounded_rect(draw, 30, y, W - 30, y + 90, 16, fill=colors["primary"])
-    draw.text((W//2, y + 20), "Xulosa", font=get_font(22, bold=True), fill=colors["light"], anchor="mm")
-    draw_wrapped_text(draw, data.get("verdict", ""), 60, y + 48, W - 120, get_font(20), colors["header_fg"])
+    verdict = data.get("verdict", "")
+    if verdict:
+        ax_v = fig.add_axes([0.01, 0.01, 0.98, 0.07])
+        ax_v.set_facecolor(colors["dark"])
+        ax_v.axis('off')
+        ax_v.text(0.5, 0.5, f"💡 {verdict}",
+                  ha='center', va='center',
+                  fontsize=11, color=colors["white"])
 
-    # Footer
-    draw_rounded_rect(draw, 0, H - 55, W, H, 0, fill=colors["secondary"])
-    draw.text((W//2, H - 28), data.get("footer", ""), font=get_font(18),
-              fill=colors["header_fg"], anchor="mm")
-
-    return img
+    plt.savefig(out_path, dpi=100, bbox_inches='tight',
+                facecolor=colors["light"], edgecolor='none')
+    plt.close(fig)
+    return out_path
 
 
-# ─────────────────────────────────────────────
-# 4. UMUMIY infografika
-# ─────────────────────────────────────────────
-def generate_umumiy(topic: str, lang: str, colors: dict) -> Image.Image:
-    """Umumiy ma'lumotli infografika — sarlavha, tavsif, asosiy tushunchalar, statistika."""
-    system = "Siz infografika mazmuni tayyorlovchi mutaxassissiz. Faqat JSON qaytaring."
-    prompt = f"""
-Mavzu: "{topic}"
-Til: {lang}
-
-JSON strukturasi:
-{{
-  "title": "Asosiy sarlavha (qisqa, 5-7 so'z)",
-  "subtitle": "Qisqa tavsif (1 jumla)",
-  "intro": "Kirish matni (2 jumla)",
-  "sections": [
-    {{"icon": "01", "title": "Bo'lim sarlavhasi (3-4 so'z)", "text": "Qisqa matn (1 jumla)"}},
-    {{"icon": "02", "title": "Bo'lim sarlavhasi", "text": "Qisqa matn (1 jumla)"}},
-    {{"icon": "03", "title": "Bo'lim sarlavhasi", "text": "Qisqa matn (1 jumla)"}},
-    {{"icon": "04", "title": "Bo'lim sarlavhasi", "text": "Qisqa matn (1 jumla)"}}
-  ],
-  "stats": [
-    {{"value": "95%", "label": "Qisqa nom"}},
-    {{"value": "2x", "label": "Qisqa nom"}},
-    {{"value": "500+", "label": "Qisqa nom"}}
-  ],
-  "conclusion": "Xulosa matni (1 jumla)",
-  "footer": "Manba"
-}}
-Faqat JSON qaytaring.
-"""
-    data = gpt_json(prompt, system)
-    if not data or "sections" not in data:
-        data = {
-            "title": topic, "subtitle": "Umumiy ma'lumot",
-            "intro": "Bu mavzu haqida umumiy ma'lumot.",
-            "sections": [{"icon": str(i), "title": f"Bo'lim {i}", "text": "Tavsif"} for i in range(1, 5)],
-            "stats": [{"value": "100%", "label": "Ko'rsatkich"}],
-            "conclusion": "Xulosa",
-            "footer": "Infografika"
-        }
-
-    W = 1100
-    # Balandlikni dinamik hisoblash
-    sections = data.get("sections", [])[:4]
-    sec_rows = (len(sections) // 2 + len(sections) % 2)
-    sec_h = 210
-    stats_h = 130 if data.get("stats") else 0
-    H = 160 + 130 + stats_h + sec_rows * (sec_h + 15) + 130 + 60 + 30
-    H = max(H, 1400)
-
-    img = Image.new("RGB", (W, H), color=colors["bg"])
-    draw = ImageDraw.Draw(img)
+# ─── UMUMIY infografika ───────────────────────────────────────────────────────
+def _draw_umumiy(data: dict, colors: dict, out_path: str) -> str:
+    W, H = 1400, 950
+    fig = plt.figure(figsize=(W/100, H/100), dpi=100, facecolor=colors["light"])
 
     # Header
-    draw_rounded_rect(draw, 0, 0, W, 160, 0, fill=colors["primary"])
-    draw.text((W//2, 60), data.get("title", topic), font=get_font(40, bold=True),
-              fill=colors["header_fg"], anchor="mm")
-    draw.text((W//2, 120), data.get("subtitle", ""), font=get_font(20),
-              fill=colors["light"], anchor="mm")
+    ax_h = fig.add_axes([0, 0.88, 1, 0.12])
+    ax_h.set_facecolor(colors["primary"])
+    ax_h.axis('off')
+    ax_h.set_xlim(0, 1); ax_h.set_ylim(0, 1)
+    ax_h.text(0.5, 0.65, data.get("title", "INFOGRAFIKA"),
+              ha='center', va='center', fontsize=26, fontweight='bold',
+              color=colors["white"])
+    ax_h.text(0.5, 0.25, data.get("subtitle", ""),
+              ha='center', va='center', fontsize=12, color=colors["card"])
 
-    # Intro
-    y = 180
-    intro_text = data.get("intro", "")
-    intro_lines = len(textwrap.wrap(intro_text, width=70)) + 1
-    intro_h = max(80, intro_lines * 30 + 20)
-    draw_rounded_rect(draw, 30, y, W - 30, y + intro_h, 14,
-                      fill=colors["accent"], outline=colors["secondary"], outline_width=2)
-    draw_wrapped_text(draw, intro_text, 55, y + 15, W - 110, get_font(21), colors["text"])
-    y += intro_h + 20
+    # Intro box
+    intro = data.get("intro", "")
+    if intro:
+        ax_intro = fig.add_axes([0.02, 0.77, 0.96, 0.10])
+        ax_intro.set_facecolor(colors["card"])
+        ax_intro.set_xlim(0, 1); ax_intro.set_ylim(0, 1)
+        ax_intro.axis('off')
+        rect_i = FancyBboxPatch((0.01, 0.05), 0.98, 0.90,
+                                 boxstyle="round,pad=0.02",
+                                 facecolor=colors["card"],
+                                 edgecolor=colors["secondary"], linewidth=2)
+        ax_intro.add_patch(rect_i)
+        ax_intro.text(0.5, 0.5, _wrap(intro, 90),
+                      ha='center', va='center',
+                      fontsize=11, color=colors["text"],
+                      linespacing=1.5)
 
-    # Stats
-    stats = data.get("stats", [])
-    if stats:
-        stat_w = (W - 60) // len(stats)
-        sx = 30
-        for stat in stats:
-            draw_rounded_rect(draw, sx, y, sx + stat_w - 10, y + 110, 14, fill=colors["primary"])
-            draw.text((sx + (stat_w - 10)//2, y + 38), stat.get("value", ""),
-                      font=get_font(38, bold=True), fill=colors["header_fg"], anchor="mm")
-            label = stat.get("label", "")
-            # Labelni qisqartirish agar juda uzun bo'lsa
-            if len(label) > 20:
-                label = label[:18] + "..."
-            draw_wrapped_text(draw, label, sx + 8, y + 68, stat_w - 26, get_font(16), colors["light"])
-            sx += stat_w
-        y += 130
+    # 4 sections (2x2 grid)
+    sections = data.get("sections", [])
+    positions = [
+        [0.02, 0.40, 0.47, 0.35],
+        [0.51, 0.40, 0.47, 0.35],
+        [0.02, 0.03, 0.47, 0.35],
+        [0.51, 0.03, 0.47, 0.35],
+    ]
+    for i, (sec, pos) in enumerate(zip(sections[:4], positions)):
+        ax = fig.add_axes(pos)
+        ax.set_facecolor(colors["white"])
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.axis('off')
 
-    # Sections (2x2 grid)
-    sec_w = (W - 70) // 2
-    for i, sec in enumerate(sections):
-        col = i % 2
-        row = i // 2
-        sx = 30 + col * (sec_w + 10)
-        sy = y + row * (sec_h + 15)
-        draw_rounded_rect(draw, sx, sy, sx + sec_w, sy + sec_h, 16,
-                          fill=colors["accent"], outline=colors["secondary"], outline_width=2)
+        rect = FancyBboxPatch((0.01, 0.01), 0.98, 0.98,
+                               boxstyle="round,pad=0.02",
+                               facecolor=colors["white"],
+                               edgecolor=colors["secondary"], linewidth=2)
+        ax.add_patch(rect)
+
         # Icon circle
-        draw.ellipse([sx + 15, sy + 15, sx + 75, sy + 75], fill=colors["primary"])
-        draw.text((sx + 45, sy + 45), sec.get("icon", str(i+1)),
-                  font=get_font(26, bold=True), fill=colors["header_fg"], anchor="mm")
-        # Title
-        draw_wrapped_text(draw, sec.get("title", ""), sx + 90, sy + 15, sec_w - 105,
-                          get_font(21, bold=True), colors["primary"])
-        draw_wrapped_text(draw, sec.get("text", ""), sx + 20, sy + 85, sec_w - 40,
-                          get_font(18), colors["text"])
+        icon_circle = Circle((0.10, 0.82), 0.09,
+                              facecolor=colors["primary"], edgecolor='none')
+        ax.add_patch(icon_circle)
+        ax.text(0.10, 0.82, sec.get("icon", "📌"),
+                ha='center', va='center', fontsize=16)
 
-    y += sec_rows * (sec_h + 15) + 20
+        # Title
+        ax.text(0.25, 0.85, _wrap(sec.get("title", ""), 30),
+                ha='left', va='center',
+                fontsize=12, fontweight='bold', color=colors["primary"])
+
+        # Divider
+        ax.axhline(y=0.70, xmin=0.03, xmax=0.97,
+                   color=colors["card"], linewidth=2)
+
+        # Content
+        content = sec.get("content", "")
+        ax.text(0.5, 0.38, _wrap(content, 45),
+                ha='center', va='center',
+                fontsize=10, color=colors["text"],
+                linespacing=1.6)
+
+    # Key facts bar
+    key_facts = data.get("key_facts", [])
+    if key_facts:
+        # Replace bottom sections with key facts if sections < 4
+        pass
 
     # Conclusion
-    conc_text = data.get("conclusion", "")
-    conc_lines = len(textwrap.wrap(conc_text, width=65)) + 1
-    conc_h = max(100, conc_lines * 28 + 40)
-    draw_rounded_rect(draw, 30, y, W - 30, y + conc_h, 16, fill=colors["primary"])
-    draw.text((W//2, y + 20), "Xulosa", font=get_font(24, bold=True),
-              fill=colors["light"], anchor="mm")
-    draw_wrapped_text(draw, conc_text, 55, y + 50, W - 110,
-                      get_font(20), colors["header_fg"])
-    y += conc_h + 15
+    conclusion = data.get("conclusion", "")
+    if conclusion and len(sections) < 4:
+        ax_con = fig.add_axes([0.02, 0.03, 0.96, 0.35])
+        ax_con.set_facecolor(colors["white"])
+        ax_con.set_xlim(0, 1); ax_con.set_ylim(0, 1)
+        ax_con.axis('off')
+        rect_c = FancyBboxPatch((0.01, 0.01), 0.98, 0.98,
+                                 boxstyle="round,pad=0.02",
+                                 facecolor=colors["white"],
+                                 edgecolor=colors["primary"], linewidth=2)
+        ax_con.add_patch(rect_c)
+        ax_con.text(0.5, 0.65, "📝 Xulosa",
+                    ha='center', va='center',
+                    fontsize=13, fontweight='bold', color=colors["primary"])
+        ax_con.text(0.5, 0.35, _wrap(conclusion, 80),
+                    ha='center', va='center',
+                    fontsize=10, color=colors["text"], linespacing=1.5)
 
-    # Footer
-    draw_rounded_rect(draw, 0, y, W, y + 55, 0, fill=colors["secondary"])
-    draw.text((W//2, y + 28), data.get("footer", ""), font=get_font(18),
-              fill=colors["header_fg"], anchor="mm")
+    # Footer with key facts
+    ax_f = fig.add_axes([0, 0, 1, 0.03])
+    ax_f.set_facecolor(colors["dark"])
+    ax_f.axis('off')
+    footer_text = data.get("footer", "")
+    if key_facts:
+        facts_str = "   |   ".join([f"{kf.get('value','')} — {kf.get('label','')}" for kf in key_facts[:3]])
+        footer_text = f"📊 {facts_str}   |   {footer_text}"
+    ax_f.text(0.5, 0.5, footer_text,
+              ha='center', va='center',
+              fontsize=9, color=colors["card"])
 
-    # Rasmni to'g'ri o'lchamga kesish
-    final_h = y + 55
-    img = img.crop((0, 0, W, final_h))
-    return img
+    plt.savefig(out_path, dpi=100, bbox_inches='tight',
+                facecolor=colors["light"], edgecolor='none')
+    plt.close(fig)
+    return out_path
 
 
-# ─────────────────────────────────────────────
-# Asosiy generatsiya funksiyasi
-# ─────────────────────────────────────────────
+# ─── Asosiy funksiya ──────────────────────────────────────────────────────────
 def generate_infografika(
     topic: str,
-    infotype: str,
-    lang: str,
+    ig_type: str,
+    language: str,
     color_scheme: str,
-    output_path: str = None
+    out_path: str = None,
 ) -> str:
     """
-    Infografika yaratadi va faylga saqlaydi.
-
-    Args:
-        topic: Mavzu
-        infotype: 'statistik' | 'jarayon' | 'taqqoslash' | 'umumiy'
-        lang: Til (O'zbek, Rus, Ingliz va h.k.)
-        color_scheme: "ko'k" | "yashil" | "qizil" | "binafsha" | "to'q sariq"
-        output_path: Saqlash yo'li (None bo'lsa temp fayl)
-
-    Returns:
-        Saqlangan fayl yo'li
+    Professional infografika yaratadi.
+    ig_type: statistik | jarayon | taqqoslash | umumiy
+    color_scheme: ko'k | yashil | qizil | binafsha | to'q sariq
     """
-    colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["ko'k"])
-
-    generators = {
-        "statistik":  generate_statistik,
-        "jarayon":    generate_jarayon,
-        "taqqoslash": generate_taqqoslash,
-        "umumiy":     generate_umumiy,
-    }
-    gen_func = generators.get(infotype, generate_umumiy)
-
-    img = gen_func(topic, lang, colors)
-
-    if output_path is None:
+    if out_path is None:
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        output_path = tmp.name
+        out_path = tmp.name
         tmp.close()
 
-    img.save(output_path, "PNG", quality=95)
-    return output_path
+    colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["ko'k"])
+
+    logger.info(f"Infografika yaratilmoqda: {topic} | {ig_type} | {language} | {color_scheme}")
+    data = _get_infografika_data(topic, ig_type, language)
+
+    if not data:
+        # Fallback
+        data = {
+            "title": topic.upper(),
+            "subtitle": f"{topic} haqida umumiy ma'lumot",
+            "sections": [
+                {"title": "Ma'lumot", "icon": "📌",
+                 "content": f"{topic} bo'yicha ma'lumot tayyorlanmoqda."}
+            ],
+            "footer": "Ma'lumot tayyorlanmoqda"
+        }
+
+    if ig_type == "statistik":
+        return _draw_statistik(data, colors, out_path)
+    elif ig_type == "jarayon":
+        return _draw_jarayon(data, colors, out_path)
+    elif ig_type == "taqqoslash":
+        return _draw_taqqoslash(data, colors, out_path)
+    else:
+        return _draw_umumiy(data, colors, out_path)
