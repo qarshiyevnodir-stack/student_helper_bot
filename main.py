@@ -283,11 +283,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         referrer = await asyncio.to_thread(db.get_user_by_ref_code, ref_code)
         if referrer and referrer['user_id'] != user.id:
             ref_by = referrer['user_id']
-    await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name, ref_by)
-    await update.message.reply_text(
-        "Assalomu alaykum! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
-        reply_markup=get_main_menu_keyboard()
-    )
+    user_row = await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name, ref_by)
+
+    # Yangi foydalanuvchiga bir martalik xush kelibsiz bonusi
+    bonus_given = await asyncio.to_thread(db.give_welcome_bonus, user.id, 6000)
+
+    if bonus_given:
+        await update.message.reply_text(
+            f"Assalomu alaykum, {user.first_name}! 👋\n\n"
+            f"🎁 *Xush kelibsiz bonusi:* `6,000 so'm` balansingizga qo'shildi!\n"
+            f"Bu bonus faqat bir marta beriladi.\n\n"
+            f"Quyidagi xizmatlardan birini tanlang:",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            f"Assalomu alaykum, {user.first_name}! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
+            reply_markup=get_main_menu_keyboard()
+        )
     return LANGUAGE_SELECTION
 
 

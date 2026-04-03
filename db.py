@@ -73,15 +73,21 @@ def init_db():
         # Foydalanuvchilar jadvali
         c.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                user_id       BIGINT PRIMARY KEY,
-                username      TEXT,
-                full_name     TEXT,
-                balance       INTEGER DEFAULT 0,
-                referral_code TEXT UNIQUE,
-                referred_by   BIGINT,
-                joined_at     TIMESTAMP DEFAULT NOW(),
-                last_active   TIMESTAMP DEFAULT NOW()
+                user_id             BIGINT PRIMARY KEY,
+                username            TEXT,
+                full_name           TEXT,
+                balance             INTEGER DEFAULT 0,
+                referral_code       TEXT UNIQUE,
+                referred_by         BIGINT,
+                joined_at           TIMESTAMP DEFAULT NOW(),
+                last_active         TIMESTAMP DEFAULT NOW(),
+                welcome_bonus_given BOOLEAN DEFAULT FALSE
             )
+        """)
+        # Mavjud DB da ustun bo'lmasa qo'shamiz (migration)
+        c.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS welcome_bonus_given BOOLEAN DEFAULT FALSE
         """)
 
         # To'lov operatsiyalari
@@ -227,6 +233,30 @@ def get_all_users(limit: int = 50, offset: int = 0) -> list:
             FROM users ORDER BY joined_at DESC LIMIT %s OFFSET %s
         """, (limit, offset))
         return _rows_to_dicts(c, c.fetchall())
+    finally:
+        release_conn(conn)
+
+
+def give_welcome_bonus(user_id: int, amount: int = 6000) -> bool:
+    """Yangi foydalanuvchiga bir martalik xush kelibsiz bonusini beradi.
+    
+    Returns:
+        True — bonus berildi (birinchi marta)
+        False — bonus allaqachon berilgan
+    """
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        # Atomik: faqat welcome_bonus_given=FALSE bo'lsa yangilaydi
+        c.execute("""
+            UPDATE users
+            SET balance = balance + %s,
+                welcome_bonus_given = TRUE
+            WHERE user_id = %s AND welcome_bonus_given = FALSE
+        """, (amount, user_id))
+        updated = c.rowcount  # 1 — yangilandi, 0 — allaqachon berilgan
+        conn.commit()
+        return updated > 0
     finally:
         release_conn(conn)
 
