@@ -1897,6 +1897,10 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
         per_message=False,
@@ -1908,10 +1912,11 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
-                # Balans & Referral tugmasi
+                MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
-                # Topup oqimi uchun matn va rasm handlerlari (faqat topup_state aktiv bo'lsa)
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
+                MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
+                # Boshqa barcha tugmalar (ishga tushirilmagan xizmatlar ham)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             ],
             TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
