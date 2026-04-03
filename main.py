@@ -29,6 +29,7 @@ from pptx import Presentation
 # Admin va narx sozlamalari
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
+ARCHIVE_CHANNEL = "@arxiv_kanal"  # Arxiv kanal
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 SERVICE_PRICES = {
     "slayd":        3000,
@@ -276,6 +277,85 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
         f"_Ushbu reja asosida slaydlar sarlavhalari ham tayyor. "
         f"Tasdiqlasangiz, kontent yaratila boshlaydi._"
     )
+
+
+# ─────────────────────────────────────────────
+# Yordamchi: Arxiv kanalga yuborish
+# ─────────────────────────────────────────────
+
+async def archive_send_document(
+    bot,
+    user,
+    service_name: str,
+    topic: str,
+    language: str,
+    page_count,
+    price: int,
+    document_bytes,
+    filename: str,
+):
+    """Yaratilgan hujjatni arxiv kanalga yuboradi."""
+    try:
+        from datetime import datetime
+        full_name = (user.full_name or '').strip() or 'Nomsiz'
+        username_str = f"@{user.username}" if user.username else "username yo'q"
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        caption = (
+            f"📥 *Yangi fayl arxivlandi!*\n\n"
+            f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
+            f"🆔 ID: `{user.id}`\n"
+            f"📋 Xizmat: {service_name}\n"
+            f"📝 Mavzu: {topic}\n"
+            f"🌐 Til: {language}\n"
+            f"📄 Sahifalar: {page_count}\n"
+            f"💰 Narx: {price:,} so'm\n"
+            f"📅 Sana: {now}"
+        )
+        await bot.send_document(
+            chat_id=ARCHIVE_CHANNEL,
+            document=document_bytes,
+            filename=filename,
+            caption=caption,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}")
+
+
+async def archive_send_photo(
+    bot,
+    user,
+    service_name: str,
+    topic: str,
+    language: str,
+    price: int,
+    photo_path: str,
+):
+    """Yaratilgan rasmni (infografika) arxiv kanalga yuboradi."""
+    try:
+        from datetime import datetime
+        full_name = (user.full_name or '').strip() or 'Nomsiz'
+        username_str = f"@{user.username}" if user.username else "username yo'q"
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        caption = (
+            f"📥 *Yangi fayl arxivlandi!*\n\n"
+            f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
+            f"🆔 ID: `{user.id}`\n"
+            f"📋 Xizmat: {service_name}\n"
+            f"📝 Mavzu: {topic}\n"
+            f"🌐 Til: {language}\n"
+            f"💰 Narx: {price:,} so'm\n"
+            f"📅 Sana: {now}"
+        )
+        with open(photo_path, "rb") as f:
+            await bot.send_photo(
+                chat_id=ARCHIVE_CHANNEL,
+                photo=f,
+                caption=caption,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.warning(f"Arxiv kanalga rasm yuborishda xatolik: {e}")
 
 
 # ─────────────────────────────────────────────
@@ -646,6 +726,19 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             caption=f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n📊 {slide_count} ta slayd",
             parse_mode="Markdown"
         )
+        # Arxiv kanalga yuborish
+        _lang_name = context.user_data.get('language_name', language)
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="🪄 Slayd yaratish",
+            topic=topic,
+            language=_lang_name,
+            page_count=f"{slide_count} slayd",
+            price=price,
+            document_bytes=presentation_bytes,
+            filename=filename,
+        )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
@@ -859,6 +952,18 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
+        # Arxiv kanalga yuborish
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="📁 Loyiha ishi",
+            topic=topic,
+            language=language,
+            page_count=page_count,
+            price=price,
+            document_bytes=doc_bytes,
+            filename=filename,
+        )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         await asyncio.to_thread(db.log_generation, user_id, 'loyiha_ishi', topic, price)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
@@ -1017,6 +1122,17 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                         f"💰 Balansingizdan *{price:,} so'm* yechildi.",
                 parse_mode="Markdown"
             )
+        # Arxiv kanalga yuborish
+        _ig_lang = context.user_data.get('ig_language', 'O\'zbek tili')
+        await archive_send_photo(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="📊 Infografika",
+            topic=topic,
+            language=_ig_lang,
+            price=price,
+            photo_path=out_path,
+        )
         # Temp faylni o'chirish
         try:
             os.unlink(out_path)
@@ -1214,6 +1330,18 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"📄 Taxminiy {page_count} sahifa"
             ),
             parse_mode="Markdown"
+        )
+        # Arxiv kanalga yuborish
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="📚 Referat",
+            topic=topic,
+            language=language,
+            page_count=page_count,
+            price=price,
+            document_bytes=doc_bytes,
+            filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         await asyncio.to_thread(db.log_generation, user_id, 'referat', topic, price)
@@ -1436,6 +1564,18 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"📄 Taxminiy {page_count} sahifa"
             ),
             parse_mode="Markdown"
+        )
+        # Arxiv kanalga yuborish
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="📄 Mustaqil ish",
+            topic=topic,
+            language=language,
+            page_count=page_count,
+            price=price,
+            document_bytes=doc_bytes,
+            filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         await asyncio.to_thread(db.log_generation, user_id, 'mustaqil_ish', topic, price)
