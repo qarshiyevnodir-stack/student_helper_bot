@@ -1105,10 +1105,10 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             None,
             lambda: generate_infografika(
                 topic=topic,
-                infotype=infotype,
-                lang=lang_name,
+                ig_type=infotype,
+                language=lang_name,
                 color_scheme=color,
-                output_path=tmp_path
+                out_path=tmp_path
             )
         )
         # Balansdan yechish
