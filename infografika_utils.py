@@ -803,3 +803,140 @@ def generate_infografika(
         return _draw_taqqoslash(data, colors, out_path)
     else:
         return _draw_umumiy(data, colors, out_path)
+
+
+# ─────────────────────────────────────────────
+# HD Infografika — DALL-E 3 bilan
+# ─────────────────────────────────────────────
+
+def generate_infografika_hd(
+    topic: str,
+    ig_type: str,
+    language: str,
+    color_scheme: str,
+    out_path: str = None,
+) -> str:
+    """
+    HD infografika yaratadi (DALL-E 3 orqali).
+    Avval GPT mavzu bo'yicha tarkib tayyorlaydi,
+    keyin DALL-E 3 professional infografika rasmi yaratadi.
+    """
+    import requests as req_lib
+    from openai import OpenAI as _OpenAI
+
+    # DALL-E 3 uchun alohida client (to'g'ridan-to'g'ri OpenAI API)
+    dalle_client = _OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+        base_url="https://api.openai.com/v1",
+    )
+
+    if out_path is None:
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        out_path = tmp.name
+        tmp.close()
+
+    # Tur nomlarini tarjima qilish
+    type_names_en = {
+        "statistik":  "statistical (with numbers, percentages, charts)",
+        "jarayon":    "process/steps (step-by-step guide)",
+        "taqqoslash": "comparison (comparing two things side by side)",
+        "umumiy":     "general informational",
+    }
+    type_desc = type_names_en.get(ig_type, "general informational")
+
+    # Rang sxemasi
+    color_map = {
+        "ko'k":       "blue and white color scheme",
+        "yashil":     "green and white color scheme",
+        "qizil":      "red and white color scheme",
+        "binafsha":   "purple and white color scheme",
+        "to'q sariq": "orange and yellow color scheme",
+    }
+    color_desc = color_map.get(color_scheme, "blue and white color scheme")
+
+    # Til
+    lang_map = {
+        "O'zbek tili": "Uzbek",
+        "Ingliz tili": "English",
+        "Rus tili":    "Russian",
+        "Nemis tili":  "German",
+    }
+    lang_en = lang_map.get(language, "Uzbek")
+
+    # GPT orqali infografika uchun asosiy ma'lumotlarni tayyorlash
+    try:
+        content_resp = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": (
+                    f"You are an infographic content expert. "
+                    f"Create concise, factual content for a {type_desc} infographic "
+                    f"about the given topic in {lang_en} language. "
+                    f"Return ONLY a JSON with: "
+                    f"title (short, max 8 words, in {lang_en}), "
+                    f"subtitle (max 12 words, in {lang_en}), "
+                    f"key_facts (list of 4-5 short facts, each max 10 words, in {lang_en}), "
+                    f"statistics (list of 3-4 items with 'label' and 'value' keys, in {lang_en}). "
+                )},
+                {"role": "user", "content": f"Topic: {topic}"}
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=500,
+            temperature=0.7,
+        )
+        content_data = json.loads(content_resp.choices[0].message.content)
+    except Exception as e:
+        logger.warning(f"GPT content generation failed: {e}")
+        content_data = {
+            "title": topic,
+            "subtitle": f"Key information about {topic}",
+            "key_facts": [f"Important fact about {topic}"],
+            "statistics": [{"label": "Data", "value": "100%"}],
+        }
+
+    title = content_data.get("title", topic)
+    subtitle = content_data.get("subtitle", "")
+    key_facts = content_data.get("key_facts", [])
+    statistics = content_data.get("statistics", [])
+
+    # DALL-E 3 uchun prompt yaratish
+    facts_text = " | ".join(key_facts[:4]) if key_facts else ""
+    stats_text = ", ".join([f"{s.get('value','')} {s.get('label','')}" for s in statistics[:3]])
+
+    dalle_prompt = (
+        f"Create a professional, modern {type_desc} infographic poster about '{topic}'. "
+        f"Language for all text: {lang_en}. Color scheme: {color_desc}. "
+        f"Title text: '{title}'. Subtitle: '{subtitle}'. "
+        f"Include these key facts as text elements in the infographic: {facts_text}. "
+        f"Include these statistics visually: {stats_text}. "
+        f"Style: clean, corporate, data-driven, high contrast, "
+        f"with icons, charts, and visual elements. "
+        f"Layout: wide horizontal format (landscape), multiple columns, "
+        f"professional typography, no watermarks, no borders around the whole image. "
+        f"Make it look like a real professional infographic with "
+        f"clear sections, visual hierarchy, and beautiful design. "
+        f"All text in the infographic must be in {lang_en} language only."
+    )
+
+    logger.info(f"DALL-E 3 HD infografika yaratilmoqda: {topic}")
+
+    # DALL-E 3 bilan rasm yaratish
+    img_resp = dalle_client.images.generate(
+        model="dall-e-3",
+        prompt=dalle_prompt,
+        size="1792x1024",
+        quality="standard",
+        n=1,
+    )
+
+    image_url = img_resp.data[0].url
+
+    # Rasmni yuklab olish
+    response = req_lib.get(image_url, timeout=60)
+    response.raise_for_status()
+
+    with open(out_path, "wb") as f:
+        f.write(response.content)
+
+    logger.info(f"HD infografika yaratildi: {out_path}")
+    return out_path

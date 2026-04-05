@@ -22,7 +22,7 @@ from utils import (
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
-from infografika_utils import generate_infografika
+from infografika_utils import generate_infografika, generate_infografika_hd
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -36,7 +36,8 @@ SERVICE_PRICES = {
     "mustaqil_ish": 3000,
     "referat":      3000,
     "loyiha_ishi":  3000,
-    "infografika":  3000,
+    "infografika":      3000,
+    "infografika_hd":   5000,
 }
 MIN_TOPUP = 3000
 
@@ -112,8 +113,9 @@ logger = logging.getLogger(__name__)
     IG_LANGUAGE,         # 50
     IG_TYPE,             # 51
     IG_COLOR,            # 52
-    IG_TOPIC,            # 53
-) = range(50, 54)
+    IG_QUALITY,          # 53  (Oddiy/HD tanlash)
+    IG_TOPIC,            # 54
+) = range(50, 55)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -1053,9 +1055,39 @@ async def ig_get_color(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "to'q sariq": "🟠 To'q sariq",
     }
     color_name = color_names.get(color, color)
+    # Sifat tanlash (Oddiy / HD)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Oddiy (3,000 so'm)",  callback_data="ig_quality_oddiy")],
+        [InlineKeyboardButton("✨ HD — DALL-E 3 (5,000 so'm)", callback_data="ig_quality_hd")],
+    ])
     await query.edit_message_text(
-        text=f"✅ Rang: *{color_name}*\n\nInfografika mavzusini kiriting:\n"
-             f"_(masalan: Sun'iy intellekt, Iqlim o'zgarishi, Sog'lom ovqatlanish...)_",
+        text=(
+            f"✅ Rang: *{color_name}*\n\n"
+            f"🌟 *Infografika sifatini tanlang:*\n\n"
+            f"📊 *Oddiy* — 3,000 so'm\n"
+            f"Matplotlib bilan yaratiladi. Tez, arzon.\n\n"
+            f"✨ *HD (DALL-E 3)* — 5,000 so'm\n"
+            f"Sun'iy intellekt bilan yaratiladi. Professional, chiroyli."
+        ),
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return IG_QUALITY
+
+
+async def ig_get_quality(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Infografika: sifat (Oddiy/HD) tanlashni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    quality = query.data.split("_")[2]  # ig_quality_oddiy -> oddiy
+    context.user_data["ig_quality"] = quality
+    quality_name = "✨ HD (DALL-E 3)" if quality == "hd" else "📊 Oddiy"
+    await query.edit_message_text(
+        text=(
+            f"✅ Sifat: *{quality_name}*\n\n"
+            f"📝 Infografika mavzusini kiriting:\n"
+            f"_(masalan: Sun'iy intellekt, Iqlim o'zgarishi, Sog'lom ovqatlanish...)_"
+        ),
         parse_mode="Markdown"
     )
     return IG_TOPIC
@@ -1074,9 +1106,11 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     lang_code  = context.user_data.get("ig_language", "uz")
     infotype   = context.user_data.get("ig_type", "umumiy")
     color      = context.user_data.get("ig_color", "ko'k")
+    quality    = context.user_data.get("ig_quality", "oddiy")
     lang_name  = LANGUAGE_NAMES.get(lang_code, "O'zbek tili")
+    is_hd      = (quality == "hd")
     # Balans tekshirish
-    price = SERVICE_PRICES.get('infografika', 3000)
+    price = SERVICE_PRICES.get('infografika_hd', 5000) if is_hd else SERVICE_PRICES.get('infografika', 3000)
     balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
@@ -1091,32 +1125,46 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             parse_mode="Markdown"
         )
         return ConversationHandler.END
+    quality_label = "✨ HD (DALL-E 3)" if is_hd else "📊 Oddiy"
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida infografika yaratilmoqda...\n"
+        f"⏳ *{topic}* mavzusida *{quality_label}* infografika yaratilmoqda...\n"
         f"Bu biroz vaqt olishi mumkin, kuting!",
         parse_mode="Markdown"
     )
     try:
         import tempfile, os
         tmp_path = tempfile.mktemp(suffix=".png")
-        out_path = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: generate_infografika(
-                topic=topic,
-                ig_type=infotype,
-                language=lang_name,
-                color_scheme=color,
-                out_path=tmp_path
+        if is_hd:
+            out_path = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_infografika_hd(
+                    topic=topic,
+                    ig_type=infotype,
+                    language=lang_name,
+                    color_scheme=color,
+                    out_path=tmp_path
+                )
             )
-        )
+        else:
+            out_path = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_infografika(
+                    topic=topic,
+                    ig_type=infotype,
+                    language=lang_name,
+                    color_scheme=color,
+                    out_path=tmp_path
+                )
+            )
         # Balansdan yechish
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_deduction, user_id, price, f"Infografika: {topic}")
+        service_label = "Infografika HD" if is_hd else "Infografika"
+        await asyncio.to_thread(db.log_deduction, user_id, price, f"{service_label}: {topic}")
         # PNG yuborish
         with open(out_path, "rb") as f:
             await update.message.reply_photo(
                 photo=f,
-                caption=f"✅ *{topic}* — infografika tayyor!\n"
+                caption=f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
                         f"💰 Balansingizdan *{price:,} so'm* yechildi.",
                 parse_mode="Markdown"
             )
@@ -1125,7 +1173,7 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await archive_send_photo(
             bot=context.bot,
             user=update.effective_user,
-            service_name="📊 Infografika",
+            service_name=f"📊 Infografika {'HD' if is_hd else 'Oddiy'}",
             topic=topic,
             language=_ig_lang,
             price=price,
@@ -2173,6 +2221,10 @@ def main() -> None:
             ],
             IG_COLOR: [
                 CallbackQueryHandler(ig_get_color, pattern=r"^ig_color_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IG_QUALITY: [
+                CallbackQueryHandler(ig_get_quality, pattern=r"^ig_quality_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IG_TOPIC: [
