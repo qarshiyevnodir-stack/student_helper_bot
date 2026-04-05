@@ -357,7 +357,7 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
     if author:
         add_paragraph(doc, author,
                       alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                      size=13, bold=False, space_before=6, space_after=4,
+                      size=17, bold=False, space_before=6, space_after=4,
                       color=GOLD_COLOR)
 
     # Kirish matni
@@ -367,13 +367,13 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
             if para:
                 add_paragraph(doc, para,
                               alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                              size=13, space_before=2, space_after=4)
+                              size=17, space_before=2, space_after=4)
 
     # Qo'shimcha ma'lumot (sariq rang)
     if extra_info:
         add_paragraph(doc, extra_info,
                       alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                      size=12, bold=False, space_before=6, space_after=4,
+                      size=16, bold=False, space_before=6, space_after=4,
                       color=GOLD_COLOR)
 
     doc.add_page_break()
@@ -387,7 +387,7 @@ def create_content_page_A(doc, heading, text_content, img_path=None):
     """Shablon A: Sarlavha yuqorida, chap matn + o'ng rasm."""
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=16, bold=True, space_before=6, space_after=6)
+                  size=20, bold=True, space_before=6, space_after=6)
     add_gold_line(doc, 25)
 
     table = doc.add_table(rows=1, cols=2)
@@ -405,7 +405,7 @@ def create_content_page_A(doc, heading, text_content, img_path=None):
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(5)
         for run in p.runs:
-            set_font(run, size=12)
+            set_font(run, size=16)
 
     right_cell = table.cell(0, 1)
     right_cell.width = Inches(2.4)
@@ -434,7 +434,7 @@ def create_content_page_B(doc, heading, text_content, img_path=None):
 
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=16, bold=True, space_before=6, space_after=2)
+                  size=20, bold=True, space_before=6, space_after=2)
     add_gold_line(doc, 25)
 
     for para in text_content.split('\n'):
@@ -446,7 +446,7 @@ def create_content_page_B(doc, heading, text_content, img_path=None):
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(4)
         for run in p.runs:
-            set_font(run, size=12)
+            set_font(run, size=16)
 
     doc.add_page_break()
 
@@ -467,7 +467,7 @@ def create_content_page_C(doc, heading, text_content, img_path=None):
 
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=20, bold=True, space_before=6, space_after=6)
+                  size=24, bold=True, space_before=6, space_after=6)
 
     for para in text_content.split('\n'):
         para = para.strip()
@@ -478,7 +478,7 @@ def create_content_page_C(doc, heading, text_content, img_path=None):
         p.paragraph_format.space_before = Pt(2)
         p.paragraph_format.space_after  = Pt(2)
         for run in p.runs:
-            set_font(run, size=13, bold=True)
+            set_font(run, size=17, bold=True)
 
     doc.add_page_break()
 
@@ -487,7 +487,7 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
     """Shablon D: Ikki ustunli matn sahifasi."""
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=16, bold=True, space_before=6, space_after=6)
+                  size=20, bold=True, space_before=6, space_after=6)
     add_gold_line(doc, 25)
 
     table = doc.add_table(rows=1, cols=2)
@@ -505,7 +505,7 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(5)
         for run in p.runs:
-            set_font(run, size=12)
+            set_font(run, size=16)
 
     right_cell = table.cell(0, 1)
     right_cell.width = Inches(3.0)
@@ -519,7 +519,7 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(5)
         for run in p.runs:
-            set_font(run, size=12)
+            set_font(run, size=16)
 
     doc.add_page_break()
 
