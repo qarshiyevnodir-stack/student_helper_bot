@@ -763,6 +763,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             caption=(
                 f"✅ *{topic}* — taqdimot tayyor!\n"
                 f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\_bot\n"
                 f"📢 t.me/slidego"
             ),
@@ -991,6 +992,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             caption=(
                 f"✅ *{topic}* — loyiha ishi tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\_bot\n"
                 f"📢 t.me/slidego"
             ),
@@ -1211,6 +1213,7 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 caption=(
                     f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
                     f"🖼 PNG\n\n"
+                    f"📚 Biz bilan ishingiz oson!\n"
                     f"🤖 @slidego\_bot\n"
                     f"📢 t.me/slidego"
                 ),
@@ -1422,6 +1425,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             caption=(
                 f"✅ *{topic}* — referat tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\_bot\n"
                 f"📢 t.me/slidego"
             ),
@@ -1658,6 +1662,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             caption=(
                 f"✅ *{topic}* — mustaqil ish tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\_bot\n"
                 f"📢 t.me/slidego"
             ),
@@ -1882,6 +1887,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             caption=(
                 f"✅ *{topic}* — maqola tayyor!\n"
                 f"📰 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\_bot\n"
                 f"📢 t.me/slidego"
             ),
