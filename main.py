@@ -760,7 +760,12 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             chat_id=chat_id,
             document=presentation_bytes,
             filename=filename,
-            caption=f"✅ *{topic}* mavzusidagi taqdimot tayyor!\n📊 {slide_count} ta slayd",
+            caption=(
+                f"✅ *{topic}* — taqdimot tayyor!\n"
+                f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
+                f"🤖 @slidego\_bot\n"
+                f"📢 t.me/slidego"
+            ),
             parse_mode="Markdown"
         )
         # Arxiv kanalga yuborish
@@ -984,8 +989,10 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* mavzusidagi loyiha ishi tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"✅ *{topic}* — loyiha ishi tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"🤖 @slidego\_bot\n"
+                f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
         )
@@ -1201,8 +1208,12 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         with open(out_path, "rb") as f:
             await update.message.reply_photo(
                 photo=f,
-                caption=f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
-                        f"💰 Balansingizdan *{price:,} so'm* yechildi.",
+                caption=(
+                    f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
+                    f"🖼 PNG\n\n"
+                    f"🤖 @slidego\_bot\n"
+                    f"📢 t.me/slidego"
+                ),
                 parse_mode="Markdown"
             )
         # Arxiv kanalga yuborish
@@ -1409,8 +1420,10 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* mavzusidagi referat tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"✅ *{topic}* — referat tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"🤖 @slidego\_bot\n"
+                f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
         )
@@ -1643,8 +1656,10 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* mavzusidagi mustaqil ish tayyor!\n"
-                f"📄 Taxminiy {page_count} sahifa"
+                f"✅ *{topic}* — mustaqil ish tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"🤖 @slidego\_bot\n"
+                f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
         )
@@ -1865,8 +1880,10 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* mavzusidagi maqola tayyor!\n"
-                f"📰 Taxminiy {page_count} sahifa"
+                f"✅ *{topic}* — maqola tayyor!\n"
+                f"📰 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"🤖 @slidego\_bot\n"
+                f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
         )
