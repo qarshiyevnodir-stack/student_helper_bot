@@ -36,8 +36,8 @@ SERVICE_PRICES = {
     "mustaqil_ish": 3000,
     "referat":      3000,
     "loyiha_ishi":  3000,
-    "infografika":      3000,
-    "infografika_hd":   5000,
+    "infografika":      1500,
+    "infografika_hd":   3000,
 }
 MIN_TOPUP = 3000
 
@@ -1057,16 +1057,16 @@ async def ig_get_color(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     color_name = color_names.get(color, color)
     # Sifat tanlash (Oddiy / HD)
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 Oddiy (3,000 so'm)",  callback_data="ig_quality_oddiy")],
-        [InlineKeyboardButton("✨ HD — DALL-E 3 (5,000 so'm)", callback_data="ig_quality_hd")],
+        [InlineKeyboardButton("📊 Oddiy (1,500 so'm)",  callback_data="ig_quality_oddiy")],
+        [InlineKeyboardButton("✨ HD — DALL-E 3 (3,000 so'm)", callback_data="ig_quality_hd")],
     ])
     await query.edit_message_text(
         text=(
             f"✅ Rang: *{color_name}*\n\n"
             f"🌟 *Infografika sifatini tanlang:*\n\n"
-            f"📊 *Oddiy* — 3,000 so'm\n"
+            f"📊 *Oddiy* — 1,500 so'm\n"
             f"Matplotlib bilan yaratiladi. Tez, arzon.\n\n"
-            f"✨ *HD (DALL-E 3)* — 5,000 so'm\n"
+            f"✨ *HD (DALL-E 3)* — 3,000 so'm\n"
             f"Sun'iy intellekt bilan yaratiladi. Professional, chiroyli."
         ),
         reply_markup=keyboard,
