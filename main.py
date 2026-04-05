@@ -2039,25 +2039,50 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles photo submissions globally. Only processes if the user is in 'screenshot' state."""
+    """Screenshot (to'lov cheki) qabul qiladi va adminga yuboradi."""
     user_id = update.effective_user.id
-    topup_state = _get_topup_state(context, user_id)
 
-    # Only process if the user is expecting to send a screenshot
+    # DB dan to'g'ridan-to'g'ri state va amount olish
+    topup_row = db.get_user_topup_state(user_id)
+    topup_state = topup_row['state'] if topup_row else None
+    amount = topup_row['amount'] if topup_row else 0
+
+    logger.info(f"topup_get_screenshot: user={user_id}, state={topup_state}, amount={amount}")
+
+    # Faqat 'screenshot' holatida ishlash
     if topup_state != 'screenshot':
-        # Not in a topup flow — ignore silently to avoid interfering with other flows.
-        logger.info(f"Photo from user {user_id} ignored, topup_state is '{topup_state}'.")
+        logger.info(f"Photo from user {user_id} ignored (topup_state='{topup_state}')")
         return
 
     if not update.message.photo:
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return
+
+    if amount <= 0:
+        logger.warning(f"topup_get_screenshot: user={user_id} amount=0, DB dan qayta o'qilmoqda")
+        # Qayta urinish
+        topup_row = db.get_user_topup_state(user_id)
+        amount = topup_row['amount'] if topup_row else 0
+
     user = update.effective_user
-    amount = _get_topup_amount(context, user.id)
     photo_id = update.message.photo[-1].file_id
-    tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, photo_id)
+
+    # DB ga saqlash
+    try:
+        tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, photo_id)
+        logger.info(f"Topup request yaratildi: tx_id={tx_id}, user={user.id}, amount={amount}")
+    except Exception as e:
+        logger.error(f"create_topup_request xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return
+
     full_name = (user.full_name or '').strip() or 'Nomsiz'
     username_str = f"@{user.username}" if user.username else "username yo'q"
+
+    # Admin ga bildirishnoma yuborish
     admin_notified = False
     for admin_id in ADMIN_IDS:
         try:
@@ -2073,19 +2098,26 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"👤 Ism: {full_name}\n"
                     f"📱 {username_str} | ID: `{user.id}`\n"
                     f"💰 Miqdor: *{amount:,} so'm*\n\n"
-                    f"Tasdiqlash yoki rad etish uchun tugmani bosing:"
+                    f"✅ Tasdiqlash yoki ❌ Rad etish:"
                 ),
                 reply_markup=kb,
                 parse_mode="Markdown"
             )
             admin_notified = True
-            logger.info(f"Admin {admin_id} ga to'lov #{tx_id} yuborildi (user: {user.id}, {amount} so'm)")
+            logger.info(f"✅ Admin {admin_id} ga to'lov #{tx_id} yuborildi (user={user.id}, {amount} so'm)")
         except Exception as e:
-            logger.error(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
+            logger.error(f"❌ Admin {admin_id} ga xabar yuborishda xatolik: {type(e).__name__}: {e}")
+
     if not admin_notified:
-        logger.error(f"Hech bir adminga to'lov #{tx_id} yuborilmadi!")
-    _set_topup_state(context, user.id, None)
-    _set_topup_amount(context, user.id, 0)
+        logger.error(f"❌ Hech bir adminga to'lov #{tx_id} yuborilmadi! ADMIN_IDS={ADMIN_IDS}")
+
+    # State tozalash
+    try:
+        db.set_user_topup_state(user_id, None)
+    except Exception as e:
+        logger.warning(f"State tozalashda xatolik: {e}")
+
+    # Foydalanuvchiga javob
     await update.message.reply_text(
         f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
@@ -2094,6 +2126,7 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
+    return ConversationHandler.END
 
 
 
