@@ -353,13 +353,6 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
         except Exception as e:
             logging.warning(f"Kirish rasmi: {e}")
 
-    # Muallif (sariq rang)
-    if author:
-        add_paragraph(doc, author,
-                      alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                      size=17, bold=False, space_before=6, space_after=4,
-                      color=GOLD_COLOR)
-
     # Kirish matni
     if intro_text:
         for para in intro_text.split('\n'):
@@ -368,13 +361,6 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
                 add_paragraph(doc, para,
                               alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
                               size=17, space_before=2, space_after=4)
-
-    # Qo'shimcha ma'lumot (sariq rang)
-    if extra_info:
-        add_paragraph(doc, extra_info,
-                      alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                      size=16, bold=False, space_before=6, space_after=4,
-                      color=GOLD_COLOR)
 
     doc.add_page_break()
 
@@ -701,8 +687,6 @@ def generate_loyiha_ishi(topic, page_count, language,
         topic=topic,
         intro_text=intro_text,
         img_path=intro_img,
-        author=name_surname if name_surname else "",
-        extra_info=f"Til: {lang_name.capitalize()} | Sahifalar: {page_count}"
     )
 
     # ── CONTENT SAHIFALAR (A, B, C, D almashib) ──
