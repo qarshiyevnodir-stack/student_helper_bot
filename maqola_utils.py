@@ -1,12 +1,15 @@
 """
 maqola_utils.py — Sifatli akademik/ilmiy maqola yaratuvchi modul.
 
-Tuzilma:
-  1. Sarlavha sahifasi: mavzu, muallif, muassasa, annotatsiya, kalit so'zlar
-  2. Kirish: dolzarblik, maqsad, vazifalar
-  3. Asosiy bo'limlar (hajmga qarab 2-4 ta)
-  4. Xulosa: natijalar va tavsiyalar
-  5. Adabiyotlar ro'yxati
+Yangi tuzilma (har bo'lim alohida sahifa):
+  1-sahifa  : Sarlavha + Annotatsiya (3 tilda) + Kalit so'zlar
+  2-sahifa  : Kirish (alohida sahifa)
+  3..N sahifa: Asosiy bo'limlar (har biri alohida sahifa)
+  N+1-sahifa: Xulosa va tavsiyalar (alohida sahifa)
+  N+2-sahifa: Foydalanilgan adabiyotlar (alohida sahifa)
+
+Sahifa tanlash: 5 / 7 / 9 / 11 / 13 / 15
+  "5 sahifa" = jami 7 sahifali hujjat (1 annotatsiya + 1 kirish + 3 asosiy + 1 xulosa + 1 adabiyot)
 
 OPTIMIZATSIYA: Barcha kontent BITTA mega-so'rovda (JSON) olinadi.
 """
@@ -31,6 +34,20 @@ client = OpenAI()
 DARK_BLUE  = (31, 73, 125)
 GOLD_COLOR = (180, 140, 0)
 GRAY_COLOR = (89, 89, 89)
+
+
+# ─────────────────────────────────────────────
+# Sahifa → bo'lim soni xaritasi
+# ─────────────────────────────────────────────
+# "5 sahifa" tanlanganda: 1(annotatsiya) + 1(kirish) + 3(asosiy) + 1(xulosa) + 1(adabiyot) = 7 jami
+PAGE_CONFIG = {
+    5:  {"section_count": 3,  "words_per_section": 400,  "intro_words": 350,  "conclusion_words": 300,  "ref_count": 8},
+    7:  {"section_count": 5,  "words_per_section": 400,  "intro_words": 350,  "conclusion_words": 300,  "ref_count": 10},
+    9:  {"section_count": 5,  "words_per_section": 500,  "intro_words": 400,  "conclusion_words": 350,  "ref_count": 12},
+    11: {"section_count": 6,  "words_per_section": 550,  "intro_words": 450,  "conclusion_words": 400,  "ref_count": 14},
+    13: {"section_count": 7,  "words_per_section": 580,  "intro_words": 500,  "conclusion_words": 420,  "ref_count": 16},
+    15: {"section_count": 8,  "words_per_section": 600,  "intro_words": 550,  "conclusion_words": 450,  "ref_count": 18},
+}
 
 
 # ─────────────────────────────────────────────
@@ -108,6 +125,27 @@ def add_page_border(document):
         sectPr.append(pgBorders)
 
 
+def add_section_heading(doc, number, title, color=None):
+    """Bo'lim sarlavhasini qo'shadi."""
+    color = color or DARK_BLUE
+    add_paragraph(doc, f"{number}. {title.upper()}",
+                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                  size=15, bold=True, space_before=6, space_after=4,
+                  color=color)
+    add_horizontal_line(doc)
+
+
+def add_body_text(doc, text):
+    """Asosiy matnni paragraf-paragraf qo'shadi."""
+    for para in text.split('\n'):
+        para = strip_markdown(para).strip()
+        if para:
+            add_paragraph(doc, para,
+                          alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+                          size=14, space_before=0, space_after=6,
+                          line_spacing=18)
+
+
 # ─────────────────────────────────────────────
 # MEGA-SO'ROV: Barcha kontentni bitta so'rovda
 # ─────────────────────────────────────────────
@@ -116,52 +154,26 @@ def generate_all_content(topic: str, language: str,
                           article_type: str, page_count: int) -> dict:
     """
     Maqolaning barcha kontentini BITTA GPT so'rovida oladi.
-
-    Qaytaradi:
-      {
-        "title": "...",
-        "annotation": "...",
-        "keywords": ["...", "...", ...],
-        "introduction": "...",
-        "sections": [
-          {"title": "...", "text": "..."},
-          ...
-        ],
-        "conclusion": "...",
-        "references": ["...", "...", ...]
-      }
     """
     lang_map = {
         'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
         'ko': "kores",  'zh': "xitoy", 'de': "nemis"
     }
     type_map = {
-        'ilmiy':       "ilmiy-tadqiqot",
+        'ilmiy':        "ilmiy-tadqiqot",
         'publitsistik': "publitsistik",
-        'tahliliy':    "tahliliy-analitik"
+        'tahliliy':     "tahliliy-analitik"
     }
     lang_name = lang_map.get(language, "o'zbek")
     type_name = type_map.get(article_type, "ilmiy-tadqiqot")
 
-    # Hajmga qarab bo'limlar soni (katta hajm)
-    if page_count <= 3:
-        section_count = 2
-        word_per_section = 350
-        intro_words = 200
-        conclusion_words = 180
-        ref_count = 6
-    elif page_count <= 5:
-        section_count = 3
-        word_per_section = 450
-        intro_words = 280
-        conclusion_words = 220
-        ref_count = 8
-    else:  # 8 sahifa
-        section_count = 4
-        word_per_section = 550
-        intro_words = 350
-        conclusion_words = 280
-        ref_count = 12
+    # Sahifa konfiguratsiyasi
+    cfg = PAGE_CONFIG.get(page_count, PAGE_CONFIG[5])
+    section_count     = cfg["section_count"]
+    word_per_section  = cfg["words_per_section"]
+    intro_words       = cfg["intro_words"]
+    conclusion_words  = cfg["conclusion_words"]
+    ref_count         = cfg["ref_count"]
 
     system_msg = (
         f"Siz {lang_name} tilida {type_name} maqola yozuvchi yuqori malakali mutaxassississiz. "
@@ -176,21 +188,22 @@ def generate_all_content(topic: str, language: str,
     ])
 
     prompt = f"""'{topic}' mavzusida {type_name} maqola uchun quyidagi JSON strukturasini to'ldiring.
-Til: {lang_name}. Barcha matnlar (sarlavha, kirish, bo'limlar, xulosa) {lang_name} tilida bo'lsin.
-Maqola turi: {type_name}. Taxminiy hajm: {page_count} sahifa.
-MATNLAR JUDA BOY VA TO'LIQ BO'LSIN — har bir bo'lim kamida {word_per_section} so'z.
+Til: {lang_name}. Barcha matnlar (sarlavha, kirish, bo'limlar, xulosa, tavsiyalar) {lang_name} tilida bo'lsin.
+Maqola turi: {type_name}. Tanlangan hajm: {page_count} sahifa (asosiy qism).
+MATNLAR JUDA BOY VA TO'LIQ BO'LSIN.
 
 {{
   "title": "Maqolaning rasmiy sarlavhasi ({lang_name} tilida)",
-  "annotation_uz": "80-100 so'zlik annotatsiya o'zbek tilida — maqolaning qisqacha mazmuni",
-  "annotation_ru": "80-100 so'zlik annotatsiya rus tilida",
-  "annotation_en": "80-100 so'zlik annotatsiya ingliz tilida (Abstract)",
+  "annotation_uz": "100-120 so'zlik annotatsiya o'zbek tilida — maqolaning qisqacha mazmuni, maqsad va natijalari",
+  "annotation_ru": "100-120 so'zlik annotatsiya rus tilida",
+  "annotation_en": "100-120 so'zlik annotatsiya ingliz tilida (Abstract)",
   "keywords": ["kalit so'z 1", "kalit so'z 2", "kalit so'z 3", "kalit so'z 4", "kalit so'z 5", "kalit so'z 6"],
-  "introduction": "kamida {intro_words} so'zlik kirish — dolzarblik, maqsad, vazifalar, metodologiya",
+  "introduction": "kamida {intro_words} so'zlik kirish — dolzarblik, tadqiqot maqsadi, vazifalari, metodologiyasi va ishning ahamiyati",
   "sections": [
 {sections_template}
   ],
-  "conclusion": "kamida {conclusion_words} so'zlik xulosa — asosiy natijalar, ilmiy hissa va amaliy tavsiyalar",
+  "conclusion": "kamida {conclusion_words} so'zlik xulosa — asosiy natijalar va ilmiy hissa",
+  "recommendations": "kamida 150 so'zlik amaliy tavsiyalar — tadqiqot natijalariga asoslangan",
   "references": [
     "1. Birinchi adabiyot (APA formatida)",
     "2. Ikkinchi adabiyot",
@@ -199,7 +212,8 @@ MATNLAR JUDA BOY VA TO'LIQ BO'LSIN — har bir bo'lim kamida {word_per_section} 
 }}
 
 Faqat JSON qaytaring, boshqa hech narsa yo'q.
-Bo'limlar soni: {section_count} ta. Har bir bo'lim KAMIDA {word_per_section} so'z bo'lsin."""
+Bo'limlar soni: {section_count} ta. Har bir bo'lim KAMIDA {word_per_section} so'z bo'lsin.
+Kirish KAMIDA {intro_words} so'z, xulosa KAMIDA {conclusion_words} so'z bo'lsin."""
 
     try:
         resp = client.chat.completions.create(
@@ -223,8 +237,9 @@ Bo'limlar soni: {section_count} ta. Har bir bo'lim KAMIDA {word_per_section} so'
             "annotation_en": "Error generating annotation.",
             "keywords": [topic],
             "introduction": "Kirish yaratishda xatolik.",
-            "sections": [{"title": f"Bo'lim {i+1}", "text": "Matn yaratishda xatolik."} for i in range(2)],
+            "sections": [{"title": f"Bo'lim {i+1}", "text": "Matn yaratishda xatolik."} for i in range(3)],
             "conclusion": "Xulosa yaratishda xatolik.",
+            "recommendations": "Tavsiyalar yaratishda xatolik.",
             "references": ["1. -"]
         }
 
@@ -238,17 +253,13 @@ def build_maqola_docx(content: dict, topic: str, language: str,
                        name_surname: str = '', university: str = '') -> BytesIO:
     """
     Maqola kontentidan professional DOCX hujjat yaratadi.
+    Har bir bo'lim alohida sahifada.
     """
-    lang_map = {
-        'uz': "O'zbek tili", 'ru': "Rus tili", 'en': "Ingliz tili",
-        'ko': "Kores tili",  'zh': "Xitoy tili", 'de': "Nemis tili"
-    }
     type_map = {
-        'ilmiy':       "Ilmiy maqola",
+        'ilmiy':        "Ilmiy maqola",
         'publitsistik': "Publitsistik maqola",
-        'tahliliy':    "Tahliliy maqola"
+        'tahliliy':     "Tahliliy maqola"
     }
-    lang_display = lang_map.get(language, "O'zbek tili")
     type_display = type_map.get(article_type, "Ilmiy maqola")
 
     doc = Document()
@@ -270,7 +281,10 @@ def build_maqola_docx(content: dict, topic: str, language: str,
     style.font.name = 'Times New Roman'
     style.font.size = Pt(14)
 
-    # ── 1-SAHIFA: Sarlavha ──
+    # ══════════════════════════════════════════
+    # 1-SAHIFA: Sarlavha + Annotatsiya + Kalit so'zlar
+    # ══════════════════════════════════════════
+
     # Maqola turi (kichik, ko'k)
     add_paragraph(doc, type_display.upper(),
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
@@ -302,7 +316,7 @@ def build_maqola_docx(content: dict, topic: str, language: str,
     # Ko'k chiziq
     add_horizontal_line(doc)
 
-    # Annotatsiya bloki — 3 tilda
+    # Annotatsiya — 3 tilda
     ann_uz = content.get("annotation_uz", content.get("annotation", ""))
     ann_ru = content.get("annotation_ru", "")
     ann_en = content.get("annotation_en", "")
@@ -339,75 +353,65 @@ def build_maqola_docx(content: dict, topic: str, language: str,
         r2 = p.add_run(kw_text)
         set_font(r2, size=11, italic=True)
 
+    # ══════════════════════════════════════════
+    # 2-SAHIFA: Kirish (alohida sahifa)
+    # ══════════════════════════════════════════
     doc.add_page_break()
-
-    # ── 2-SAHIFA+: Kirish ──
-    add_paragraph(doc, "1. KIRISH",
-                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                  size=15, bold=True, space_before=6, space_after=4,
-                  color=DARK_BLUE)
-    add_horizontal_line(doc)
-
+    add_section_heading(doc, 1, "KIRISH")
     introduction = content.get("introduction", "")
-    for para in introduction.split('\n'):
-        para = strip_markdown(para).strip()
-        if para:
-            add_paragraph(doc, para,
-                          alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                          size=14, space_before=0, space_after=6,
-                          line_spacing=18)
+    add_body_text(doc, introduction)
 
-    # ── ASOSIY BO'LIMLAR ──
+    # ══════════════════════════════════════════
+    # 3..N-SAHIFA: Asosiy bo'limlar (har biri alohida sahifa)
+    # ══════════════════════════════════════════
     sections = content.get("sections", [])
     for i, sec in enumerate(sections):
+        doc.add_page_break()
         sec_title = strip_markdown(str(sec.get("title", f"Bo'lim {i+1}"))).strip()
         sec_text  = strip_markdown(str(sec.get("text", ""))).strip()
+        add_section_heading(doc, i + 2, sec_title)
+        add_body_text(doc, sec_text)
 
-        add_paragraph(doc, f"{i+2}. {sec_title.upper()}",
-                      alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                      size=15, bold=True, space_before=12, space_after=4,
-                      color=DARK_BLUE)
-        add_horizontal_line(doc)
-
-        for para in sec_text.split('\n'):
-            para = para.strip()
-            if para:
-                add_paragraph(doc, para,
-                              alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                              size=14, space_before=0, space_after=6,
-                              line_spacing=18)
-
-    # ── XULOSA ──
+    # ══════════════════════════════════════════
+    # N+1-SAHIFA: Xulosa va tavsiyalar (alohida sahifa)
+    # ══════════════════════════════════════════
+    doc.add_page_break()
     xulosa_num = len(sections) + 2
-    add_paragraph(doc, f"{xulosa_num}. XULOSA",
-                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                  size=15, bold=True, space_before=12, space_after=4,
-                  color=DARK_BLUE)
-    add_horizontal_line(doc)
+    add_section_heading(doc, xulosa_num, "XULOSA VA TAVSIYALAR")
 
     conclusion = content.get("conclusion", "")
-    for para in conclusion.split('\n'):
-        para = strip_markdown(para).strip()
-        if para:
-            add_paragraph(doc, para,
-                          alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                          size=14, space_before=0, space_after=6,
-                          line_spacing=18)
+    add_body_text(doc, conclusion)
 
-    # ── ADABIYOTLAR ──
+    recommendations = content.get("recommendations", "")
+    if recommendations and recommendations.strip():
+        add_paragraph(doc, "Tavsiyalar:",
+                      alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                      size=14, bold=True, space_before=10, space_after=4,
+                      color=DARK_BLUE)
+        add_body_text(doc, recommendations)
+
+    # ══════════════════════════════════════════
+    # N+2-SAHIFA: Foydalanilgan adabiyotlar (alohida sahifa)
+    # ══════════════════════════════════════════
+    doc.add_page_break()
     add_paragraph(doc, "FOYDALANILGAN ADABIYOTLAR",
-                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                  size=15, bold=True, space_before=14, space_after=4,
+                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
+                  size=15, bold=True, space_before=6, space_after=6,
                   color=DARK_BLUE)
     add_horizontal_line(doc)
 
     references = content.get("references", [])
     for ref in references:
-        ref = strip_markdown(str(ref)).strip()
-        if ref:
-            add_paragraph(doc, ref,
-                          alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                          size=12, space_before=0, space_after=4)
+        ref_text = strip_markdown(str(ref)).strip()
+        if ref_text and ref_text != "...":
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after  = Pt(5)
+            p.paragraph_format.left_indent  = Inches(0.3)
+            p.paragraph_format.first_line_indent = Inches(-0.3)
+            r = p.add_run(ref_text)
+            set_font(r, size=12)
 
     # BytesIO ga saqlash
     buf = BytesIO()
@@ -430,7 +434,7 @@ def generate_maqola(topic: str, language: str, article_type: str,
       topic        — maqola mavzusi
       language     — til kodi: uz/ru/en/ko/zh/de
       article_type — tur: ilmiy/publitsistik/tahliliy
-      page_count   — hajm: 3/5/8
+      page_count   — hajm: 5/7/9/11/13/15
       name_surname — muallif ismi (ixtiyoriy)
       university   — muassasa nomi (ixtiyoriy)
     """
@@ -449,6 +453,4 @@ def generate_maqola(topic: str, language: str, article_type: str,
         name_surname=name_surname,
         university=university,
     )
-
-    logging.info("Maqola muvaffaqiyatli yaratildi.")
     return buf

@@ -1741,12 +1741,15 @@ async def mq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     type_name = type_names.get(article_type, article_type)
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("3 sahifa",  callback_data="mq_pages_3"),
-         InlineKeyboardButton("5 sahifa",  callback_data="mq_pages_5"),
-         InlineKeyboardButton("8 sahifa",  callback_data="mq_pages_8")],
+        [InlineKeyboardButton("5 sahifa",  callback_data="mq_pages_5"),
+         InlineKeyboardButton("7 sahifa",  callback_data="mq_pages_7"),
+         InlineKeyboardButton("9 sahifa",  callback_data="mq_pages_9")],
+        [InlineKeyboardButton("11 sahifa", callback_data="mq_pages_11"),
+         InlineKeyboardButton("13 sahifa", callback_data="mq_pages_13"),
+         InlineKeyboardButton("15 sahifa", callback_data="mq_pages_15")],
     ])
     await query.edit_message_text(
-        text=f"✅ Tur: *{type_name}*\n\nMaqola taxminiy necha sahifa bo'lsin?",
+        text=f"✅ Tur: *{type_name}*\n\nMaqola necha sahifa bo'lsin?\n_(Asosiy qism sahifasi — jami hujjat 2 sahifa ko'p bo'ladi)_",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
