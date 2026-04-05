@@ -203,7 +203,7 @@ Bo'limlar soni: {section_count} ta. Har bir bo'lim KAMIDA {word_per_section} so'
 
     try:
         resp = client.chat.completions.create(
-            model="gemini-2.5-flash",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_msg},
                 {"role": "user",   "content": prompt},
