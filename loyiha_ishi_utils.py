@@ -370,36 +370,34 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
 # ─────────────────────────────────────────────
 
 def create_content_page_A(doc, heading, text_content, img_path=None):
-    """Shablon A: Sarlavha yuqorida, chap matn + o'ng rasm."""
+    """Shablon A: Sarlavha + matn yuqorida, rasm (12x7 sm) pastda to'liq kenglikda."""
+    # Sarlavha
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=20, bold=True, space_before=6, space_after=6)
     add_gold_line(doc, 25)
 
-    table = doc.add_table(rows=1, cols=2)
-    remove_cell_borders(table.cell(0, 0))
-    remove_cell_borders(table.cell(0, 1))
-
-    left_cell = table.cell(0, 0)
-    left_cell.width = Inches(3.6)
+    # Matn (to'liq kenglikda)
     for para in text_content.split('\n'):
         para = para.strip()
         if not para:
             continue
-        p = left_cell.add_paragraph(para)
+        p = doc.add_paragraph(para)
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after  = Pt(5)
         for run in p.runs:
             set_font(run, size=16)
 
-    right_cell = table.cell(0, 1)
-    right_cell.width = Inches(2.4)
+    # Rasm: 12x7 sm = 4.72 x 2.76 inches
     if img_path and os.path.exists(img_path):
         try:
-            p = right_cell.add_paragraph()
+            from docx.shared import Cm
+            p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.add_run().add_picture(img_path, width=Inches(2.2))
+            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_after  = Pt(0)
+            p.add_run().add_picture(img_path, width=Cm(12), height=Cm(7))
         except Exception as e:
             logging.warning(f"Content A rasm: {e}")
 
