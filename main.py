@@ -2082,6 +2082,16 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
     full_name = (user.full_name or '').strip() or 'Nomsiz'
     username_str = f"@{user.username}" if user.username else "username yo'q"
 
+    # Markdown maxsus belgilarni escape qilish
+    def esc(text):
+        """Markdown v1 uchun maxsus belgilarni escape qiladi."""
+        for ch in ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']:
+            text = text.replace(ch, f'\\{ch}')
+        return text
+
+    safe_name = esc(full_name)
+    safe_username = esc(username_str)
+
     # Admin ga bildirishnoma yuborish
     admin_notified = False
     for admin_id in ADMIN_IDS:
@@ -2094,14 +2104,13 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                 chat_id=admin_id,
                 photo=photo_id,
                 caption=(
-                    f"💳 *Yangi to'lov so'rovi* #{tx_id}\n\n"
+                    f"💳 Yangi to'lov so'rovi #{tx_id}\n\n"
                     f"👤 Ism: {full_name}\n"
-                    f"📱 {username_str} | ID: `{user.id}`\n"
-                    f"💰 Miqdor: *{amount:,} so'm*\n\n"
+                    f"📱 {username_str} | ID: {user.id}\n"
+                    f"💰 Miqdor: {amount:,} so'm\n\n"
                     f"✅ Tasdiqlash yoki ❌ Rad etish:"
                 ),
                 reply_markup=kb,
-                parse_mode="Markdown"
             )
             admin_notified = True
             logger.info(f"✅ Admin {admin_id} ga to'lov #{tx_id} yuborildi (user={user.id}, {amount} so'm)")
