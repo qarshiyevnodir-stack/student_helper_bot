@@ -296,6 +296,7 @@ async def archive_send_document(
     """Yaratilgan hujjatni arxiv kanalga yuboradi."""
     try:
         from datetime import datetime
+        from io import BytesIO
         full_name = (user.full_name or '').strip() or 'Nomsiz'
         username_str = f"@{user.username}" if user.username else "username yo'q"
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -310,9 +311,16 @@ async def archive_send_document(
             f"💰 Narx: {price:,} so'm\n"
             f"📅 Sana: {now}"
         )
+        # BytesIO bo'lsa, o'qish pozitsiyasini boshiga qaytarish
+        if hasattr(document_bytes, 'seek'):
+            document_bytes.seek(0)
+            archive_doc = BytesIO(document_bytes.read())
+            archive_doc.seek(0)
+        else:
+            archive_doc = document_bytes
         await bot.send_document(
             chat_id=ARCHIVE_CHANNEL,
-            document=document_bytes,
+            document=archive_doc,
             filename=filename,
             caption=caption
         )
