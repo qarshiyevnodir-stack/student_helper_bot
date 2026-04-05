@@ -23,6 +23,7 @@ from utils import (
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
 from infografika_utils import generate_infografika, generate_infografika_hd
+from maqola_utils import generate_maqola
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -38,6 +39,7 @@ SERVICE_PRICES = {
     "loyiha_ishi":  3000,
     "infografika":      1500,
     "infografika_hd":   3000,
+    "maqola":           3000,
 }
 MIN_TOPUP = 3000
 
@@ -116,6 +118,18 @@ logger = logging.getLogger(__name__)
     IG_QUALITY,          # 53  (Oddiy/HD tanlash)
     IG_TOPIC,            # 54
 ) = range(50, 55)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Maqola
+# ─────────────────────────────────────────────
+(
+    MQ_LANGUAGE,         # 60
+    MQ_TYPE,             # 61
+    MQ_PAGE_COUNT,       # 62
+    MQ_TOPIC,            # 63
+    MQ_NAME_SURNAME,     # 64
+    MQ_UNIVERSITY,       # 65
+) = range(60, 66)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -463,6 +477,24 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return RF_LANGUAGE
+
+    elif text == "📰 Maqola ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "maqola"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("O'zbek tili",  callback_data="mq_lang_uz"),
+             InlineKeyboardButton("Ingliz tili",  callback_data="mq_lang_en")],
+            [InlineKeyboardButton("Rus tili",     callback_data="mq_lang_ru"),
+             InlineKeyboardButton("Kores tili",   callback_data="mq_lang_ko")],
+            [InlineKeyboardButton("Xitoy tili",   callback_data="mq_lang_zh"),
+             InlineKeyboardButton("Nemis tili",   callback_data="mq_lang_de")],
+        ])
+        await update.message.reply_text(
+            "📰 *Maqola* bo'limiga xush kelibsiz!\n\nQaysi tilda maqola yozmoqchisiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return MQ_LANGUAGE
 
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
@@ -1650,6 +1682,226 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
+# ─────────────────────────────────────────────
+# Handlerlar — Maqola
+# ─────────────────────────────────────────────
+
+async def mq_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: tilni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    language_code = query.data.split("_", 2)[2]  # mq_lang_uz -> uz
+    context.user_data["mq_language"] = language_code
+    lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔬 Ilmiy",        callback_data="mq_type_ilmiy"),
+         InlineKeyboardButton("📝 Publitsistik", callback_data="mq_type_publitsistik")],
+        [InlineKeyboardButton("📊 Tahliliy",     callback_data="mq_type_tahliliy")],
+    ])
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nMaqola turini tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return MQ_TYPE
+
+
+async def mq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: turini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    article_type = query.data.split("_", 2)[2]  # mq_type_ilmiy -> ilmiy
+    context.user_data["mq_type"] = article_type
+    type_names = {
+        "ilmiy": "🔬 Ilmiy maqola",
+        "publitsistik": "📝 Publitsistik maqola",
+        "tahliliy": "📊 Tahliliy maqola",
+    }
+    type_name = type_names.get(article_type, article_type)
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("3 sahifa",  callback_data="mq_pages_3"),
+         InlineKeyboardButton("5 sahifa",  callback_data="mq_pages_5"),
+         InlineKeyboardButton("8 sahifa",  callback_data="mq_pages_8")],
+    ])
+    await query.edit_message_text(
+        text=f"✅ Tur: *{type_name}*\n\nMaqola taxminiy necha sahifa bo'lsin?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return MQ_PAGE_COUNT
+
+
+async def mq_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    page_count = int(query.data.split("_")[2])  # mq_pages_5 -> 5
+    context.user_data["mq_page_count"] = page_count
+
+    await query.edit_message_text(
+        text=f"✅ Hajm: *{page_count} sahifa*\n\nMaqola mavzusini kiriting:",
+        parse_mode="Markdown"
+    )
+    return MQ_TOPIC
+
+
+async def mq_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: mavzuni qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return MQ_TOPIC
+    context.user_data["mq_topic"] = topic
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="mq_skip_name")]
+    ])
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {topic}\n\n"
+        f"Muallif ism-familiyasini kiriting:\n"
+        f"_(Ixtiyoriy — maqola sarlavha sahifasida ko'rinadi)_",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return MQ_NAME_SURNAME
+
+
+async def mq_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["mq_name_surname"] = ""
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏭ Shart emas", callback_data="mq_skip_university")]
+        ])
+        await query.edit_message_text(
+            text="Muassasa yoki universitet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["mq_name_surname"] = update.message.text.strip()
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏭ Shart emas", callback_data="mq_skip_university")]
+        ])
+        await update.message.reply_text(
+            "Muassasa yoki universitet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    return MQ_UNIVERSITY
+
+
+async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Maqola: muassasani qabul qiladi, so'ng maqolani yaratadi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["mq_university"] = ""
+        chat_id = query.message.chat_id
+        await query.edit_message_text(text="⏳ Maqola yaratilmoqda, biroz kuting...")
+    else:
+        context.user_data["mq_university"] = update.message.text.strip()
+        chat_id = update.message.chat_id
+        await update.message.reply_text("⏳ Maqola yaratilmoqda, biroz kuting...")
+
+    user_id      = update.effective_user.id
+    topic        = context.user_data.get("mq_topic", "")
+    language     = context.user_data.get("mq_language", "uz")
+    article_type = context.user_data.get("mq_type", "ilmiy")
+    page_count   = context.user_data.get("mq_page_count", 5)
+    name_surname = context.user_data.get("mq_name_surname", "")
+    university   = context.user_data.get("mq_university", "")
+
+    # Balans tekshirish
+    price = SERVICE_PRICES['maqola']
+    balance = await asyncio.to_thread(db.get_balance, user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"❌ *Balansingiz yetarli emas!*\n\n"
+                f"💰 Joriy balans: *{balance:,} so'm*\n"
+                f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+                f"Iltimos, avval balansni to'ldiring:"
+            ),
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    try:
+        doc_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_maqola(
+                topic=topic,
+                language=language,
+                article_type=article_type,
+                page_count=page_count,
+                name_surname=name_surname,
+                university=university,
+            )
+        )
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'maqola'}.docx"
+
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *{topic}* mavzusidagi maqola tayyor!\n"
+                f"📰 Taxminiy {page_count} sahifa"
+            ),
+            parse_mode="Markdown"
+        )
+        # Arxiv kanalga yuborish
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="📰 Maqola",
+            topic=topic,
+            language=language,
+            page_count=page_count,
+            price=price,
+            document_bytes=doc_bytes,
+            filename=filename,
+        )
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'maqola', topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Maqola yaratishda xatolik: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Maqola yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -2091,6 +2343,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -2235,6 +2488,33 @@ def main() -> None:
             IG_TOPIC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ig_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Maqola holatlari ──
+            MQ_LANGUAGE: [
+                CallbackQueryHandler(mq_get_language, pattern=r"^mq_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            MQ_TYPE: [
+                CallbackQueryHandler(mq_get_type, pattern=r"^mq_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            MQ_PAGE_COUNT: [
+                CallbackQueryHandler(mq_get_page_count, pattern=r"^mq_pages_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            MQ_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            MQ_NAME_SURNAME: [
+                CallbackQueryHandler(mq_get_name_surname, pattern=r"^mq_skip_name$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_name_surname),
+            ],
+            MQ_UNIVERSITY: [
+                CallbackQueryHandler(mq_get_university, pattern=r"^mq_skip_university$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_university),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
