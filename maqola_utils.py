@@ -143,63 +143,67 @@ def generate_all_content(topic: str, language: str,
     lang_name = lang_map.get(language, "o'zbek")
     type_name = type_map.get(article_type, "ilmiy-tadqiqot")
 
-    # Hajmga qarab bo'limlar soni
+    # Hajmga qarab bo'limlar soni (katta hajm)
     if page_count <= 3:
         section_count = 2
-        word_per_section = 200
-        intro_words = 120
-        conclusion_words = 100
-        ref_count = 5
+        word_per_section = 350
+        intro_words = 200
+        conclusion_words = 180
+        ref_count = 6
     elif page_count <= 5:
         section_count = 3
-        word_per_section = 250
-        intro_words = 150
-        conclusion_words = 120
-        ref_count = 7
+        word_per_section = 450
+        intro_words = 280
+        conclusion_words = 220
+        ref_count = 8
     else:  # 8 sahifa
         section_count = 4
-        word_per_section = 300
-        intro_words = 180
-        conclusion_words = 150
-        ref_count = 10
+        word_per_section = 550
+        intro_words = 350
+        conclusion_words = 280
+        ref_count = 12
 
     system_msg = (
-        f"Siz {lang_name} tilida {type_name} maqola yozuvchi mutaxassississiz. "
+        f"Siz {lang_name} tilida {type_name} maqola yozuvchi yuqori malakali mutaxassississiz. "
         f"Faqat sof matn yozing, markdown belgilari ishlatmang. "
+        f"Matnlar boy, to'liq va akademik uslubda bo'lsin. "
         f"Javobingiz to'liq JSON formatida bo'lsin."
     )
 
     sections_template = "\n".join([
-        f'    {{"title": "{i+1}-bo\'lim nomi", "text": "{word_per_section} so\'zlik akademik matn"}}'
+        f'    {{"title": "{i+1}-bo\'lim nomi ({lang_name} tilida)", "text": "kamida {word_per_section} so\'zlik boy akademik matn"}}'
         for i in range(section_count)
     ])
 
     prompt = f"""'{topic}' mavzusida {type_name} maqola uchun quyidagi JSON strukturasini to'ldiring.
-Til: {lang_name}. Barcha matnlar {lang_name} tilida bo'lsin.
+Til: {lang_name}. Barcha matnlar (sarlavha, kirish, bo'limlar, xulosa) {lang_name} tilida bo'lsin.
 Maqola turi: {type_name}. Taxminiy hajm: {page_count} sahifa.
+MATNLAR JUDA BOY VA TO'LIQ BO'LSIN — har bir bo'lim kamida {word_per_section} so'z.
 
 {{
   "title": "Maqolaning rasmiy sarlavhasi ({lang_name} tilida)",
-  "annotation": "80-100 so'zlik annotatsiya (abstract) — maqolaning qisqacha mazmuni",
-  "keywords": ["kalit so'z 1", "kalit so'z 2", "kalit so'z 3", "kalit so'z 4", "kalit so'z 5"],
-  "introduction": "{intro_words} so'zlik kirish — dolzarblik, maqsad va vazifalar",
+  "annotation_uz": "80-100 so'zlik annotatsiya o'zbek tilida — maqolaning qisqacha mazmuni",
+  "annotation_ru": "80-100 so'zlik annotatsiya rus tilida",
+  "annotation_en": "80-100 so'zlik annotatsiya ingliz tilida (Abstract)",
+  "keywords": ["kalit so'z 1", "kalit so'z 2", "kalit so'z 3", "kalit so'z 4", "kalit so'z 5", "kalit so'z 6"],
+  "introduction": "kamida {intro_words} so'zlik kirish — dolzarblik, maqsad, vazifalar, metodologiya",
   "sections": [
 {sections_template}
   ],
-  "conclusion": "{conclusion_words} so'zlik xulosa — asosiy natijalar va amaliy tavsiyalar",
+  "conclusion": "kamida {conclusion_words} so'zlik xulosa — asosiy natijalar, ilmiy hissa va amaliy tavsiyalar",
   "references": [
     "1. Birinchi adabiyot (APA formatida)",
     "2. Ikkinchi adabiyot",
-    ... ({ref_count} ta manba)
+    "... ({ref_count} ta manba)"
   ]
 }}
 
 Faqat JSON qaytaring, boshqa hech narsa yo'q.
-Bo'limlar soni: {section_count} ta. Har bir bo'lim {word_per_section} so'z atrofida bo'lsin."""
+Bo'limlar soni: {section_count} ta. Har bir bo'lim KAMIDA {word_per_section} so'z bo'lsin."""
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gemini-2.5-flash",
             messages=[
                 {"role": "system", "content": system_msg},
                 {"role": "user",   "content": prompt},
@@ -214,7 +218,9 @@ Bo'limlar soni: {section_count} ta. Har bir bo'lim {word_per_section} so'z atrof
         logging.error(f"Maqola mega-so'rov xatolik: {e}")
         return {
             "title": topic,
-            "annotation": "Annotatsiya yaratishda xatolik.",
+            "annotation_uz": "Annotatsiya yaratishda xatolik.",
+            "annotation_ru": "Ошибка при создании аннотации.",
+            "annotation_en": "Error generating annotation.",
             "keywords": [topic],
             "introduction": "Kirish yaratishda xatolik.",
             "sections": [{"title": f"Bo'lim {i+1}", "text": "Matn yaratishda xatolik."} for i in range(2)],
@@ -296,22 +302,29 @@ def build_maqola_docx(content: dict, topic: str, language: str,
     # Ko'k chiziq
     add_horizontal_line(doc)
 
-    # Annotatsiya bloki
-    add_paragraph(doc, "ANNOTATSIYA",
-                  alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                  size=12, bold=True, space_before=10, space_after=4,
-                  color=DARK_BLUE)
+    # Annotatsiya bloki — 3 tilda
+    ann_uz = content.get("annotation_uz", content.get("annotation", ""))
+    ann_ru = content.get("annotation_ru", "")
+    ann_en = content.get("annotation_en", "")
 
-    annotation = content.get("annotation", "")
-    if annotation:
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after  = Pt(6)
-        p.paragraph_format.left_indent  = Inches(0.3)
-        p.paragraph_format.right_indent = Inches(0.3)
-        r = p.add_run(strip_markdown(annotation))
-        set_font(r, size=12, italic=True, color=GRAY_COLOR)
+    for ann_label, ann_text in [
+        ("ANNOTATSIYA (O'zbek)", ann_uz),
+        ("АННОТАЦИЯ (Русский)", ann_ru),
+        ("ABSTRACT (English)", ann_en),
+    ]:
+        if ann_text and ann_text.strip():
+            add_paragraph(doc, ann_label,
+                          alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                          size=11, bold=True, space_before=8, space_after=2,
+                          color=DARK_BLUE)
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after  = Pt(4)
+            p.paragraph_format.left_indent  = Inches(0.3)
+            p.paragraph_format.right_indent = Inches(0.3)
+            r = p.add_run(strip_markdown(ann_text))
+            set_font(r, size=11, italic=True, color=GRAY_COLOR)
 
     # Kalit so'zlar
     keywords = content.get("keywords", [])
@@ -319,12 +332,12 @@ def build_maqola_docx(content: dict, topic: str, language: str,
         kw_text = ", ".join(str(k) for k in keywords if k)
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.paragraph_format.space_before = Pt(4)
+        p.paragraph_format.space_before = Pt(6)
         p.paragraph_format.space_after  = Pt(4)
-        r1 = p.add_run("Kalit so'zlar: ")
-        set_font(r1, size=12, bold=True, color=DARK_BLUE)
+        r1 = p.add_run("Kalit so'zlar / Keywords: ")
+        set_font(r1, size=11, bold=True, color=DARK_BLUE)
         r2 = p.add_run(kw_text)
-        set_font(r2, size=12, italic=True)
+        set_font(r2, size=11, italic=True)
 
     doc.add_page_break()
 
