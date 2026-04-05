@@ -2003,9 +2003,9 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
     # Photo messages are handled by the global topup_get_screenshot handler.
     topup_state = _get_topup_state(context, update.effective_user.id)
     if topup_state == 'amount':
-        await _topup_get_amount(update, context)
-        return TOPUP_SCREENSHOT
-    # If the user sends text when we expect a screenshot, we remind them.
+        result = await _topup_get_amount(update, context)
+        return result if result is not None else TOPUP_SCREENSHOT
+
     elif topup_state == 'screenshot':
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return TOPUP_SCREENSHOT
@@ -2035,6 +2035,7 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
+    return TOPUP_SCREENSHOT
 
 
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2548,6 +2549,7 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
+                MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
