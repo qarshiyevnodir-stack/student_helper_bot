@@ -6,15 +6,16 @@ Shablon sahifalari (LOYIHAISHI.docx dizaynidan ilhomlangan):
   Sahifa 2: Kirish sahifasi (sarlavha + rasm + matn)
   Sahifa 3+: Almashib keluvchi 4 ta shablon (A, B, C, D)
 
-Mantiq:
-  5  sahifa -> muqova + kirish + 3 content (A, B, C)
-  10 sahifa -> muqova + kirish + 8 content (A,B,C,D,A,B,C,D)
-  15 sahifa -> muqova + kirish + 13 content
-  20+ sahifa -> har 5 ta yangi content qo'shiladi
+Sahifa tanlovlari: 5, 10, 15
+
+OPTIMIZATSIYA: Barcha GPT so'rovlari bitta mega-so'rovga birlashtirilgan.
+  Eski: 10-20 ta alohida so'rov
+  Yangi: 3 ta so'rov (kalit so'z + mega-kontent + xulosa bloki)
 """
 
 import os
 import re
+import json
 import logging
 import tempfile
 import requests
@@ -134,14 +135,9 @@ def add_gold_line(doc, width=30):
 # Rasm yuklash
 # ─────────────────────────────────────────────
 
-def fetch_topic_images(topic: str, count: int = 10) -> list:
+def fetch_topic_images(keyword: str, count: int = 10) -> list:
     """Mavzuga oid rasmlarni Unsplash dan yuklab, yo'llar ro'yxatini qaytaradi."""
     images = []
-    keyword = gpt_generate(
-        f"'{topic}' mavzusi uchun eng mos 1-2 ta inglizcha kalit so'z yozing "
-        f"(faqat kalit so'zlar, boshqa hech narsa yo'q).",
-        system="Siz tarjimon va kalit so'z mutaxassisizsiz."
-    ).split('\n')[0].strip()
     logging.info(f"Rasm qidirish kalit so'zi: {keyword}")
 
     try:
@@ -176,46 +172,89 @@ def fetch_topic_images(topic: str, count: int = 10) -> list:
 
 
 # ─────────────────────────────────────────────
-# GPT: Reja va kontent
+# MEGA-SO'ROV: Barcha kontentni bitta so'rovda
 # ─────────────────────────────────────────────
 
-def generate_plan(topic: str, language: str, section_count: int) -> list:
-    """Loyiha ishi bo'limlari rejasini yaratadi."""
+def generate_all_content(topic: str, language: str, section_count: int) -> dict:
+    """
+    OPTIMIZATSIYA: Barcha loyiha ishi kontentini BITTA GPT so'rovida oladi.
+
+    Qaytaradi:
+      {
+        "keyword": "...",          # Unsplash uchun inglizcha kalit so'z
+        "sections": [
+          {"title": "...", "text": "..."},
+          ...
+        ],
+        "conclusion": "...",       # Xulosa matni
+        "table_data": [            # 4 ta tushuncha
+          {"term": "...", "definition": "..."},
+          ...
+        ],
+        "references": ["...", "...", "..."]  # 3 ta adabiyot
+      }
+    """
     lang_map = {
         'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
         'ko': "kores",  'zh': "xitoy", 'de': "nemis"
     }
     lang_name = lang_map.get(language, "o'zbek")
-    prompt = (
-        f"'{topic}' mavzusida loyiha ishi uchun {section_count} ta bo'lim nomini yozing. "
-        f"Har bir bo'lim nomi yangi qatorda bo'lsin. "
-        f"Faqat bo'lim nomlarini yozing, raqam yoki boshqa belgi qo'shmang. "
-        f"Til: {lang_name}."
-    )
-    result = gpt_generate(prompt, system="Siz akademik reja tuzuvchi mutaxassississiz.")
-    items = [re.sub(r'^[\d\.\-\*\s]+', '', line).strip()
-             for line in result.split('\n') if line.strip()]
-    return [item for item in items if item][:section_count]
 
+    system_msg = (
+        f"Siz {lang_name} tilida akademik loyiha ishi yozuvchi mutaxassississiz. "
+        f"Faqat sof matn yozing, markdown belgilari ishlatmang. "
+        f"Javobingiz to'liq JSON formatida bo'lsin."
+    )
 
-def generate_section_content(topic: str, section_title: str, language: str,
-                              word_count: int = 200) -> str:
-    """Bir bo'lim uchun matn yaratadi."""
-    lang_map = {
-        'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
-        'ko': "kores",  'zh': "xitoy", 'de': "nemis"
-    }
-    lang_name = lang_map.get(language, "o'zbek")
-    sys_msg = (
-        f"Siz {lang_name} tilida akademik matn yozuvchi mutaxassississiz. "
-        f"Faqat sof matn yozing, markdown belgilari ishlatmang."
-    )
-    prompt = (
-        f"'{topic}' mavzusidagi loyiha ishi uchun '{section_title}' bo'limini yozing. "
-        f"Til: {lang_name}. Taxminan {word_count} so'z. "
-        f"Ilmiy uslubda, paragraflar bilan yozing."
-    )
-    return gpt_generate(prompt, system=sys_msg)
+    prompt = f"""'{topic}' mavzusida loyiha ishi uchun quyidagi JSON strukturasini to'ldiring.
+Til: {lang_name}. Barcha matnlar {lang_name} tilida bo'lsin.
+
+{{
+  "keyword": "mavzu uchun eng mos 1-2 ta inglizcha kalit so'z (Unsplash qidiruvi uchun)",
+  "sections": [
+    {{"title": "1-bo'lim nomi", "text": "150-200 so'zlik akademik matn, paragraflar bilan"}},
+    {{"title": "2-bo'lim nomi", "text": "150-200 so'zlik akademik matn, paragraflar bilan"}},
+    ... ({section_count} ta bo'lim, birinchisi 'Kirish' bo'lsin)
+  ],
+  "conclusion": "120 so'zlik xulosa va takliflar matni, asosiy natijalar va amaliy tavsiyalar",
+  "table_data": [
+    {{"term": "1-tushuncha", "definition": "qisqacha ta'rif"}},
+    {{"term": "2-tushuncha", "definition": "qisqacha ta'rif"}},
+    {{"term": "3-tushuncha", "definition": "qisqacha ta'rif"}},
+    {{"term": "4-tushuncha", "definition": "qisqacha ta'rif"}}
+  ],
+  "references": [
+    "1. Birinchi adabiyot manbasi",
+    "2. Ikkinchi adabiyot manbasi",
+    "3. Uchinchi adabiyot manbasi"
+  ]
+}}
+
+Faqat JSON qaytaring, boshqa hech narsa yo'q. {section_count} ta bo'lim bo'lsin."""
+
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user",   "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+        )
+        raw = resp.choices[0].message.content.strip()
+        data = json.loads(raw)
+        logging.info(f"Mega-so'rov muvaffaqiyatli: {len(data.get('sections', []))} bo'lim")
+        return data
+    except Exception as e:
+        logging.error(f"Mega-so'rov xatolik: {e}")
+        # Fallback: bo'sh struktura
+        return {
+            "keyword": topic,
+            "sections": [{"title": f"Bo'lim {i+1}", "text": "Matn yaratishda xatolik yuz berdi."} for i in range(section_count)],
+            "conclusion": "Xulosa yaratishda xatolik yuz berdi.",
+            "table_data": [{"term": "-", "definition": "-"} for _ in range(4)],
+            "references": ["1. -", "2. -", "3. -"]
+        }
 
 
 # ─────────────────────────────────────────────
@@ -297,7 +336,6 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
                       author='', extra_info=''):
     """
     Kirish sahifasi: katta sarlavha + rasm + sariq rangdagi matn bloklari.
-    Shablon 2-sahifasiga mos (sariq uchburchak dizayn).
     """
     # Katta sarlavha
     add_paragraph(doc, topic,
@@ -346,24 +384,16 @@ def create_intro_page(doc, topic, intro_text, img_path=None,
 # ─────────────────────────────────────────────
 
 def create_content_page_A(doc, heading, text_content, img_path=None):
-    """
-    Shablon A (3-sahifa): Sarlavha yuqorida, chap matn + o'ng rasm.
-    INCREATE uslubi: sarlavha markazda, matn chap, rasm o'ng pastda.
-    """
-    # Sarlavha
+    """Shablon A: Sarlavha yuqorida, chap matn + o'ng rasm."""
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=16, bold=True, space_before=6, space_after=6)
-
-    # Sariq chiziq
     add_gold_line(doc, 25)
 
-    # Matn chap, rasm o'ng (jadval bilan)
     table = doc.add_table(rows=1, cols=2)
     remove_cell_borders(table.cell(0, 0))
     remove_cell_borders(table.cell(0, 1))
 
-    # Chap: matn
     left_cell = table.cell(0, 0)
     left_cell.width = Inches(3.6)
     for para in text_content.split('\n'):
@@ -377,7 +407,6 @@ def create_content_page_A(doc, heading, text_content, img_path=None):
         for run in p.runs:
             set_font(run, size=12)
 
-    # O'ng: rasm
     right_cell = table.cell(0, 1)
     right_cell.width = Inches(2.4)
     if img_path and os.path.exists(img_path):
@@ -392,11 +421,7 @@ def create_content_page_A(doc, heading, text_content, img_path=None):
 
 
 def create_content_page_B(doc, heading, text_content, img_path=None):
-    """
-    Shablon B (4-sahifa): Yuqorida to'liq kenglikdagi rasm,
-    pastda sariq chiziq + sarlavha + matn.
-    """
-    # Yuqorida rasm
+    """Shablon B: Yuqorida to'liq kenglikdagi rasm, pastda sarlavha + matn."""
     if img_path and os.path.exists(img_path):
         try:
             p = doc.add_paragraph()
@@ -407,15 +432,11 @@ def create_content_page_B(doc, heading, text_content, img_path=None):
         except Exception as e:
             logging.warning(f"Content B rasm: {e}")
 
-    # Sarlavha
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=16, bold=True, space_before=6, space_after=2)
-
-    # Sariq chiziq
     add_gold_line(doc, 25)
 
-    # Matn
     for para in text_content.split('\n'):
         para = para.strip()
         if not para:
@@ -431,14 +452,9 @@ def create_content_page_B(doc, heading, text_content, img_path=None):
 
 
 def create_content_page_C(doc, heading, text_content, img_path=None):
-    """
-    Shablon C (5-sahifa): Sariq chiziq yuqorida, katta rasm,
-    pastda katta sarlavha + matn bloki.
-    """
-    # Sariq chiziq yuqorida
+    """Shablon C: Sariq chiziq yuqorida, katta rasm, pastda sarlavha + matn."""
     add_gold_line(doc, 20)
 
-    # Katta rasm
     if img_path and os.path.exists(img_path):
         try:
             p = doc.add_paragraph()
@@ -449,12 +465,10 @@ def create_content_page_C(doc, heading, text_content, img_path=None):
         except Exception as e:
             logging.warning(f"Content C rasm: {e}")
 
-    # Katta sarlavha
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=20, bold=True, space_before=6, space_after=6)
 
-    # Matn (markazda, katta)
     for para in text_content.split('\n'):
         para = para.strip()
         if not para:
@@ -470,23 +484,16 @@ def create_content_page_C(doc, heading, text_content, img_path=None):
 
 
 def create_content_page_D(doc, heading, text_left, text_right=None):
-    """
-    Shablon D (6-sahifa): Ikki ustunli matn sahifasi.
-    """
-    # Sarlavha
+    """Shablon D: Ikki ustunli matn sahifasi."""
     add_paragraph(doc, heading,
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=16, bold=True, space_before=6, space_after=6)
-
-    # Sariq chiziq
     add_gold_line(doc, 25)
 
-    # Ikki ustunli jadval
     table = doc.add_table(rows=1, cols=2)
     remove_cell_borders(table.cell(0, 0))
     remove_cell_borders(table.cell(0, 1))
 
-    # Chap ustun
     left_cell = table.cell(0, 0)
     left_cell.width = Inches(3.0)
     for para in text_left.split('\n'):
@@ -500,7 +507,6 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
         for run in p.runs:
             set_font(run, size=12)
 
-    # O'ng ustun
     right_cell = table.cell(0, 1)
     right_cell.width = Inches(3.0)
     content_right = text_right or text_left
@@ -522,50 +528,25 @@ def create_content_page_D(doc, heading, text_left, text_right=None):
 # OXIRGI SAHIFA: Xulosa + jadval + rasm
 # ─────────────────────────────────────────────
 
-def create_final_page(doc, topic, language, topic_images, img_idx):
+def create_final_page(doc, conclusion_text, table_data, references, topic_images, img_idx):
     """
-    Oxirgi sahifa: Xulosa va takliflar matni + taqqoslash jadvali + rasm.
-    Bu sahifa har doim to'liq ma'lumot bilan to'ldiriladi.
+    Oxirgi sahifa: Xulosa matni + taqqoslash jadvali + rasm + adabiyotlar.
+    Barcha ma'lumotlar mega-so'rovdan keladi (GPT chaqirilmaydi).
     """
-    lang_map = {
-        'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
-        'ko': "kores",  'zh': "xitoy", 'de': "nemis"
-    }
-    lang_name = lang_map.get(language, "o'zbek")
-
     # Sarlavha
     add_paragraph(doc, "Xulosa va takliflar",
                   alignment=WD_ALIGN_PARAGRAPH.CENTER,
                   size=18, bold=True, space_before=6, space_after=4)
 
-    # Sariq chiziq
     add_gold_line(doc, 25)
 
-    # Xulosa matni (GPT)
-    sys_msg = (
-        f"Siz {lang_name} tilida akademik matn yozuvchi mutaxassississiz. "
-        f"Faqat sof matn yozing, markdown belgilari ishlatmang."
-    )
-    conclusion = gpt_generate(
-        f"'{topic}' mavzusida loyiha ishi uchun 'Xulosa va takliflar' qismini yozing "
-        f"({lang_name} tilida, taxminan 120 so'z). "
-        f"Asosiy natijalar va amaliy tavsiyalarni yozing.",
-        system=sys_msg
-    )
-    for para in conclusion.split('\n'):
+    # Xulosa matni
+    for para in conclusion_text.split('\n'):
         para = para.strip()
         if para:
             add_paragraph(doc, para,
                           alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
                           size=12, space_before=0, space_after=4)
-
-    # Jadval: Mavzu bo'yicha asosiy tushunchalar
-    table_data_raw = gpt_generate(
-        f"'{topic}' mavzusi bo'yicha 4 ta asosiy tushuncha va ularning qisqacha ta'rifini "
-        f"yozing ({lang_name} tilida). "
-        f"Har bir qator: 'Tushuncha | Ta'rif' formatida, faqat 4 ta qator, boshqa hech narsa yo'q.",
-        system="Siz akademik jadval tuzuvchi mutaxassississiz. Faqat so'ralgan formatda javob bering."
-    )
 
     # Jadval sarlavhasi
     add_paragraph(doc, "Asosiy tushunchalar jadvali",
@@ -573,12 +554,11 @@ def create_final_page(doc, topic, language, topic_images, img_idx):
                   size=13, bold=True, space_before=10, space_after=4,
                   color=GOLD_COLOR)
 
-    # Jadval yaratish (5 qator: 1 sarlavha + 4 ma'lumot)
+    # Jadval yaratish
     try:
         table = doc.add_table(rows=5, cols=2)
         table.style = 'Table Grid'
 
-        # Sarlavha qatori
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = "Tushuncha"
         hdr_cells[1].text = "Ta'rif"
@@ -586,27 +566,20 @@ def create_final_page(doc, topic, language, topic_images, img_idx):
             for para in cell.paragraphs:
                 for run in para.runs:
                     set_font(run, size=12, bold=True, color=GOLD_COLOR)
-            cell._tc.get_or_add_tcPr()
 
-        # Ma'lumot qatorlari
         rows_data = []
-        for line in table_data_raw.split('\n'):
-            line = line.strip()
-            if '|' in line:
-                parts = [p.strip() for p in line.split('|', 1)]
-                if len(parts) == 2 and parts[0] and parts[1]:
-                    rows_data.append(parts)
-            if len(rows_data) >= 4:
-                break
-
-        # Yetarli ma'lumot bo'lmasa, bo'sh qatorlar bilan to'ldirish
+        for item in table_data:
+            if isinstance(item, dict):
+                term = item.get("term", "-")
+                defn = item.get("definition", "-")
+                rows_data.append((term, defn))
         while len(rows_data) < 4:
-            rows_data.append(["-", "-"])
+            rows_data.append(("-", "-"))
 
         for i, (term, definition) in enumerate(rows_data[:4]):
             row_cells = table.rows[i + 1].cells
-            row_cells[0].text = term
-            row_cells[1].text = definition
+            row_cells[0].text = str(term)
+            row_cells[1].text = str(definition)
             for cell in row_cells:
                 for para in cell.paragraphs:
                     for run in para.runs:
@@ -614,7 +587,7 @@ def create_final_page(doc, topic, language, topic_images, img_idx):
     except Exception as e:
         logging.warning(f"Jadval yaratishda xatolik: {e}")
 
-    # Rasm (mavzuga mos)
+    # Rasm
     img = topic_images[img_idx % len(topic_images)] if topic_images else None
     if img and os.path.exists(img):
         try:
@@ -626,27 +599,21 @@ def create_final_page(doc, topic, language, topic_images, img_idx):
         except Exception as e:
             logging.warning(f"Oxirgi sahifa rasmi: {e}")
 
-    # Adabiyotlar (qisqa)
+    # Adabiyotlar
     add_paragraph(doc, "Foydalanilgan adabiyotlar",
                   alignment=WD_ALIGN_PARAGRAPH.LEFT,
                   size=13, bold=True, space_before=10, space_after=4)
-    refs = gpt_generate(
-        f"'{topic}' mavzusi bo'yicha 3 ta qisqa adabiyot manbasi yozing "
-        f"({lang_name} tilida). Har biri yangi qatorda, raqam bilan. "
-        f"Faqat 3 ta manba, boshqa hech narsa yo'q.",
-        system="Siz akademik adabiyot ro'yxati tuzuvchisisiz."
-    )
-    for line in refs.split('\n'):
-        line = line.strip()
+    for line in references:
+        line = str(line).strip()
         if line:
             add_paragraph(doc, line,
                           alignment=WD_ALIGN_PARAGRAPH.LEFT,
                           size=11, space_before=0, space_after=3)
 
 
-# ─────────────────────────────
+# ─────────────────────────────────────────────
 # Asosiy generator
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 
 def generate_loyiha_ishi(topic, page_count, language,
                          name_surname, university_info,
@@ -658,11 +625,11 @@ def generate_loyiha_ishi(topic, page_count, language,
       1-sahifa : Muqova (har doim)
       2-sahifa : Kirish (har doim)
       3+ sahifa: A, B, C, D, A, B, C, D, ... (almashib keladi)
+      Oxirgi   : Xulosa + jadval + adabiyotlar
 
-    Misollar:
-      page_count=5  -> muqova + kirish + 3 content (A, B, C)
-      page_count=10 -> muqova + kirish + 8 content (A,B,C,D,A,B,C,D)
-      page_count=15 -> muqova + kirish + 13 content
+    Sahifa tanlovlari: 5, 10, 15
+
+    OPTIMIZATSIYA: Barcha kontent BITTA mega-so'rovda olinadi.
     """
     lang_map = {
         'uz': "o'zbek", 'ru': "rus", 'en': "ingliz",
@@ -670,18 +637,31 @@ def generate_loyiha_ishi(topic, page_count, language,
     }
     lang_name = lang_map.get(language, "o'zbek")
 
-    # Nechta content sahifa kerak
+    # Nechta content sahifa kerak (muqova va kirish hisoblanmaydi)
     content_page_count = max(3, page_count - 2)
+    # Mega-so'rov uchun bo'limlar soni: kirish + content sahifalar
+    section_count = content_page_count + 1
 
-    # Rasmlar (kirish + content sahifalar uchun)
+    logging.info(f"'{topic}' uchun mega-so'rov yuborilmoqda ({section_count} bo'lim)...")
+
+    # ── SO'ROV 1: Barcha kontent bitta so'rovda ──
+    all_content = generate_all_content(topic, language, section_count)
+
+    keyword   = all_content.get("keyword", topic)
+    sections  = all_content.get("sections", [])
+    conclusion = all_content.get("conclusion", "")
+    table_data = all_content.get("table_data", [])
+    references = all_content.get("references", [])
+
+    # Bo'limlar yetarli bo'lmasa to'ldirish
+    while len(sections) < section_count:
+        sections.append({"title": f"Bo'lim {len(sections)+1}", "text": "Matn mavjud emas."})
+
+    # ── SO'ROV 2: Rasmlar yuklash (parallel, GPT emas) ──
     img_count = content_page_count + 2
-    logging.info(f"'{topic}' uchun {img_count} ta rasm yuklanmoqda...")
-    topic_images = fetch_topic_images(topic, count=img_count)
+    logging.info(f"'{keyword}' kalit so'zi bilan {img_count} ta rasm yuklanmoqda...")
+    topic_images = fetch_topic_images(keyword, count=img_count)
     logging.info(f"Yuklangan rasmlar: {len(topic_images)}")
-
-    # Bo'limlar rejasi
-    plan_items = generate_plan(topic, language, content_page_count + 1)
-    logging.info(f"Reja ({len(plan_items)} bo'lim): {plan_items}")
 
     # ── Hujjat yaratish ──
     doc = Document()
@@ -711,10 +691,8 @@ def generate_loyiha_ishi(topic, page_count, language,
 
     # ── 2-SAHIFA: Kirish ──
     img_idx = 0
-    intro_section = plan_items[0] if plan_items else "Kirish"
-    intro_text = generate_section_content(
-        topic, intro_section, language, word_count=150
-    )
+    intro_section = sections[0]
+    intro_text = intro_section.get("text", "")
     intro_img = topic_images[img_idx] if img_idx < len(topic_images) else None
     img_idx += 1
 
@@ -733,24 +711,18 @@ def generate_loyiha_ishi(topic, page_count, language,
     for i in range(content_page_count):
         template_type = template_cycle[i % 4]
 
-        # Bo'lim sarlavhasi (plan_items dan siklik)
-        section_idx = (i + 1) % len(plan_items) if plan_items else 0
-        section_title = plan_items[section_idx] if plan_items else f"Bo'lim {i + 1}"
-
-        # Matn so'z soni
-        word_count = 200 if template_type in ('A', 'B') else 150
-
-        # Matn yaratish
-        content = generate_section_content(
-            topic, section_title, language, word_count=word_count
-        )
+        # Bo'lim (sections[1] dan boshlanadi, siklik)
+        sec_idx = (i + 1) % len(sections)
+        section_data = sections[sec_idx]
+        section_title = section_data.get("title", f"Bo'lim {i+1}")
+        content = section_data.get("text", "")
 
         # Rasm (siklik)
         img = topic_images[img_idx % len(topic_images)] if topic_images else None
         img_idx += 1
 
         logging.info(
-            f"Content {i + 1}/{content_page_count}: "
+            f"Content {i+1}/{content_page_count}: "
             f"shablon={template_type}, bo'lim={section_title!r}"
         )
 
@@ -764,15 +736,14 @@ def generate_loyiha_ishi(topic, page_count, language,
             create_content_page_C(doc, section_title, content, img_path=img)
 
         elif template_type == 'D':
-            # Matnni ikki qismga bo'lamiz
             paragraphs = [p.strip() for p in content.split('\n') if p.strip()]
             mid = len(paragraphs) // 2
             left_text  = '\n'.join(paragraphs[:mid]) if mid > 0 else content
             right_text = '\n'.join(paragraphs[mid:]) if mid < len(paragraphs) else content
             create_content_page_D(doc, section_title, left_text, right_text)
 
-    # ── OXIRGI SAHIFA: Xulosa + jadval + rasm ──
-    create_final_page(doc, topic, language, topic_images, img_idx)
+    # ── OXIRGI SAHIFA: Xulosa + jadval + adabiyotlar ──
+    create_final_page(doc, conclusion, table_data, references, topic_images, img_idx)
 
     # ── Vaqtinchalik rasmlarni tozalash ──
     for img_path in topic_images:

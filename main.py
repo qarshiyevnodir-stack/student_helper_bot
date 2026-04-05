@@ -216,12 +216,9 @@ def get_li_language_keyboard():
 def get_li_page_count_keyboard():
     """Loyiha ishi uchun sahifa soni tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("5",  callback_data="li_pages_5"),
-         InlineKeyboardButton("10", callback_data="li_pages_10"),
-         InlineKeyboardButton("15", callback_data="li_pages_15")],
-        [InlineKeyboardButton("20", callback_data="li_pages_20"),
-         InlineKeyboardButton("25", callback_data="li_pages_25"),
-         InlineKeyboardButton("30", callback_data="li_pages_30")],
+        [InlineKeyboardButton("5 sahifa",  callback_data="li_pages_5"),
+         InlineKeyboardButton("10 sahifa", callback_data="li_pages_10"),
+         InlineKeyboardButton("15 sahifa", callback_data="li_pages_15")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
