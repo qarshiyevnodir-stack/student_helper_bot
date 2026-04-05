@@ -293,12 +293,6 @@ def build_maqola_docx(content: dict, topic: str, language: str,
                       space_before=0, space_after=2,
                       color=GRAY_COLOR)
 
-    # Til va tur
-    add_paragraph(doc, f"{lang_display}  |  {type_display}  |  ~{page_count} sahifa",
-                  alignment=WD_ALIGN_PARAGRAPH.CENTER,
-                  size=11, bold=False, space_before=4, space_after=12,
-                  color=GRAY_COLOR)
-
     # Ko'k chiziq
     add_horizontal_line(doc)
 
