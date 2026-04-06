@@ -41,8 +41,8 @@ SERVICE_PRICES = {
     "infografika":      1500,
     "infografika_hd":   3000,
     "maqola":           3000,
-    "kurs_ishi":        5000,
-    "bmi":              8000,
+    "kurs_ishi":        12000,
+    "bmi":              20000,
 }
 MIN_TOPUP = 3000
 
@@ -536,13 +536,14 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text(
             "🎓 *Kurs ishi / Bitiruv malakaviy ishi*\n\n"
             "📚 *Kurs ishi:*\n"
-            "\u2022 25 sahifa \u2192 5 000 so'm\n"
-            "\u2022 35 sahifa \u2192 5 000 so'm\n"
-            "\u2022 45 sahifa \u2192 5 000 so'm\n\n"
+            "\u2022 20 sahifa \u2192 12 000 so'm\n"
+            "\u2022 25 sahifa \u2192 14 000 so'm\n"
+            "\u2022 35 sahifa \u2192 16 000 so'm\n"
+            "\u2022 45 sahifa \u2192 20 000 so'm\n\n"
             "🎓 *Bitiruv malakaviy ishi (BMI):*\n"
-            "\u2022 45 sahifa \u2192 8 000 so'm\n"
-            "\u2022 60 sahifa \u2192 8 000 so'm\n"
-            "\u2022 80 sahifa \u2192 8 000 so'm\n\n"
+            "\u2022 50 sahifa \u2192 20 000 so'm\n"
+            "\u2022 70 sahifa \u2192 30 000 so'm\n"
+            "\u2022 100 sahifa \u2192 45 000 so'm\n\n"
             "Qaysi turni tanlaysiz?",
             reply_markup=keyboard,
             parse_mode="Markdown"
@@ -2020,15 +2021,16 @@ async def ki_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if work_type == "kurs_ishi":
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("25 sahifa", callback_data="ki_pages_25"),
-             InlineKeyboardButton("35 sahifa", callback_data="ki_pages_35"),
-             InlineKeyboardButton("45 sahifa", callback_data="ki_pages_45")],
+            [InlineKeyboardButton("20 sahifa — 12 000 so'm", callback_data="ki_pages_20")],
+            [InlineKeyboardButton("25 sahifa — 14 000 so'm", callback_data="ki_pages_25")],
+            [InlineKeyboardButton("35 sahifa — 16 000 so'm", callback_data="ki_pages_35")],
+            [InlineKeyboardButton("45 sahifa — 20 000 so'm", callback_data="ki_pages_45")],
         ])
     else:  # bmi
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("45 sahifa", callback_data="ki_pages_45"),
-             InlineKeyboardButton("60 sahifa", callback_data="ki_pages_60"),
-             InlineKeyboardButton("80 sahifa", callback_data="ki_pages_80")],
+            [InlineKeyboardButton("50 sahifa — 20 000 so'm", callback_data="ki_pages_50")],
+            [InlineKeyboardButton("70 sahifa — 30 000 so'm", callback_data="ki_pages_70")],
+            [InlineKeyboardButton("100 sahifa — 45 000 so'm", callback_data="ki_pages_100")],
         ])
     await query.edit_message_text(
         text=f"✅ Til: *{lang_name}*\n\nNecha sahifa bo'lsin?",
@@ -2208,7 +2210,13 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     teacher      = context.user_data.get("ki_teacher", "")
 
     # Narx aniqlash
-    price = SERVICE_PRICES['bmi'] if work_type == 'bmi' else SERVICE_PRICES['kurs_ishi']
+    # Sahifa soniga qarab narx aniqlash
+    ki_prices = {20: 12000, 25: 14000, 35: 16000, 45: 20000}
+    bmi_prices = {50: 20000, 70: 30000, 100: 45000}
+    if work_type == 'bmi':
+        price = bmi_prices.get(page_count, 20000)
+    else:
+        price = ki_prices.get(page_count, 12000)
     service_label = "🎓 BMI" if work_type == 'bmi' else "📚 Kurs ishi"
 
     # Balans tekshirish
