@@ -399,13 +399,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     bonus_given = await asyncio.to_thread(db.give_welcome_bonus, user.id, 6000)
 
     if bonus_given:
+        # Yangi foydalanuvchi — taklif qiluvchiga 3000 so'm bonus
+        if ref_by:
+            await asyncio.to_thread(db.add_balance, ref_by, 3000)
+            logger.info(f"Referral bonus: {ref_by} ga 3000 so'm berildi (yangi user: {user.id})")
+            try:
+                await context.bot.send_message(
+                    chat_id=ref_by,
+                    text=f"🎉 Siz taklif qilgan do'stingiz botga qo'shildi!\n"
+                         f"💰 Balansingizga 3,000 so'm bonus qo'shildi."
+                )
+            except Exception as e:
+                logger.error(f"Referral bonus xabari yuborishda xatolik: {e}")
+
         await update.message.reply_text(
             f"Assalomu alaykum, {user.first_name}! 👋\n\n"
-            f"🎁 *Xush kelibsiz bonusi:* `6,000 so'm` balansingizga qo'shildi!\n"
+            f"🎁 Xush kelibsiz bonusi: 6,000 so'm balansingizga qo'shildi!\n"
             f"Bu bonus faqat bir marta beriladi.\n\n"
             f"Quyidagi xizmatlardan birini tanlang:",
-            reply_markup=get_main_menu_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_main_menu_keyboard()
         )
     else:
         await update.message.reply_text(
