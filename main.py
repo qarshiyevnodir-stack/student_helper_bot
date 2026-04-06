@@ -2150,20 +2150,22 @@ async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE
     if update.effective_user.id not in ADMIN_IDS:
         await query.answer("Ruxsat yo'q!", show_alert=True)
         return
-    tx_id = int(query.data.split("_")[2])
+    tx_id_str = query.data.replace("admin_approve_", "")
+    tx_id = int(tx_id_str)
     tx = await asyncio.to_thread(db.approve_topup, tx_id)
     if not tx:
-        await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
+        await query.answer("⚠️ Allaqachon qayta ishlangan.", show_alert=True)
         return
-    await query.edit_message_caption(
-        caption=query.message.caption + f"\n\n✅ *TASDIQLANDI* — {tx['amount']:,} so'm qo'shildi",
-        parse_mode="Markdown"
-    )
+    try:
+        await query.edit_message_caption(
+            caption=f"✅ TASDIQLANDI — {tx['amount']:,} so'm qo'shildi"
+        )
+    except Exception:
+        pass
     try:
         await context.bot.send_message(
             chat_id=tx['user_id'],
-            text=f"✅ To'lovingiz tasdiqlandi!\n💰 Balansingizga *{tx['amount']:,} so'm* qo'shildi.",
-            parse_mode="Markdown"
+            text=f"✅ To'lovingiz tasdiqlandi!\n💰 Balansingizga {tx['amount']:,} so'm qo'shildi."
         )
     except Exception as e:
         logger.error(f"Foydalanuvchiga xabar yuborishda xatolik: {e}")
@@ -2176,15 +2178,18 @@ async def admin_reject_topup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if update.effective_user.id not in ADMIN_IDS:
         await query.answer("Ruxsat yo'q!", show_alert=True)
         return
-    tx_id = int(query.data.split("_")[2])
+    tx_id_str = query.data.replace("admin_reject_", "")
+    tx_id = int(tx_id_str)
     tx = await asyncio.to_thread(db.reject_topup, tx_id)
     if not tx:
-        await query.edit_message_caption(caption=query.message.caption + "\n\n⚠️ Allaqachon qayta ishlangan.")
+        await query.answer("⚠️ Allaqachon qayta ishlangan.", show_alert=True)
         return
-    await query.edit_message_caption(
-        caption=query.message.caption + "\n\n❌ *RAD ETILDI*",
-        parse_mode="Markdown"
-    )
+    try:
+        await query.edit_message_caption(
+            caption="❌ RAD ETILDI"
+        )
+    except Exception:
+        pass
     try:
         await context.bot.send_message(
             chat_id=tx['user_id'],
