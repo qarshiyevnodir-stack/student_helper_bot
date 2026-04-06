@@ -24,6 +24,7 @@ from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
 from infografika_utils import generate_infografika, generate_infografika_hd
 from maqola_utils import generate_maqola
+from kurs_ishi_utils import generate_kurs_ishi
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -40,6 +41,8 @@ SERVICE_PRICES = {
     "infografika":      1500,
     "infografika_hd":   3000,
     "maqola":           3000,
+    "kurs_ishi":        5000,
+    "bmi":              8000,
 }
 MIN_TOPUP = 3000
 
@@ -132,6 +135,21 @@ logger = logging.getLogger(__name__)
 ) = range(60, 66)
 
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Kurs ishi / BMI
+# ─────────────────────────────────────────────
+(
+    KI_TYPE,             # 70 — kurs ishi yoki BMI
+    KI_LANGUAGE,         # 71
+    KI_TOPIC,            # 72
+    KI_NAME_SURNAME,     # 73
+    KI_PAGE_COUNT,       # 74
+    KI_UNIVERSITY,       # 75
+    KI_FACULTY,          # 76
+    KI_TEACHER,          # 77
+    KI_SUBJECT,          # 78
+) = range(70, 79)
+
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -155,7 +173,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
         [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📊 Infografika ✨")],
         [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
-        [KeyboardButton("🎓 Kurs ishi 📝"),    KeyboardButton("📚 Referat ✨")],
+        [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("💰 Balans & Referral 🔗")],
@@ -507,6 +525,29 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return MQ_LANGUAGE
+
+    elif text == "🎓 Kurs ishi / BMI 📝":
+        context.user_data.clear()
+        context.user_data["mode"] = "kurs_ishi"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📚 Kurs ishi", callback_data="ki_type_kurs_ishi")],
+            [InlineKeyboardButton("🎓 Bitiruv malakaviy ishi (BMI)", callback_data="ki_type_bmi")],
+        ])
+        await update.message.reply_text(
+            "🎓 *Kurs ishi / Bitiruv malakaviy ishi*\n\n"
+            "📚 *Kurs ishi:*\n"
+            "\u2022 25 sahifa \u2192 5 000 so'm\n"
+            "\u2022 35 sahifa \u2192 5 000 so'm\n"
+            "\u2022 45 sahifa \u2192 5 000 so'm\n\n"
+            "🎓 *Bitiruv malakaviy ishi (BMI):*\n"
+            "\u2022 45 sahifa \u2192 8 000 so'm\n"
+            "\u2022 60 sahifa \u2192 8 000 so'm\n"
+            "\u2022 80 sahifa \u2192 8 000 so'm\n\n"
+            "Qaysi turni tanlaysiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return KI_TYPE
 
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
@@ -1940,6 +1981,316 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 
+# ─────────────────────────────────────────────
+# Handlerlar — Kurs ishi / BMI
+# ─────────────────────────────────────────────
+
+async def ki_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi yoki BMI turini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    work_type = query.data.split("_", 2)[2]  # ki_type_kurs_ishi -> kurs_ishi
+    context.user_data["ki_type"] = work_type
+    type_name = "📚 Kurs ishi" if work_type == "kurs_ishi" else "🎓 Bitiruv malakaviy ishi (BMI)"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("O'zbek tili",  callback_data="ki_lang_uz"),
+         InlineKeyboardButton("Ingliz tili",  callback_data="ki_lang_en")],
+        [InlineKeyboardButton("Rus tili",     callback_data="ki_lang_ru"),
+         InlineKeyboardButton("Kores tili",   callback_data="ki_lang_ko")],
+        [InlineKeyboardButton("Xitoy tili",   callback_data="ki_lang_zh"),
+         InlineKeyboardButton("Nemis tili",   callback_data="ki_lang_de")],
+    ])
+    await query.edit_message_text(
+        text=f"✅ Tur: *{type_name}*\n\nQaysi tilda yozmoqchisiz?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return KI_LANGUAGE
+
+
+async def ki_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: tilni qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    language_code = query.data.split("_", 2)[2]  # ki_lang_uz -> uz
+    context.user_data["ki_language"] = language_code
+    lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
+    work_type = context.user_data.get("ki_type", "kurs_ishi")
+
+    if work_type == "kurs_ishi":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("25 sahifa", callback_data="ki_pages_25"),
+             InlineKeyboardButton("35 sahifa", callback_data="ki_pages_35"),
+             InlineKeyboardButton("45 sahifa", callback_data="ki_pages_45")],
+        ])
+    else:  # bmi
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("45 sahifa", callback_data="ki_pages_45"),
+             InlineKeyboardButton("60 sahifa", callback_data="ki_pages_60"),
+             InlineKeyboardButton("80 sahifa", callback_data="ki_pages_80")],
+        ])
+    await query.edit_message_text(
+        text=f"✅ Til: *{lang_name}*\n\nNecha sahifa bo'lsin?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return KI_PAGE_COUNT
+
+
+async def ki_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    page_count = int(query.data.split("_")[2])  # ki_pages_25 -> 25
+    context.user_data["ki_page_count"] = page_count
+
+    await query.edit_message_text(
+        text=f"✅ Hajm: *{page_count} sahifa*\n\nMavzuni kiriting:",
+        parse_mode="Markdown"
+    )
+    return KI_TOPIC
+
+
+async def ki_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: mavzuni qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return KI_TOPIC
+    context.user_data["ki_topic"] = topic
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_name")]
+    ])
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {topic}\n\n"
+        f"Ism-familiyangizni kiriting:\n"
+        f"_(Ixtiyoriy — muqovada ko'rinadi)_",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return KI_NAME_SURNAME
+
+
+async def ki_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: ism-familiyani qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["ki_name_surname"] = ""
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_university")]])
+        await query.edit_message_text(
+            text="Universitet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["ki_name_surname"] = update.message.text.strip()
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_university")]])
+        await update.message.reply_text(
+            "Universitet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    return KI_UNIVERSITY
+
+
+async def ki_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: universitetni qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["ki_university"] = ""
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_faculty")]])
+        await query.edit_message_text(
+            text="Fakultet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["ki_university"] = update.message.text.strip()
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_faculty")]])
+        await update.message.reply_text(
+            "Fakultet nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    return KI_FACULTY
+
+
+async def ki_get_faculty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: fakultetni qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["ki_faculty"] = ""
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_subject")]])
+        await query.edit_message_text(
+            text="Fan nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["ki_faculty"] = update.message.text.strip()
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_subject")]])
+        await update.message.reply_text(
+            "Fan nomini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    return KI_SUBJECT
+
+
+async def ki_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: fan nomini qabul qiladi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["ki_subject"] = ""
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_teacher")]])
+        await query.edit_message_text(
+            text="Ilmiy rahbar (o'qituvchi) ismini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    else:
+        context.user_data["ki_subject"] = update.message.text.strip()
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_teacher")]])
+        await update.message.reply_text(
+            "Ilmiy rahbar (o'qituvchi) ismini kiriting:\n_(Ixtiyoriy)_",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    return KI_TEACHER
+
+
+async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: o'qituvchini qabul qiladi, so'ng kurs ishini yaratadi."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        context.user_data["ki_teacher"] = ""
+        chat_id = query.message.chat_id
+        await query.edit_message_text(text="⏳ Yaratilmoqda, biroz kuting...")
+    else:
+        context.user_data["ki_teacher"] = update.message.text.strip()
+        chat_id = update.message.chat_id
+        await update.message.reply_text("⏳ Yaratilmoqda, biroz kuting...")
+
+    user_id      = update.effective_user.id
+    work_type    = context.user_data.get("ki_type", "kurs_ishi")
+    topic        = context.user_data.get("ki_topic", "")
+    language     = context.user_data.get("ki_language", "uz")
+    page_count   = context.user_data.get("ki_page_count", 25)
+    name_surname = context.user_data.get("ki_name_surname", "")
+    university   = context.user_data.get("ki_university", "")
+    faculty      = context.user_data.get("ki_faculty", "")
+    subject      = context.user_data.get("ki_subject", "")
+    teacher      = context.user_data.get("ki_teacher", "")
+
+    # Narx aniqlash
+    price = SERVICE_PRICES['bmi'] if work_type == 'bmi' else SERVICE_PRICES['kurs_ishi']
+    service_label = "🎓 BMI" if work_type == 'bmi' else "📚 Kurs ishi"
+
+    # Balans tekshirish
+    balance = await asyncio.to_thread(db.get_balance, user_id)
+    if balance < price:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"❌ *Balansingiz yetarli emas!*\n\n"
+                f"💰 Joriy balans: *{balance:,} so'm*\n"
+                f"💳 Kerakli summa: *{price:,} so'm*\n\n"
+                f"Iltimos, avval balansni to'ldiring:"
+            ),
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    try:
+        doc_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_kurs_ishi(
+                topic=topic,
+                language=language,
+                work_type=work_type,
+                page_count=page_count,
+                name_surname=name_surname,
+                university=university,
+                faculty=faculty,
+                subject=subject,
+                teacher=teacher,
+            )
+        )
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'kurs_ishi'}.docx"
+
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ {topic} \u2014 {service_label} tayyor!\n"
+                f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
+                f"🤖 @slidego_bot\n"
+                f"📢 t.me/slidego"
+            ),
+        )
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name=service_label,
+            topic=topic,
+            language=language,
+            page_count=page_count,
+            price=price,
+            document_bytes=doc_bytes,
+            filename=filename,
+        )
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, work_type, topic, price)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Kurs ishi yaratishda xatolik: {type(e).__name__}: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Yaratishda xatolik:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -2429,7 +2780,8 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💰 Maqola ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -2446,6 +2798,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
                 # Boshqa barcha tugmalar (ishga tushirilmagan xizmatlar ham)
+                MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             ],
             TOPIC: [
@@ -2601,6 +2954,48 @@ def main() -> None:
                 CallbackQueryHandler(mq_get_university, pattern=r"^mq_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_university),
+            ],
+            # ── Kurs ishi / BMI holatlari ──
+            KI_TYPE: [
+                CallbackQueryHandler(ki_get_type, pattern=r"^ki_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KI_LANGUAGE: [
+                CallbackQueryHandler(ki_get_language, pattern=r"^ki_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KI_PAGE_COUNT: [
+                CallbackQueryHandler(ki_get_page_count, pattern=r"^ki_pages_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KI_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KI_NAME_SURNAME: [
+                CallbackQueryHandler(ki_get_name_surname, pattern=r"^ki_skip_name$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_name_surname),
+            ],
+            KI_UNIVERSITY: [
+                CallbackQueryHandler(ki_get_university, pattern=r"^ki_skip_university$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_university),
+            ],
+            KI_FACULTY: [
+                CallbackQueryHandler(ki_get_faculty, pattern=r"^ki_skip_faculty$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_faculty),
+            ],
+            KI_SUBJECT: [
+                CallbackQueryHandler(ki_get_subject, pattern=r"^ki_skip_subject$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_subject),
+            ],
+            KI_TEACHER: [
+                CallbackQueryHandler(ki_get_teacher, pattern=r"^ki_skip_teacher$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_teacher),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
