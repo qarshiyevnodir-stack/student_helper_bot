@@ -177,7 +177,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
-        [KeyboardButton("💰 Balans & Referral 🔗"),  KeyboardButton("📂 Mening ishlarim")],
+        [KeyboardButton("💰 Balans & Referral 🔗")],
         [KeyboardButton("🖼️ Rasm yaratish"),   KeyboardButton("🎬 Video yaratish")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -597,9 +597,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return KI_TYPE
 
-    elif text == "📂 Mening ishlarim":
-        await my_works_handler(update, context)
-        return LANGUAGE_SELECTION
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -2355,108 +2352,6 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
-# ─────────────────────────────────────────────
-# Mening ishlarim
-# ─────────────────────────────────────────────
-
-SERVICE_LABELS = {
-    'slayd':        '🎨 Slayd',
-    'loyiha_ishi':  '📁 Loyiha ishi',
-    'referat':      '📚 Referat',
-    'mustaqil_ish': '📄 Mustaqil ish',
-    'maqola':       '📰 Maqola',
-    'kurs_ishi':    '🎓 Kurs ishi',
-    'bmi':          '🎓 BMI',
-    'infografika':  '📊 Infografika',
-}
-
-
-async def my_works_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchining so'nggi 10 ta ishini ko'rsatadi."""
-    user = update.effective_user
-    works = await asyncio.to_thread(db.get_user_generations, user.id, 10)
-
-    if not works:
-        await update.message.reply_text(
-            "📂 *Mening ishlarim*\n\nSiz hali hech qanday ish yaratmagansiz.\n"
-            "Xizmatlardan birini tanlang va birinchi ishingizni yarating!",
-            reply_markup=get_main_menu_keyboard(),
-            parse_mode="Markdown"
-        )
-        return
-
-    text = "📂 *Mening so'nggi ishlarim* (oxirgi 10 ta):\n\n"
-    buttons = []
-
-    for i, work in enumerate(works, 1):
-        service_label = SERVICE_LABELS.get(work['service'], work['service'])
-        topic = work['topic'] or 'Noma\'lum'
-        created = work['created_at']
-        if hasattr(created, 'strftime'):
-            date_str = created.strftime('%d.%m.%Y %H:%M')
-        else:
-            date_str = str(created)[:16]
-
-        text += f"{i}. {service_label} — *{topic[:40]}*\n"
-        text += f"   📅 {date_str} | 💰 {work['cost']:,} so'm\n\n"
-
-        # Agar file_id saqlangan bo'lsa, qayta yuborish tugmasi
-        if work.get('file_id'):
-            buttons.append([
-                InlineKeyboardButton(
-                    f"📥 {i}. {service_label} — {topic[:25]}",
-                    callback_data=f"resend_{work['id']}"
-                )
-            ])
-
-    if buttons:
-        text += "📥 *Faylni qayta olish uchun tugmani bosing:*"
-        keyboard = InlineKeyboardMarkup(buttons)
-    else:
-        keyboard = None
-
-    await update.message.reply_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
-
-
-async def my_work_resend_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Saqlangan faylni qayta yuboradi."""
-    query = update.callback_query
-    await query.answer()
-    user = update.effective_user
-
-    try:
-        gen_id = int(query.data.replace("resend_", ""))
-        works = await asyncio.to_thread(db.get_user_generations, user.id, 50)
-        work = next((w for w in works if w['id'] == gen_id), None)
-
-        if not work or not work.get('file_id'):
-            await query.answer("⚠️ Fayl topilmadi yoki muddati o'tgan.", show_alert=True)
-            return
-
-        service_label = SERVICE_LABELS.get(work['service'], work['service'])
-        topic = work['topic'] or 'Noma\'lum'
-        file_name = work.get('file_name') or f"{work['service']}.docx"
-
-        await context.bot.send_document(
-            chat_id=user.id,
-            document=work['file_id'],
-            filename=file_name,
-            caption=(
-                f"✅ *{topic}* — {service_label}\n"
-                f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot | 📢 t.me/slidego"
-            ),
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Resend xatolik: {e}")
-        await query.answer("⚠️ Faylni yuborishda xatolik yuz berdi.", show_alert=True)
-
-
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -3222,7 +3117,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(admin_approve_topup, pattern=r"^admin_approve_"))
     application.add_handler(CallbackQueryHandler(admin_reject_topup,  pattern=r"^admin_reject_"))
     application.add_handler(CallbackQueryHandler(check_sub_callback,  pattern=r"^check_sub$"))
-    application.add_handler(CallbackQueryHandler(my_work_resend_callback, pattern=r"^resend_\d+$"))
 
     # Balans & Referral menyu handleri
     application.add_handler(MessageHandler(
