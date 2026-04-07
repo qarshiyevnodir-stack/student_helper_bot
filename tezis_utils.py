@@ -14,7 +14,7 @@ from openai import OpenAI
 
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -55,11 +55,12 @@ TEZIS_TYPES = {
 }
 
 # Tezis turi bo'yicha sahifa soni
+# 1 A4 sahifa ≈ 350-400 so'z (Times New Roman 12pt, 1.5 interval)
 TEZIS_PAGES = {
-    1: {"sections": 2, "words_per_section": 150, "refs": 4},
-    2: {"sections": 3, "words_per_section": 200, "refs": 5},
-    3: {"sections": 3, "words_per_section": 250, "refs": 6},
-    5: {"sections": 4, "words_per_section": 300, "refs": 8},
+    1: {"sections": 2, "words_per_section": 250, "refs": 5},
+    2: {"sections": 3, "words_per_section": 380, "refs": 6},
+    3: {"sections": 3, "words_per_section": 500, "refs": 8},
+    5: {"sections": 4, "words_per_section": 700, "refs": 12},
 }
 
 
@@ -100,21 +101,25 @@ def generate_tezis_content(topic: str, tezis_type: str, lang: str, pages: int) -
     sections_json = {f"section_{i+1}": f"{section_names[i]} bo'limi matni" for i in range(n_sections)}
     sections_schema = "\n".join([f'  "section_{i+1}_title": "{section_names[i]}",\n  "section_{i+1}_text": "KAMIDA {words} so\'z matn"' for i in range(n_sections)])
 
+    intro_words = max(200, words // 2)
+    conclusion_words = max(150, words // 2)
+    abstract_words = 80 if pages <= 2 else 120
+
     prompt = f"""Sen ilmiy tezis yozuvchisisiz. {lang_instruction}
 
 Mavzu: "{topic}"
 Tezis turi: {type_label}
-Sahifa soni: ~{pages} sahifa
+Sahifa soni: {pages} sahifa (1 sahifa = taxminan 400 so'z)
 
-Quyidagi JSON formatida to'liq tezis yarating:
+Quyidagi JSON formatida TO'LIQ va BATAFSIL tezis yarating:
 
 {{
   "title": "Aniq va ilmiy sarlavha",
-  "abstract": "50-80 so'zlik qisqa annotatsiya",
+  "abstract": "KAMIDA {abstract_words} so'zlik annotatsiya — mavzu, maqsad, usul va natijalar",
   "keywords": ["kalit1", "kalit2", "kalit3", "kalit4", "kalit5"],
-  "introduction": "KAMIDA 100 so'z — dolzarblik va maqsad",
+  "introduction": "KAMIDA {intro_words} so'z — mavzuning dolzarbligi, tadqiqot maqsadi, vazifalari, ob'ekti va predmeti",
 {sections_schema},
-  "conclusion": "KAMIDA 80 so'z — asosiy xulosalar",
+  "conclusion": "KAMIDA {conclusion_words} so'z — asosiy xulosalar, amaliy ahamiyati va tavsiyalar",
   "references": [
     "1. Muallif A. (2023). Kitob nomi. Nashriyot.",
     "2. Muallif B. (2022). Maqola nomi. Jurnal nomi, 5(2), 10-25.",
@@ -124,21 +129,66 @@ Quyidagi JSON formatida to'liq tezis yarating:
 }}
 
 MUHIM TALABLAR:
-- Har bir bo'lim KAMIDA {words} so'z bo'lsin
-- Ilmiy uslubda, aniq va lo'nda yozing
-- Adabiyotlar real va ishonchli ko'rinsin
-- JSON formatidan chiqmang"""
+- Har bir asosiy bo'lim KAMIDA {words} so'z bo'lsin — qisqa yozma!
+- Kirish KAMIDA {intro_words} so'z bo'lsin
+- Xulosa KAMIDA {conclusion_words} so'z bo'lsin
+- Ilmiy uslubda, aniq faktlar va dalillar bilan yozing
+- Har bir bo'limda kamida 2-3 xat boshi (paragraf) bo'lsin
+- Adabiyotlar real mualliflar va nashrlar bilan ko'rinsin
+- JSON formatidan chiqmang
+- HECH QACHON qisqartirma yoki '...' ishlatmang, to'liq yozing"""
+
+    # Jami kerakli so'z soni
+    total_words_needed = pages * 400
+    system_msg = (
+        f"Sen ilmiy hujjat yozuvchisisiz. Sening vazifang {pages} sahifalik "
+        f"to'liq ilmiy tezis yaratish. Jami hujjatda KAMIDA {total_words_needed} so'z bo'lishi SHART. "
+        "Har bir bo'limni batafsil, aniq va to'liq yoz. Hech qachon qisqartirma ishlatma."
+    )
 
     client = get_client()
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": prompt}
+        ],
         response_format={"type": "json_object"},
         temperature=0.7,
-        max_tokens=4000,
+        max_tokens=8000,
     )
 
-    return json.loads(response.choices[0].message.content)
+    data = json.loads(response.choices[0].message.content)
+
+    # Har bir bo'limni kengaytirish (agar so'z soni yetarli bo'lmasa)
+    client2 = get_client()
+    for i in range(1, n_sections + 1):
+        key = f"section_{i}_text"
+        text = data.get(key, "")
+        word_count = len(text.split())
+        if word_count < words * 0.8:  # 80% dan kam bo'lsa kengaytir
+            expand_prompt = (
+                f"{lang_instruction}\n\n"
+                f"Quyidagi ilmiy bo'limni KAMIDA {words} so'zgacha kengaytir. "
+                f"Mavzu: '{topic}'. Bo'lim nomi: '{section_names[i-1]}'.\n\n"
+                f"Hozirgi matn:\n{text}\n\n"
+                f"Kengaytirilgan matnni faqat JSON formatida qaytar: {{\"text\": \"...\"}}"
+            )
+            try:
+                r2 = client2.chat.completions.create(
+                    model="gpt-4.1-mini",
+                    messages=[{"role": "user", "content": expand_prompt}],
+                    response_format={"type": "json_object"},
+                    temperature=0.7,
+                    max_tokens=3000,
+                )
+                expanded = json.loads(r2.choices[0].message.content)
+                if expanded.get("text") and len(expanded["text"].split()) > word_count:
+                    data[key] = expanded["text"]
+            except Exception as e:
+                logger.warning(f"Bo'lim {i} kengaytirishda xatolik: {e}")
+
+    return data
 
 
 # ─────────────────────────────────────────────
@@ -201,8 +251,11 @@ def add_paragraph(doc: Document, text: str, font_size: int = 12, justify: bool =
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     run = p.add_run(text)
     run.font.size = Pt(font_size)
-    p.paragraph_format.space_after = Pt(6)
+    run.font.name = 'Times New Roman'
+    p.paragraph_format.space_after = Pt(8)
+    p.paragraph_format.space_before = Pt(0)
     p.paragraph_format.first_line_indent = Cm(1.25)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
     return p
 
 
@@ -257,6 +310,7 @@ def build_tezis_docx(
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(12)
+    style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
 
     # ─── 1-SAHIFA: Sarlavha ───
     # Tezis turi
