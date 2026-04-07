@@ -32,6 +32,7 @@ from pptx import Presentation
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
+REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 SERVICE_PRICES = {
     "slayd":        3000,
@@ -396,6 +397,28 @@ async def archive_send_photo(
 
 
 # ─────────────────────────────────────────────
+# Majburiy obuna tekshiruvi
+# ─────────────────────────────────────────────
+
+async def check_subscription(bot, user_id: int) -> bool:
+    """Foydalanuvchi REQUIRED_CHANNEL ga a'zo ekanligini tekshiradi."""
+    try:
+        member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        logger.warning(f"Obuna tekshirishda xatolik: {e}")
+        return False
+
+
+def get_subscription_keyboard():
+    """Kanalga a'zo bo'lish tugmasi."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📢 Kanalga a'zo bo'lish", url="https://t.me/slidego")],
+        [InlineKeyboardButton("✅ A'zo bo'ldim, tekshir", callback_data="check_sub")],
+    ])
+
+
+# ─────────────────────────────────────────────
 # Handlerlar — Umumiy
 # ─────────────────────────────────────────────
 
@@ -403,6 +426,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Botni ishga tushiradi va asosiy menyu ko'rsatadi."""
     context.user_data.clear()
     user = update.effective_user
+
+    # Kanalga obuna tekshiruvi
+    is_subscribed = await check_subscription(context.bot, user.id)
+    if not is_subscribed:
+        await update.message.reply_text(
+            f"Salom, {user.first_name}! 👋\n\n"
+            f"Botdan foydalanish uchun avval kanalimizga a'zo bo'lishingiz kerak:\n"
+            f"📢 @slidego\n\n"
+            f"A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:",
+            reply_markup=get_subscription_keyboard()
+        )
+        return LANGUAGE_SELECTION
+
     # Referral tekshirish
     ref_by = None
     args = context.args
@@ -450,6 +486,17 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     text = update.message.text
     user = update.effective_user
     await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name)
+
+    # Kanalga obuna tekshiruvi
+    is_subscribed = await check_subscription(context.bot, user.id)
+    if not is_subscribed:
+        await update.message.reply_text(
+            f"Botdan foydalanish uchun avval kanalimizga a'zo bo'lishingiz kerak:\n"
+            f"📢 @slidego\n\n"
+            f"A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:",
+            reply_markup=get_subscription_keyboard()
+        )
+        return LANGUAGE_SELECTION
     # Har qanday menyu tugmasi bosilganda topup holatini tozalash
     # (foydalanuvchi topup oqimini bekor qilib boshqa xizmatga o'tgan bo'lishi mumkin)
     _set_topup_state(context, user.id, None)
@@ -2309,6 +2356,35 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 # ─────────────────────────────────────────────
+# Obuna tekshiruv callback
+# ─────────────────────────────────────────────
+
+async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi 'A'zo bo'ldim' tugmasini bosganda tekshiradi."""
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+
+    is_subscribed = await check_subscription(context.bot, user.id)
+    if is_subscribed:
+        # A'zo bo'ldi — start ni qayta ishga tushirish
+        await query.edit_message_text(
+            f"✅ Rahmat, {user.first_name}! Kanalga a'zo bo'ldingiz.\n\n"
+            f"Endi botdan to'liq foydalanishingiz mumkin! Quyidagi /start ni bosing:"
+        )
+        # Asosiy menyuni yuborish
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=f"Assalomu alaykum, {user.first_name}! 👋\n\nQuyidagi xizmatlardan birini tanlang:",
+            reply_markup=get_main_menu_keyboard()
+        )
+    else:
+        await query.answer(
+            text="⚠️ Siz hali kanalga a'zo bo'lmagansiz! Iltimos, avval @slidego kanaliga a'zo bo'ling.",
+            show_alert=True
+        )
+
+
 # ─────────────────────────────────────────────
 # Balans to'ldirish handlerlari
 
@@ -3034,6 +3110,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(admin_callback,      pattern=r"^adm_"))
     application.add_handler(CallbackQueryHandler(admin_approve_topup, pattern=r"^admin_approve_"))
     application.add_handler(CallbackQueryHandler(admin_reject_topup,  pattern=r"^admin_reject_"))
+    application.add_handler(CallbackQueryHandler(check_sub_callback,  pattern=r"^check_sub$"))
 
     # Balans & Referral menyu handleri
     application.add_handler(MessageHandler(
