@@ -27,6 +27,7 @@ from maqola_utils import generate_maqola
 from kurs_ishi_utils import generate_kurs_ishi
 from tezis_utils import generate_tezis
 from glossary_utils import generate_glossary, GLOSSARY_SIZES
+from test_utils import generate_test, TEST_PRICES
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -48,6 +49,10 @@ SERVICE_PRICES = {
     "glossary_small":   1000,
     "glossary_medium":  2000,
     "glossary_large":   3000,
+    "test_10":          1000,
+    "test_20":          2000,
+    "test_30":          2000,
+    "test_50":          3000,
     "kurs_ishi":        12000,
     "bmi":              20000,
 }
@@ -177,6 +182,16 @@ logger = logging.getLogger(__name__)
     GL_TOPIC,            # 92
     GL_AUTHOR,           # 93
 ) = range(90, 94)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Test tuzish
+# ─────────────────────────────────────────────
+(
+    TS_LANGUAGE,         # 95
+    TS_COUNT,            # 96
+    TS_TOPIC,            # 97
+    TS_AUTHOR,           # 98
+) = range(95, 99)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -647,6 +662,34 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return KI_TYPE
+
+    elif text == "🔠 Test tuzish":
+        context.user_data.clear()
+        context.user_data["mode"] = "test"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="ts_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ts_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ts_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="ts_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="ts_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ts_lang_de")],
+        ])
+        await update.message.reply_text(
+            "🔠 *Test tuzish*\n\n"
+            "Mavzu bo'yicha A/B/C/D formatida test yaratiladi.\n"
+            "Natijada 2 ta fayl yuboriladi:\n"
+            "• 📝 *Savol varaqasi* (imtihon uchun)\n"
+            "• ✅ *Javoblar varaqasi* (o'qituvchi uchun)\n\n"
+            "Narxlar:\n"
+            "• 10 ta savol → 1 000 so'm\n"
+            "• 20 ta savol → 2 000 so'm\n"
+            "• 30 ta savol → 2 000 so'm\n"
+            "• 50 ta savol → 3 000 so'm\n\n"
+            "Qaysi tilda test yaratmoqchisiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return TS_LANGUAGE
 
     elif text == "💡 Glossary ✨":
         context.user_data.clear()
@@ -2645,6 +2688,170 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ─────────────────────────────────────────────
+# Handlerlar — Test tuzish
+# ─────────────────────────────────────────────
+
+async def ts_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Test tilini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("ts_lang_", "")
+    context.user_data["ts_lang"] = lang
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    lang_name = lang_names.get(lang, lang)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📌 10 ta savol — 1 000 so'm", callback_data="ts_count_10")],
+        [InlineKeyboardButton("📚 20 ta savol — 2 000 so'm", callback_data="ts_count_20")],
+        [InlineKeyboardButton("📝 30 ta savol — 2 000 so'm", callback_data="ts_count_30")],
+        [InlineKeyboardButton("🏆 50 ta savol — 3 000 so'm", callback_data="ts_count_50")],
+    ])
+    await query.edit_message_text(
+        f"✅ *{lang_name} tili* tanlandi.\n\nNechta savol kerak?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return TS_COUNT
+
+
+async def ts_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Savol sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    count = int(query.data.replace("ts_count_", ""))
+    context.user_data["ts_count"] = count
+    price = SERVICE_PRICES.get(f"test_{count}", 1000)
+    await query.edit_message_text(
+        f"✅ *{count} ta savol* tanlandi (narx: {price:,} so'm).\n\n"
+        f"Test mavzusini kiriting:\n"
+        f"_(Masalan: Biologiya — hujayra, Tarix — Amir Temur, Python dasturlash...)_",
+        parse_mode="Markdown"
+    )
+    return TS_TOPIC
+
+
+async def ts_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Test mavzusini qabul qiladi."""
+    topic = update.message.text.strip()
+    context.user_data["ts_topic"] = topic
+    await update.message.reply_text(
+        f"✅ Mavzu: *{topic}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
+        f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
+        parse_mode="Markdown"
+    )
+    return TS_AUTHOR
+
+
+async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Muallif ismini qabul qiladi, so'ng testni yaratadi."""
+    author = update.message.text.strip()
+    if author == "-":
+        author = ""
+    context.user_data["ts_author"] = author
+
+    # Ma'lumotlarni olish
+    topic = context.user_data.get("ts_topic", "")
+    lang = context.user_data.get("ts_lang", "uz")
+    count = context.user_data.get("ts_count", 10)
+    user = update.effective_user
+
+    # Narx
+    price = SERVICE_PRICES.get(f"test_{count}", 1000)
+
+    # Balans tekshiruvi
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+    await update.message.reply_text(
+        f"⏳ *{topic}* mavzusida *{count} ta savol* yaratilmoqda...\n"
+        f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        # Test yaratish (2 ta DOCX)
+        question_doc, answer_doc = await generate_test(
+            topic=topic,
+            count=count,
+            lang=lang,
+            author=author,
+        )
+
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, 'test', topic, price)
+
+        # Savol varaqasini yuborish
+        q_filename = f"test_savollar_{topic[:25].replace(' ', '_')}.docx"
+        question_doc.seek(0)
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=question_doc,
+            filename=q_filename,
+            caption=(
+                f"📝 *Savol varaqasi* — {topic}\n"
+                f"📌 {count} ta savol | DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
+                f"🤖 @slidego_bot | 📢 t.me/slidego"
+            ),
+            parse_mode="Markdown"
+        )
+
+        # Javoblar varaqasini yuborish
+        a_filename = f"test_javoblar_{topic[:25].replace(' ', '_')}.docx"
+        answer_doc.seek(0)
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=answer_doc,
+            filename=a_filename,
+            caption=(
+                f"✅ *Javoblar varaqasi* — {topic}\n"
+                f"📌 {count} ta savol | DOCX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
+                f"🤖 @slidego_bot | 📢 t.me/slidego"
+            ),
+            parse_mode="Markdown"
+        )
+
+        # Arxiv kanalga yuborish (savol varaqasi)
+        question_doc.seek(0)
+        archive_q = BytesIO(question_doc.read())
+        archive_q.seek(0)
+        await archive_send_document(
+            context.bot,
+            document=archive_q,
+            filename=q_filename,
+            caption=f"🔠 Test | {topic} | {lang_names.get(lang, lang)} | {count} savol | User: {user.id}"
+        )
+
+        await update.message.reply_text(
+            f"🎉 Test muvaffaqiyatli yaratildi!\n"
+            f"📝 Savol varaqasi + ✅ Javoblar varaqasi yuborildi.\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    except Exception as e:
+        logger.error(f"Test yaratishda xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Test yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    return ConversationHandler.END
+
+
+# ─────────────────────────────────────────────
 # Handlerlar — Glossary
 # ─────────────────────────────────────────────
 
@@ -3553,6 +3760,23 @@ def main() -> None:
             ],
             TZ_INSTITUTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_institution),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Test tuzish holatlari ──
+            TS_LANGUAGE: [
+                CallbackQueryHandler(ts_get_language, pattern=r"^ts_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TS_COUNT: [
+                CallbackQueryHandler(ts_get_count, pattern=r"^ts_count_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TS_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ts_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TS_AUTHOR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ts_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Glossary holatlari ──
