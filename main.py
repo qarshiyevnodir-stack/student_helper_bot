@@ -2842,17 +2842,18 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
 
     except Exception as e:
-        logger.error(f"Test yaratishda xatolik: {e}")
+        import traceback
+        logger.error(f"Test yaratishda xatolik: {type(e).__name__}: {e}\n{traceback.format_exc()}")
         await update.message.reply_text(
-            "❌ Test yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
-            reply_markup=get_main_menu_keyboard()
+            f"❌ Test yaratishda xatolik yuz berdi.\n"
+            f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
         )
-
     return ConversationHandler.END
-
-
 # ─────────────────────────────────────────────
-# Handlerlar — Glossary
+# Handlerlar — Glossaryry
 # ─────────────────────────────────────────────
 
 async def gl_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -3519,9 +3520,12 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^💰 Maqola ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -3537,8 +3541,13 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
-                # Boshqa barcha tugmalar (ishga tushirilmagan xizmatlar ham)
+                # Boshqa barcha tugmalar
                 MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             ],
             TOPIC: [
