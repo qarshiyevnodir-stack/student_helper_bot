@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import asyncio
+from io import BytesIO
 import random
 import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
