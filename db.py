@@ -119,6 +119,16 @@ def init_db():
             )
         """)
 
+        # generations jadvaliga file_id ustunini qo'shish (migration)
+        c.execute("""
+            ALTER TABLE generations
+            ADD COLUMN IF NOT EXISTS file_id TEXT
+        """)
+        c.execute("""
+            ALTER TABLE generations
+            ADD COLUMN IF NOT EXISTS file_name TEXT
+        """)
+
         # Topup holati jadvali
         c.execute("""
             CREATE TABLE IF NOT EXISTS user_topup_state (
@@ -365,15 +375,34 @@ def log_deduction(user_id: int, amount: int, note: str = ""):
 # Generatsiya logi
 # ─────────────────────────────────────────────
 
-def log_generation(user_id: int, service: str, topic: str, cost: int):
+def log_generation(user_id: int, service: str, topic: str, cost: int, file_id: str = None, file_name: str = None):
     conn = get_conn()
     try:
         c = conn.cursor()
         c.execute("""
-            INSERT INTO generations (user_id, service, topic, cost)
-            VALUES (%s, %s, %s, %s)
-        """, (user_id, service, topic, cost))
+            INSERT INTO generations (user_id, service, topic, cost, file_id, file_name)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (user_id, service, topic, cost, file_id, file_name))
         conn.commit()
+    finally:
+        release_conn(conn)
+
+
+def get_user_generations(user_id: int, limit: int = 10) -> list:
+    """Foydalanuvchining so'nggi ishlarini qaytaradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, service, topic, cost, file_id, file_name, created_at
+            FROM generations
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+        """, (user_id, limit))
+        rows = c.fetchall()
+        cols = ["id", "service", "topic", "cost", "file_id", "file_name", "created_at"]
+        return [dict(zip(cols, row)) for row in rows]
     finally:
         release_conn(conn)
 

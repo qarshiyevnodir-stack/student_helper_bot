@@ -177,7 +177,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
-        [KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("💰 Balans & Referral 🔗"),  KeyboardButton("📂 Mening ishlarim")],
         [KeyboardButton("🖼️ Rasm yaratish"),   KeyboardButton("🎬 Video yaratish")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -597,6 +597,9 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return KI_TYPE
 
+    elif text == "📂 Mening ishlarim":
+        await my_works_handler(update, context)
+        return LANGUAGE_SELECTION
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -857,7 +860,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         filename = f"{safe_topic or 'taqdimot'}.pptx"
 
         # Fayl yuborildi — faqat shundan keyin balansdan yechish
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=presentation_bytes,
             filename=filename,
@@ -870,6 +873,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             ),
             parse_mode="Markdown"
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         # Arxiv kanalga yuborish
         _lang_name = context.user_data.get('language_name', language)
         await archive_send_document(
@@ -884,7 +888,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -1086,7 +1090,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'loyiha_ishi'}.docx"
         # Fayl yuborildi — faqat shundan keyin balansdan yechish
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
@@ -1099,6 +1103,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         # Arxiv kanalga yuborish
         await archive_send_document(
             bot=context.bot,
@@ -1112,7 +1117,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, 'loyiha_ishi', topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'loyiha_ishi', topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -1519,7 +1524,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'referat'}.docx"
         # Fayl yuborildi — faqat shundan keyin balansdan yechish
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
@@ -1532,6 +1537,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         # Arxiv kanalga yuborish
         await archive_send_document(
             bot=context.bot,
@@ -1545,7 +1551,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, 'referat', topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'referat', topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -1756,7 +1762,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         filename = f"{safe_topic or 'mustaqil_ish'}.docx"
 
         # Fayl yuborildi — faqat shundan keyin balansdan yechish
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
@@ -1769,6 +1775,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             parse_mode="Markdown"
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         # Arxiv kanalga yuborish
         await archive_send_document(
             bot=context.bot,
@@ -1782,7 +1789,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, 'mustaqil_ish', topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'mustaqil_ish', topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -1984,7 +1991,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'maqola'}.docx"
 
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
@@ -1997,6 +2004,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             ),
             parse_mode="Markdown"
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         # Arxiv kanalga yuborish
         await archive_send_document(
             bot=context.bot,
@@ -2010,7 +2018,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, 'maqola', topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'maqola', topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -2303,18 +2311,19 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
         filename = f"{safe_topic or 'kurs_ishi'}.docx"
 
-        await context.bot.send_document(
+        sent_msg = await context.bot.send_document(
             chat_id=chat_id,
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ {topic} \u2014 {service_label} tayyor!\n"
+                f"✅ {topic} — {service_label} tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego_bot\n"
                 f"📢 t.me/slidego"
             ),
         )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         await archive_send_document(
             bot=context.bot,
             user=update.effective_user,
@@ -2327,7 +2336,7 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             filename=filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
-        await asyncio.to_thread(db.log_generation, user_id, work_type, topic, price)
+        await asyncio.to_thread(db.log_generation, user_id, work_type, topic, price, _file_id, filename)
         new_balance = await asyncio.to_thread(db.get_balance, user_id)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -2344,6 +2353,108 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
     return ConversationHandler.END
+
+
+# ─────────────────────────────────────────────
+# Mening ishlarim
+# ─────────────────────────────────────────────
+
+SERVICE_LABELS = {
+    'slayd':        '🎨 Slayd',
+    'loyiha_ishi':  '📁 Loyiha ishi',
+    'referat':      '📚 Referat',
+    'mustaqil_ish': '📄 Mustaqil ish',
+    'maqola':       '📰 Maqola',
+    'kurs_ishi':    '🎓 Kurs ishi',
+    'bmi':          '🎓 BMI',
+    'infografika':  '📊 Infografika',
+}
+
+
+async def my_works_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchining so'nggi 10 ta ishini ko'rsatadi."""
+    user = update.effective_user
+    works = await asyncio.to_thread(db.get_user_generations, user.id, 10)
+
+    if not works:
+        await update.message.reply_text(
+            "📂 *Mening ishlarim*\n\nSiz hali hech qanday ish yaratmagansiz.\n"
+            "Xizmatlardan birini tanlang va birinchi ishingizni yarating!",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+        return
+
+    text = "📂 *Mening so'nggi ishlarim* (oxirgi 10 ta):\n\n"
+    buttons = []
+
+    for i, work in enumerate(works, 1):
+        service_label = SERVICE_LABELS.get(work['service'], work['service'])
+        topic = work['topic'] or 'Noma\'lum'
+        created = work['created_at']
+        if hasattr(created, 'strftime'):
+            date_str = created.strftime('%d.%m.%Y %H:%M')
+        else:
+            date_str = str(created)[:16]
+
+        text += f"{i}. {service_label} — *{topic[:40]}*\n"
+        text += f"   📅 {date_str} | 💰 {work['cost']:,} so'm\n\n"
+
+        # Agar file_id saqlangan bo'lsa, qayta yuborish tugmasi
+        if work.get('file_id'):
+            buttons.append([
+                InlineKeyboardButton(
+                    f"📥 {i}. {service_label} — {topic[:25]}",
+                    callback_data=f"resend_{work['id']}"
+                )
+            ])
+
+    if buttons:
+        text += "📥 *Faylni qayta olish uchun tugmani bosing:*"
+        keyboard = InlineKeyboardMarkup(buttons)
+    else:
+        keyboard = None
+
+    await update.message.reply_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+
+async def my_work_resend_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Saqlangan faylni qayta yuboradi."""
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+
+    try:
+        gen_id = int(query.data.replace("resend_", ""))
+        works = await asyncio.to_thread(db.get_user_generations, user.id, 50)
+        work = next((w for w in works if w['id'] == gen_id), None)
+
+        if not work or not work.get('file_id'):
+            await query.answer("⚠️ Fayl topilmadi yoki muddati o'tgan.", show_alert=True)
+            return
+
+        service_label = SERVICE_LABELS.get(work['service'], work['service'])
+        topic = work['topic'] or 'Noma\'lum'
+        file_name = work.get('file_name') or f"{work['service']}.docx"
+
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=work['file_id'],
+            filename=file_name,
+            caption=(
+                f"✅ *{topic}* — {service_label}\n"
+                f"📚 Biz bilan ishingiz oson!\n"
+                f"🤖 @slidego\_bot | 📢 t.me/slidego"
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Resend xatolik: {e}")
+        await query.answer("⚠️ Faylni yuborishda xatolik yuz berdi.", show_alert=True)
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -3111,6 +3222,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(admin_approve_topup, pattern=r"^admin_approve_"))
     application.add_handler(CallbackQueryHandler(admin_reject_topup,  pattern=r"^admin_reject_"))
     application.add_handler(CallbackQueryHandler(check_sub_callback,  pattern=r"^check_sub$"))
+    application.add_handler(CallbackQueryHandler(my_work_resend_callback, pattern=r"^resend_\d+$"))
 
     # Balans & Referral menyu handleri
     application.add_handler(MessageHandler(
