@@ -26,6 +26,7 @@ from infografika_utils import generate_infografika, generate_infografika_hd
 from maqola_utils import generate_maqola
 from kurs_ishi_utils import generate_kurs_ishi
 from tezis_utils import generate_tezis
+from glossary_utils import generate_glossary, GLOSSARY_SIZES
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -44,6 +45,9 @@ SERVICE_PRICES = {
     "infografika_hd":   3000,
     "maqola":           3000,
     "tezis":            2000,
+    "glossary_small":   1000,
+    "glossary_medium":  2000,
+    "glossary_large":   3000,
     "kurs_ishi":        12000,
     "bmi":              20000,
 }
@@ -163,6 +167,16 @@ logger = logging.getLogger(__name__)
     TZ_NAME_SURNAME,     # 84
     TZ_INSTITUTION,      # 85
 ) = range(80, 86)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Glossary
+# ─────────────────────────────────────────────
+(
+    GL_LANGUAGE,         # 90
+    GL_SIZE,             # 91
+    GL_TOPIC,            # 92
+    GL_AUTHOR,           # 93
+) = range(90, 94)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -633,6 +647,30 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return KI_TYPE
+
+    elif text == "💡 Glossary ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "glossary"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="gl_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="gl_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="gl_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="gl_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="gl_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="gl_lang_de")],
+        ])
+        await update.message.reply_text(
+            "💡 *Glossary (Atamalar lug'ati)*\n\n"
+            "Mavzu bo'yicha atamalar va ta'riflari bilan professional lug'at yaratiladi.\n\n"
+            "Narxlar:\n"
+            "\u2022 Kichik (15 ta atama) \u2192 1 000 so'm\n"
+            "\u2022 O'rta (30 ta atama) \u2192 2 000 so'm\n"
+            "\u2022 Katta (50 ta atama) \u2192 3 000 so'm\n\n"
+            "Qaysi tilda glossary yaratmoqchisiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return GL_LANGUAGE
 
     elif text == "📜 Tezis ✨":
         context.user_data.clear()
@@ -2606,6 +2644,156 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return ConversationHandler.END
 
 
+# ─────────────────────────────────────────────
+# Handlerlar — Glossary
+# ─────────────────────────────────────────────
+
+async def gl_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Glossary tilini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("gl_lang_", "")
+    context.user_data["gl_lang"] = lang
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    lang_name = lang_names.get(lang, lang)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📌 Kichik (15 ta atama) — 1 000 so'm", callback_data="gl_size_small")],
+        [InlineKeyboardButton("📚 O'rta (30 ta atama) — 2 000 so'm", callback_data="gl_size_medium")],
+        [InlineKeyboardButton("🏆 Katta (50 ta atama) — 3 000 so'm", callback_data="gl_size_large")],
+    ])
+    await query.edit_message_text(
+        f"✅ *{lang_name} tili* tanlandi.\n\nGlossary hajmini tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return GL_SIZE
+
+
+async def gl_get_size(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Glossary hajmini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    size = query.data.replace("gl_size_", "")
+    context.user_data["gl_size"] = size
+    size_labels = {"small": "Kichik (15 ta)", "medium": "O'rta (30 ta)", "large": "Katta (50 ta)"}
+    size_label = size_labels.get(size, size)
+    await query.edit_message_text(
+        f"✅ *{size_label}* tanlandi.\n\nGlossary mavzusini kiriting:\n"
+        f"_(Masalan: Iqtisodiyot, Biologiya, Dasturlash, Huquq...)_",
+        parse_mode="Markdown"
+    )
+    return GL_TOPIC
+
+
+async def gl_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Glossary mavzusini qabul qiladi."""
+    topic = update.message.text.strip()
+    context.user_data["gl_topic"] = topic
+    await update.message.reply_text(
+        f"✅ Mavzu: *{topic}*\n\nMuallif ism-familiyasini kiriting:\n"
+        f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
+        parse_mode="Markdown"
+    )
+    return GL_AUTHOR
+
+
+async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Muallif ismini qabul qiladi, so'ng glossaryni yaratadi."""
+    author = update.message.text.strip()
+    if author == "-":
+        author = ""
+    context.user_data["gl_author"] = author
+
+    # Ma'lumotlarni olish
+    topic = context.user_data.get("gl_topic", "")
+    lang = context.user_data.get("gl_lang", "uz")
+    size = context.user_data.get("gl_size", "small")
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+
+    # Narx aniqlash
+    price_key = f"glossary_{size}"
+    price = SERVICE_PRICES.get(price_key, 1000)
+
+    # Balans tekshiruvi
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+
+    size_labels = {"small": "Kichik (15 ta)", "medium": "O'rta (30 ta)", "large": "Katta (50 ta)"}
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+    await update.message.reply_text(
+        f"⏳ *{topic}* mavzusida glossary yaratilmoqda...\n"
+        f"📌 Hajm: {size_labels.get(size, size)} | 🌍 Til: {lang_names.get(lang, lang)}\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        # Glossary yaratish
+        doc_bytes = await generate_glossary(
+            topic=topic,
+            size=size,
+            lang=lang,
+            author=author,
+        )
+
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, 'glossary', topic, price)
+
+        # Foydalanuvchiga yuborish
+        file_name = f"glossary_{topic[:30].replace(' ', '_')}.docx"
+        doc_bytes.seek(0)
+        caption = (
+            f"✅ {topic} — Glossary tayyor!\n"
+            f"📌 {size_labels.get(size, size)} | 📎 DOCX\n\n"
+            f"📚 Biz bilan ishingiz oson!\n"
+            f"🤖 @slidego_bot\n"
+            f"📢 t.me/slidego"
+        )
+        sent_msg = await context.bot.send_document(
+            chat_id=user.id,
+            document=doc_bytes,
+            filename=file_name,
+            caption=caption
+        )
+
+        # Arxiv kanalga yuborish
+        doc_bytes.seek(0)
+        archive_doc = BytesIO(doc_bytes.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            context.bot,
+            document=archive_doc,
+            filename=file_name,
+            caption=f"💡 Glossary | {topic} | {lang_names.get(lang, lang)} | {size_labels.get(size, size)} | User: {user.id}"
+        )
+
+        await update.message.reply_text(
+            f"🎉 Glossary muvaffaqiyatli yaratildi!\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    except Exception as e:
+        logger.error(f"Glossary yaratishda xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Glossary yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -3365,6 +3553,23 @@ def main() -> None:
             ],
             TZ_INSTITUTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_institution),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Glossary holatlari ──
+            GL_LANGUAGE: [
+                CallbackQueryHandler(gl_get_language, pattern=r"^gl_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            GL_SIZE: [
+                CallbackQueryHandler(gl_get_size, pattern=r"^gl_size_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            GL_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, gl_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            GL_AUTHOR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, gl_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
