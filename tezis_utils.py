@@ -21,7 +21,9 @@ from docx.oxml import OxmlElement
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI()
+def get_client():
+    """OpenAI client ni lazy yaratish."""
+    return OpenAI()
 
 # ─────────────────────────────────────────────
 # Til sozlamalari
@@ -127,6 +129,7 @@ MUHIM TALABLAR:
 - Adabiyotlar real va ishonchli ko'rinsin
 - JSON formatidan chiqmang"""
 
+    client = get_client()
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[{"role": "user", "content": prompt}],
