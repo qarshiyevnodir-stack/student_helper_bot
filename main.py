@@ -25,6 +25,7 @@ from loyiha_ishi_utils import generate_loyiha_ishi
 from infografika_utils import generate_infografika, generate_infografika_hd
 from maqola_utils import generate_maqola
 from kurs_ishi_utils import generate_kurs_ishi
+from tezis_utils import generate_tezis
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -42,6 +43,7 @@ SERVICE_PRICES = {
     "infografika":      1500,
     "infografika_hd":   3000,
     "maqola":           3000,
+    "tezis":            2000,
     "kurs_ishi":        12000,
     "bmi":              20000,
 }
@@ -149,6 +151,18 @@ logger = logging.getLogger(__name__)
     KI_TEACHER,          # 77
     KI_SUBJECT,          # 78
 ) = range(70, 79)
+
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Tezis
+# ─────────────────────────────────────────────
+(
+    TZ_TYPE,             # 80 — tezis turi
+    TZ_LANGUAGE,         # 81
+    TZ_PAGE_COUNT,       # 82
+    TZ_TOPIC,            # 83
+    TZ_NAME_SURNAME,     # 84
+    TZ_INSTITUTION,      # 85
+) = range(80, 86)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -619,6 +633,28 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return KI_TYPE
+
+    elif text == "📜 Tezis ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "tezis"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📋 Konferensiya tezisi", callback_data="tz_type_konferensiya")],
+            [InlineKeyboardButton("🏆 Olimpiada tezisi", callback_data="tz_type_olimpiada")],
+            [InlineKeyboardButton("📚 Seminar tezisi", callback_data="tz_type_seminar")],
+            [InlineKeyboardButton("🎓 Dissertatsiya tezisi", callback_data="tz_type_dissertatsiya")],
+        ])
+        await update.message.reply_text(
+            "📜 *Tezis yaratish*\n\n"
+            "Tezis turi va narxlari:\n"
+            "\u2022 1 sahifa \u2192 2 000 so'm\n"
+            "\u2022 2 sahifa \u2192 2 000 so'm\n"
+            "\u2022 3 sahifa \u2192 2 000 so'm\n"
+            "\u2022 5 sahifa \u2192 2 000 so'm\n\n"
+            "Qaysi turdagi tezis kerak?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return TZ_TYPE
 
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
@@ -2375,6 +2411,201 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
+# ─────────────────────────────────────────────
+# Handlerlar — Tezis
+# ─────────────────────────────────────────────
+
+async def tz_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tezis turini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    tz_type = query.data.replace("tz_type_", "")
+    context.user_data["tz_type"] = tz_type
+    type_names = {
+        "konferensiya": "Konferensiya tezisi",
+        "olimpiada": "Olimpiada tezisi",
+        "seminar": "Seminar tezisi",
+        "dissertatsiya": "Dissertatsiya tezisi",
+    }
+    type_name = type_names.get(tz_type, "Tezis")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("O'zbek tili", callback_data="tz_lang_uz"),
+         InlineKeyboardButton("Ingliz tili", callback_data="tz_lang_en")],
+        [InlineKeyboardButton("Rus tili", callback_data="tz_lang_ru"),
+         InlineKeyboardButton("Kores tili", callback_data="tz_lang_ko")],
+        [InlineKeyboardButton("Xitoy tili", callback_data="tz_lang_zh"),
+         InlineKeyboardButton("Nemis tili", callback_data="tz_lang_de")],
+    ])
+    await query.edit_message_text(
+        f"✅ *{type_name}* tanlandi.\n\nQaysi tilda yozilsin?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return TZ_LANGUAGE
+
+
+async def tz_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tezis tilini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("tz_lang_", "")
+    context.user_data["tz_lang"] = lang
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    lang_name = lang_names.get(lang, lang)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("1 sahifa — 2 000 so'm", callback_data="tz_pages_1")],
+        [InlineKeyboardButton("2 sahifa — 2 000 so'm", callback_data="tz_pages_2")],
+        [InlineKeyboardButton("3 sahifa — 2 000 so'm", callback_data="tz_pages_3")],
+        [InlineKeyboardButton("5 sahifa — 2 000 so'm", callback_data="tz_pages_5")],
+    ])
+    await query.edit_message_text(
+        f"✅ *{lang_name} tili* tanlandi.\n\nNecha sahifali tezis kerak?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return TZ_PAGE_COUNT
+
+
+async def tz_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tezis sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    pages = int(query.data.replace("tz_pages_", ""))
+    context.user_data["tz_pages"] = pages
+    await query.edit_message_text(
+        f"✅ *{pages} sahifa* tanlandi.\n\nTezis mavzusini kiriting:",
+        parse_mode="Markdown"
+    )
+    return TZ_TOPIC
+
+
+async def tz_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tezis mavzusini qabul qiladi."""
+    topic = update.message.text.strip()
+    context.user_data["tz_topic"] = topic
+    await update.message.reply_text(
+        f"✅ Mavzu: *{topic}*\n\nMuallif ism-familiyasini kiriting:\n(Ixtiyoriy — o'tkazib yuborish uchun \"- \" yozing)",
+        parse_mode="Markdown"
+    )
+    return TZ_NAME_SURNAME
+
+
+async def tz_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tezis muallif ismini qabul qiladi."""
+    name = update.message.text.strip()
+    if name == "-":
+        name = ""
+    context.user_data["tz_name"] = name
+    await update.message.reply_text(
+        "Muassasa/universitet nomini kiriting:\n(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)"
+    )
+    return TZ_INSTITUTION
+
+
+async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Muassasani qabul qiladi, so'ng tezisni yaratadi."""
+    institution = update.message.text.strip()
+    if institution == "-":
+        institution = ""
+    context.user_data["tz_institution"] = institution
+
+    # Ma'lumotlarni olish
+    topic = context.user_data.get("tz_topic", "")
+    tz_type = context.user_data.get("tz_type", "konferensiya")
+    lang = context.user_data.get("tz_lang", "uz")
+    pages = context.user_data.get("tz_pages", 2)
+    name = context.user_data.get("tz_name", "")
+    user = update.effective_user
+
+    # Balans tekshiruvi
+    price = SERVICE_PRICES['tezis']
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+
+    type_names = {
+        "konferensiya": "Konferensiya tezisi",
+        "olimpiada": "Olimpiada tezisi",
+        "seminar": "Seminar tezisi",
+        "dissertatsiya": "Dissertatsiya tezisi",
+    }
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+    await update.message.reply_text(
+        f"⏳ *{type_names.get(tz_type, 'Tezis')}* yaratilmoqda...\n"
+        f"📌 Mavzu: {topic}\n"
+        f"🌍 Til: {lang_names.get(lang, lang)} | 📄 {pages} sahifa\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        # Tezis yaratish
+        doc_bytes = await generate_tezis(
+            topic=topic,
+            tezis_type=tz_type,
+            lang=lang,
+            pages=pages,
+            author=name,
+            institution=institution,
+        )
+
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, 'tezis', topic, price)
+
+        # Foydalanuvchiga yuborish
+        file_name = f"tezis_{topic[:30].replace(' ', '_')}.docx"
+        doc_bytes.seek(0)
+        caption = (
+            f"✅ {topic} — tezis tayyor!\n"
+            f"📄 {pages} sahifa | 📎 DOCX\n\n"
+            f"📚 Biz bilan ishingiz oson!\n"
+            f"🤖 @slidego_bot\n"
+            f"📢 t.me/slidego"
+        )
+        sent_msg = await context.bot.send_document(
+            chat_id=user.id,
+            document=doc_bytes,
+            filename=file_name,
+            caption=caption
+        )
+
+        # Arxiv kanalga yuborish
+        archive_doc = BytesIO(sent_msg.document.file_id.encode() if isinstance(sent_msg.document.file_id, str) else b"")
+        doc_bytes.seek(0)
+        archive_doc = BytesIO(doc_bytes.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            context.bot,
+            document=archive_doc,
+            filename=file_name,
+            caption=f"📜 Tezis | {topic} | {lang_names.get(lang, lang)} | {pages} sah | User: {user.id}"
+        )
+
+        await update.message.reply_text(
+            f"🎉 Tezis muvaffaqiyatli yaratildi!\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    except Exception as e:
+        logger.error(f"Tezis yaratishda xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Tezis yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard()
+        )
+
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -2895,6 +3126,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^💰 Maqola ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -3109,6 +3341,31 @@ def main() -> None:
                 CallbackQueryHandler(ki_get_teacher, pattern=r"^ki_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_teacher),
+            ],
+            # ── Tezis holatlari ──
+            TZ_TYPE: [
+                CallbackQueryHandler(tz_get_type, pattern=r"^tz_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TZ_LANGUAGE: [
+                CallbackQueryHandler(tz_get_language, pattern=r"^tz_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TZ_PAGE_COUNT: [
+                CallbackQueryHandler(tz_get_page_count, pattern=r"^tz_pages_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TZ_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TZ_NAME_SURNAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_name),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TZ_INSTITUTION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_institution),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
