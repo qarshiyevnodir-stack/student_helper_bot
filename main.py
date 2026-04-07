@@ -400,14 +400,37 @@ async def archive_send_photo(
 # Majburiy obuna tekshiruvi
 # ─────────────────────────────────────────────
 
-async def check_subscription(bot, user_id: int) -> bool:
-    """Foydalanuvchi REQUIRED_CHANNEL ga a'zo ekanligini tekshiradi."""
+# Obuna holati cache: {user_id: (is_subscribed, timestamp)}
+_subscription_cache: dict = {}
+SUBSCRIPTION_CACHE_TTL = 600  # 10 daqiqa (soniyada)
+
+
+async def check_subscription(bot, user_id: int, force: bool = False) -> bool:
+    """Foydalanuvchi REQUIRED_CHANNEL ga a'zo ekanligini tekshiradi.
+    Natija 10 daqiqa cache da saqlanadi."""
+    import time
+    now = time.time()
+
+    # Cache dan tekshirish (force=True bo'lsa cache o'tkazib yuboriladi)
+    if not force and user_id in _subscription_cache:
+        cached_result, cached_time = _subscription_cache[user_id]
+        if now - cached_time < SUBSCRIPTION_CACHE_TTL:
+            return cached_result
+
+    # API ga so'rov yuborish
     try:
         member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
-        return member.status in ("member", "administrator", "creator")
+        result = member.status in ("member", "administrator", "creator")
     except Exception as e:
         logger.warning(f"Obuna tekshirishda xatolik: {e}")
-        return False
+        # Xatolikda eski cache natijasini qaytarish (agar mavjud bo'lsa)
+        if user_id in _subscription_cache:
+            return _subscription_cache[user_id][0]
+        return True  # Xatolikda botdan foydalanishga ruxsat berish
+
+    # Cache ga saqlash
+    _subscription_cache[user_id] = (result, now)
+    return result
 
 
 def get_subscription_keyboard():
@@ -2371,7 +2394,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     user = update.effective_user
 
-    is_subscribed = await check_subscription(context.bot, user.id)
+    is_subscribed = await check_subscription(context.bot, user.id, force=True)
     if is_subscribed:
         # A'zo bo'ldi — start ni qayta ishga tushirish
         await query.edit_message_text(
