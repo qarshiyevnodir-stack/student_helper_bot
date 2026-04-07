@@ -1005,7 +1005,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 f"✅ *{topic}* — taqdimot tayyor!\n"
                 f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
@@ -1235,7 +1235,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"✅ *{topic}* — loyiha ishi tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
@@ -1457,7 +1457,7 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
                     f"🖼 PNG\n\n"
                     f"📚 Biz bilan ishingiz oson!\n"
-                    f"🤖 @slidego\_bot\n"
+                    f"🤖 @slidego\n"
                     f"📢 t.me/slidego"
                 ),
                 parse_mode="Markdown"
@@ -1669,7 +1669,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"✅ *{topic}* — referat tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
@@ -1907,7 +1907,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"✅ *{topic}* — mustaqil ish tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
@@ -2136,7 +2136,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 f"✅ *{topic}* — maqola tayyor!\n"
                 f"📰 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego\_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
             parse_mode="Markdown"
@@ -2456,7 +2456,7 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"✅ {topic} — {service_label} tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego_bot\n"
+                f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
         )
@@ -2649,7 +2649,7 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"✅ {topic} — tezis tayyor!\n"
             f"📄 {pages} sahifa | 📎 DOCX\n\n"
             f"📚 Biz bilan ishingiz oson!\n"
-            f"🤖 @slidego_bot\n"
+            f"🤖 @slidego\n"
             f"📢 t.me/slidego"
         )
         sent_msg = await context.bot.send_document(
@@ -2799,12 +2799,11 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             document=question_doc,
             filename=q_filename,
             caption=(
-                f"📝 *Savol varaqasi* — {topic}\n"
+                f"📝 Savol varaqasi — {topic}\n"
                 f"📌 {count} ta savol | DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego_bot | 📢 t.me/slidego"
-            ),
-            parse_mode="Markdown"
+                f"🤖 @slidego | 📢 t.me/slidego"
+            )
         )
 
         # Javoblar varaqasini yuborish
@@ -2815,12 +2814,11 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             document=answer_doc,
             filename=a_filename,
             caption=(
-                f"✅ *Javoblar varaqasi* — {topic}\n"
+                f"✅ Javoblar varaqasi — {topic}\n"
                 f"📌 {count} ta savol | DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
-                f"🤖 @slidego_bot | 📢 t.me/slidego"
-            ),
-            parse_mode="Markdown"
+                f"🤖 @slidego | 📢 t.me/slidego"
+            )
         )
 
         # Arxiv kanalga yuborish (savol varaqasi)
@@ -2965,7 +2963,7 @@ async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             f"✅ {topic} — Glossary tayyor!\n"
             f"📌 {size_labels.get(size, size)} | 📎 DOCX\n\n"
             f"📚 Biz bilan ishingiz oson!\n"
-            f"🤖 @slidego_bot\n"
+            f"🤖 @slidego\n"
             f"📢 t.me/slidego"
         )
         sent_msg = await context.bot.send_document(
