@@ -30,6 +30,7 @@ from tezis_utils import generate_tezis
 from glossary_utils import generate_glossary, GLOSSARY_SIZES
 from test_utils import generate_test
 from crossword_utils import generate_crossword, CROSSWORD_PRICES
+from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -59,6 +60,11 @@ SERVICE_PRICES = {
     "krossvord_10":     1000,
     "krossvord_15":     2000,
     "krossvord_20":     2000,
+    # Insho / Esse
+    "insho_1":          1000,
+    "insho_2":          2000,
+    "insho_3":          2000,
+    "insho_5":          3000,
     "kurs_ishi":        12000,
     "bmi":              20000,
 }
@@ -209,6 +215,17 @@ logger = logging.getLogger(__name__)
     KR_AUTHOR,           # 103
 ) = range(100, 104)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Insho / Esse
+# ─────────────────────────────────────────────
+(
+    IN_TYPE,             # 105
+    IN_LANGUAGE,         # 106
+    IN_PAGE_COUNT,       # 107
+    IN_TOPIC,            # 108
+    IN_NAME_SURNAME,     # 109
+    IN_INSTITUTION,      # 110
+) = range(105, 111)
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -235,7 +252,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
-        [KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -777,6 +794,29 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return TZ_TYPE
 
+    elif text == "✍️ Insho / Esse ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "insho"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ Erkin insho",       callback_data="in_type_erkin")],
+            [InlineKeyboardButton("🔍 Tahliliy esse",     callback_data="in_type_tahliliy")],
+            [InlineKeyboardButton("💡 Argumentativ esse", callback_data="in_type_argumentativ")],
+            [InlineKeyboardButton("📖 Tavsifiy insho",    callback_data="in_type_tavsifiy")],
+            [InlineKeyboardButton("⚖️ Muqoyasali esse",   callback_data="in_type_muqoyasali")],
+        ])
+        await update.message.reply_text(
+            "✍️ *Insho / Esse yozish*\n\n"
+            "Akademik va professional uslubda insho yoziladi.\n\n"
+            "Narxlar:\n"
+            "• 1 sahifa → 1 000 so'm\n"
+            "• 2 sahifa → 2 000 so'm\n"
+            "• 3 sahifa → 2 000 so'm\n"
+            "• 5 sahifa → 3 000 so'm\n\n"
+            "Insho turini tanlang:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return IN_TYPE
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -3196,6 +3236,194 @@ async def kr_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             parse_mode="Markdown"
         )
     return ConversationHandler.END
+# ─────────────────────────────────────────────
+# Handlerlar — Insho / Esse
+# ─────────────────────────────────────────────
+async def in_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Insho turini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    insho_type = query.data.replace("in_type_", "")
+    context.user_data["in_type"] = insho_type
+    type_labels = {
+        "erkin": "✍️ Erkin insho",
+        "tahliliy": "🔍 Tahliliy esse",
+        "argumentativ": "💡 Argumentativ esse",
+        "tavsifiy": "📖 Tavsifiy insho",
+        "muqoyasali": "⚖️ Muqoyasali esse",
+    }
+    type_label = type_labels.get(insho_type, insho_type)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="in_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="in_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="in_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="in_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="in_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="in_lang_de")],
+    ])
+    await query.edit_message_text(
+        f"✅ Tur: {type_label}\n\nQaysi tilda insho yozmoqchisiz?",
+        reply_markup=keyboard
+    )
+    return IN_LANGUAGE
+
+async def in_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Insho tilini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("in_lang_", "")
+    context.user_data["in_lang"] = lang
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    lang_name = lang_names.get(lang, lang)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📌 1 sahifa — 1 000 so'm", callback_data="in_pages_1")],
+        [InlineKeyboardButton("📚 2 sahifa — 2 000 so'm", callback_data="in_pages_2")],
+        [InlineKeyboardButton("🏆 3 sahifa — 2 000 so'm", callback_data="in_pages_3")],
+        [InlineKeyboardButton("🌟 5 sahifa — 3 000 so'm", callback_data="in_pages_5")],
+    ])
+    await query.edit_message_text(
+        f"✅ Til: {lang_name}\n\nNecha sahifali insho kerak?",
+        reply_markup=keyboard
+    )
+    return IN_PAGE_COUNT
+
+async def in_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sahifa sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    pages = int(query.data.replace("in_pages_", ""))
+    context.user_data["in_pages"] = pages
+    price = SERVICE_PRICES.get(f"insho_{pages}", 1000)
+    await query.edit_message_text(
+        f"✅ Sahifa soni: {pages} ta\n"
+        f"💰 Narx: {price:,} so'm\n\n"
+        f"Insho mavzusini kiriting:\n"
+        f"_(Masalan: Ekologiya muammolari, Sun'iy intellekt va kelajak)_",
+        parse_mode="Markdown"
+    )
+    return IN_TOPIC
+
+async def in_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Insho mavzusini qabul qiladi."""
+    topic = update.message.text.strip()
+    context.user_data["in_topic"] = topic
+    await update.message.reply_text(
+        f"✅ Mavzu: *{topic}*\n\nIsm-familiyangizni kiriting:\n"
+        f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
+        parse_mode="Markdown"
+    )
+    return IN_NAME_SURNAME
+
+async def in_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ism-familiyani qabul qiladi."""
+    author = update.message.text.strip()
+    if author == "-":
+        author = ""
+    context.user_data["in_author"] = author
+    await update.message.reply_text(
+        f"Muassasa / maktab / universitetingiz nomini kiriting:\n"
+        f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
+        parse_mode="Markdown"
+    )
+    return IN_INSTITUTION
+
+async def in_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Muassasa nomini qabul qiladi, so'ng insho yaratadi."""
+    institution = update.message.text.strip()
+    if institution == "-":
+        institution = ""
+    context.user_data["in_institution"] = institution
+
+    topic = context.user_data.get("in_topic", "")
+    lang = context.user_data.get("in_lang", "uz")
+    pages = context.user_data.get("in_pages", 2)
+    insho_type = context.user_data.get("in_type", "erkin")
+    author = context.user_data.get("in_author", "")
+    user = update.effective_user
+    price = SERVICE_PRICES.get(f"insho_{pages}", 1000)
+
+    # Balans tekshiruvi
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+
+    type_labels = {
+        "erkin": "Erkin insho", "tahliliy": "Tahliliy esse",
+        "argumentativ": "Argumentativ esse", "tavsifiy": "Tavsifiy insho",
+        "muqoyasali": "Muqoyasali esse",
+    }
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+    await update.message.reply_text(
+        f"⏳ *{topic}* mavzusida *{pages} sahifali {type_labels.get(insho_type, 'insho')}* yozilmoqda...\n"
+        f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+    try:
+        doc_bytes = await generate_insho(
+            topic=topic,
+            insho_type=insho_type,
+            lang=lang,
+            pages=pages,
+            author=author,
+            institution=institution,
+        )
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, 'insho', topic, price)
+
+        filename = f"insho_{topic[:25].replace(' ', '_')}.docx"
+        doc_bytes.seek(0)
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✍️ Insho — {topic}\n"
+                f"📌 {pages} sahifa | {type_labels.get(insho_type, 'insho')} | DOCX\n\n"
+                f"Biz bilan ishingiz oson!\n"
+                f"@slidego | t.me/slidego"
+            )
+        )
+        # Arxiv kanalga yuborish
+        doc_bytes.seek(0)
+        archive_doc = BytesIO(doc_bytes.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            bot=context.bot,
+            user=user,
+            service_name="Insho / Esse",
+            topic=topic,
+            language=lang_names.get(lang, lang),
+            page_count=pages,
+            price=price,
+            document_bytes=archive_doc,
+            filename=filename,
+        )
+        await update.message.reply_text(
+            f"🎉 Insho muvaffaqiyatli yaratildi!\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Insho yaratishda xatolik: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+        await update.message.reply_text(
+            f"❌ Insho yaratishda xatolik yuz berdi.\n"
+            f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -3720,6 +3948,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -3741,6 +3970,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             ],
@@ -4014,6 +4244,31 @@ def main() -> None:
             ],
             KR_AUTHOR: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, kr_get_author),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Insho / Esse holatlari ──
+            IN_TYPE: [
+                CallbackQueryHandler(in_get_type, pattern=r"^in_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IN_LANGUAGE: [
+                CallbackQueryHandler(in_get_language, pattern=r"^in_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IN_PAGE_COUNT: [
+                CallbackQueryHandler(in_get_page_count, pattern=r"^in_pages_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IN_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IN_NAME_SURNAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_name_surname),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            IN_INSTITUTION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_institution),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
