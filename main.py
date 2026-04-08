@@ -2826,10 +2826,15 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         archive_q = BytesIO(question_doc.read())
         archive_q.seek(0)
         await archive_send_document(
-            context.bot,
-            document=archive_q,
+            bot=context.bot,
+            user=user,
+            service_name="Test tuzish",
+            topic=topic,
+            language=lang_names.get(lang, lang),
+            page_count=count,
+            price=price,
+            document_bytes=archive_q,
             filename=q_filename,
-            caption=f"🔠 Test | {topic} | {lang_names.get(lang, lang)} | {count} savol | User: {user.id}"
         )
 
         await update.message.reply_text(
@@ -2978,10 +2983,15 @@ async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         archive_doc = BytesIO(doc_bytes.read())
         archive_doc.seek(0)
         await archive_send_document(
-            context.bot,
-            document=archive_doc,
+            bot=context.bot,
+            user=user,
+            service_name="Glossary",
+            topic=topic,
+            language=lang_names.get(lang, lang),
+            page_count=size_labels.get(size, size),
+            price=price,
+            document_bytes=archive_doc,
             filename=file_name,
-            caption=f"💡 Glossary | {topic} | {lang_names.get(lang, lang)} | {size_labels.get(size, size)} | User: {user.id}"
         )
 
         await update.message.reply_text(
