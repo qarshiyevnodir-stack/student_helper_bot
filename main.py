@@ -31,6 +31,10 @@ from glossary_utils import generate_glossary, GLOSSARY_SIZES
 from test_utils import generate_test
 from crossword_utils import generate_crossword, CROSSWORD_PRICES
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
+from hujjat_utils import (
+    generate_cv, generate_motivation, generate_table, generate_mindmap,
+    HUJJAT_PRICES, LANG_LABELS as HJ_LANG_LABELS
+)
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -62,6 +66,11 @@ SERVICE_PRICES = {
     "krossvord_20":     2000,
     # Insho / Esse
     "insho_1":          1000,
+    # Hujjat & Dizayn
+    "rezyume":          3000,
+    "motivatsion":      2000,
+    "jadval":           2000,
+    "mindmap":          2000,
     "insho_2":          2000,
     "insho_3":          2000,
     "insho_5":          3000,
@@ -226,6 +235,16 @@ logger = logging.getLogger(__name__)
     IN_INSTITUTION,      # 110
 ) = range(105, 111)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Hujjat & Dizayn
+# ─────────────────────────────────────────────
+(
+    HJ_MENU,             # 111
+    HJ_LANG,             # 112
+    HJ_INPUT1,           # 113
+    HJ_INPUT2,           # 114
+    HJ_INPUT3,           # 115
+) = range(111, 116)
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -252,7 +271,8 @@ def get_main_menu_keyboard():
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
-        [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
+        [KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -817,6 +837,26 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return IN_TYPE
+    elif text == "📂 Hujjat & Dizayn ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "hujjat"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📄 Rezyume / CV",       callback_data="hj_rezyume")],
+            [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
+            [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
+            [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
+        ])
+        await update.message.reply_text(
+            "📂 *Hujjat & Dizayn xizmatlari*\n\n"
+            "• 📄 Rezyume / CV — 3 000 so'm\n"
+            "• 📜 Motivatsion xat — 2 000 so'm\n"
+            "• 📊 Jadval & Diagramma — 2 000 so'm\n"
+            "• 🗺️ Kontsept xarita — 2 000 so'm\n\n"
+            "Xizmatni tanlang:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return HJ_MENU
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -3424,6 +3464,221 @@ async def in_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="Markdown"
         )
     return ConversationHandler.END
+# ─────────────────────────────────────────────
+# Handlerlar — Hujjat & Dizayn
+# ─────────────────────────────────────────────
+HJ_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+HJ_LANG_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="hj_lang_uz"),
+     InlineKeyboardButton("🇧🇬 Ingliz", callback_data="hj_lang_en")],
+    [InlineKeyboardButton("🇷🇺 Rus",    callback_data="hj_lang_ru"),
+     InlineKeyboardButton("🇰🇷 Kores",  callback_data="hj_lang_ko")],
+    [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="hj_lang_zh"),
+     InlineKeyboardButton("🇩🇪 Nemis",  callback_data="hj_lang_de")],
+])
+
+async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Hujjat submenu tanlovi."""
+    query = update.callback_query
+    await query.answer()
+    service = query.data.replace("hj_", "")
+    context.user_data["hj_service"] = service
+
+    service_info = {
+        "rezyume":     ("📄 Rezyume / CV",       "Ism-familiyangizni kiriting:",                  3000),
+        "motivatsion": ("📜 Motivatsion xat",  "Ism-familiyangizni kiriting:",                  2000),
+        "jadval":      ("📊 Jadval & Diagramma", "Jadval mavzusini kiriting:\n(masalan: O'zbekiston aholisi, Davlatlar YaIM, Oylik harorat)", 2000),
+        "mindmap":     ("🗺️ Kontsept xarita",  "Mind map mavzusini kiriting:\n(masalan: Sun'iy intellekt, Ekologiya, Marketing)",       2000),
+    }
+    title, question, price = service_info.get(service, ("Xizmat", "Kiriting:", 2000))
+    context.user_data["hj_price"] = price
+    context.user_data["hj_title"] = title
+
+    await query.edit_message_text(
+        f"✅ {title} tanlandi.\n💰 Narx: {price:,} so'm\n\nQaysi tilda?",
+        reply_markup=HJ_LANG_KEYBOARD
+    )
+    return HJ_LANG
+
+async def hj_get_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Til tanlovi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("hj_lang_", "")
+    context.user_data["hj_lang"] = lang
+    service = context.user_data.get("hj_service", "")
+    title = context.user_data.get("hj_title", "")
+    lang_name = HJ_LANG_NAMES.get(lang, lang)
+
+    questions = {
+        "rezyume":     f"✅ Til: {lang_name}\n\nIsm-familiyangizni kiriting:",
+        "motivatsion": f"✅ Til: {lang_name}\n\nIsm-familiyangizni kiriting:",
+        "jadval":      f"✅ Til: {lang_name}\n\nJadval mavzusini kiriting:\n_(masalan: O'zbekiston aholisi, Davlatlar YaIM)_",
+        "mindmap":     f"✅ Til: {lang_name}\n\nMind map mavzusini kiriting:\n_(masalan: Sun'iy intellekt, Ekologiya)_",
+    }
+    await query.edit_message_text(
+        questions.get(service, f"✅ Til: {lang_name}\n\nMavzuni kiriting:"),
+        parse_mode="Markdown"
+    )
+    return HJ_INPUT1
+
+async def hj_get_input1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Birinchi kirish (ism yoki mavzu)."""
+    text = update.message.text.strip()
+    context.user_data["hj_input1"] = text
+    service = context.user_data.get("hj_service", "")
+
+    if service in ("rezyume", "motivatsion"):
+        # Ikkinchi kirish kerak
+        q2 = {
+            "rezyume":     "Kasbingizni kiriting:\n_(masalan: Dasturchi, Iqtisodchi, Muhandis)_",
+            "motivatsion": "Maqsadingizni kiriting:\n_(masalan: MIT universitetiga, Google kompaniyasiga, Davlat stipendiyasiga)_",
+        }
+        await update.message.reply_text(q2[service], parse_mode="Markdown")
+        return HJ_INPUT2
+    else:
+        # Jadval va mindmap uchun to'g'ridan-to'g'ri yaratish
+        return await _hj_generate(update, context, text, "", "")
+
+async def hj_get_input2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ikkinchi kirish (kasb yoki maqsad)."""
+    text = update.message.text.strip()
+    context.user_data["hj_input2"] = text
+    service = context.user_data.get("hj_service", "")
+
+    if service == "rezyume":
+        await update.message.reply_text(
+            "Qo'shimcha ma'lumot kiriting:\n"
+            "_(tajriba, ko'nikmalar, ta'lim — ixtiyoriy, '-' yozing o'tkazib yuborish uchun)_",
+            parse_mode="Markdown"
+        )
+        return HJ_INPUT3
+    else:
+        # Motivatsion xat uchun sabab
+        await update.message.reply_text(
+            "Nima uchun shu joyni tanlayotganingizni qisqacha yozing:\n"
+            "_(ixtiyoriy, '-' yozing o'tkazib yuborish uchun)_",
+            parse_mode="Markdown"
+        )
+        return HJ_INPUT3
+
+async def hj_get_input3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Uchinchi kirish (qo'shimcha ma'lumot)."""
+    text = update.message.text.strip()
+    if text == "-":
+        text = ""
+    context.user_data["hj_input3"] = text
+    input1 = context.user_data.get("hj_input1", "")
+    input2 = context.user_data.get("hj_input2", "")
+    return await _hj_generate(update, context, input1, input2, text)
+
+async def _hj_generate(update: Update, context: ContextTypes.DEFAULT_TYPE,
+                       input1: str, input2: str, input3: str) -> int:
+    """Hujjatni yaratadi va yuboradi."""
+    service = context.user_data.get("hj_service", "")
+    lang = context.user_data.get("hj_lang", "uz")
+    price = context.user_data.get("hj_price", 2000)
+    title = context.user_data.get("hj_title", "Hujjat")
+    user = update.effective_user
+    lang_name = HJ_LANG_NAMES.get(lang, lang)
+
+    # Balans tekshiruvi
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        f"⏳ *{title}* yaratilmoqda...\n🌍 Til: {lang_name}\n\nBir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+    try:
+        import time
+        t0 = time.time()
+
+        if service == "rezyume":
+            doc = await generate_cv(input1, input2, lang, input3)
+            filename = f"rezyume_{input1[:20].replace(' ','_')}.docx"
+            ext = "docx"
+            caption = f"📄 Rezyume / CV\n{input1} — {input2}\n🌍 {lang_name} | DOCX"
+        elif service == "motivatsion":
+            doc = await generate_motivation(input1, input2, lang, input3)
+            filename = f"motivatsion_{input1[:20].replace(' ','_')}.docx"
+            ext = "docx"
+            caption = f"📜 Motivatsion xat\n{input1} → {input2}\n🌍 {lang_name} | DOCX"
+        elif service == "jadval":
+            doc = await generate_table(input1, lang)
+            filename = f"jadval_{input1[:20].replace(' ','_')}.xlsx"
+            ext = "xlsx"
+            caption = f"📊 Jadval & Diagramma\n{input1}\n🌍 {lang_name} | Excel"
+        elif service == "mindmap":
+            doc = await generate_mindmap(input1, lang)
+            filename = f"mindmap_{input1[:20].replace(' ','_')}.png"
+            ext = "png"
+            caption = f"🗺️ Kontsept xarita\n{input1}\n🌍 {lang_name} | PNG"
+        else:
+            await update.message.reply_text("❌ Noma'lum xizmat.", reply_markup=get_main_menu_keyboard())
+            return ConversationHandler.END
+
+        elapsed = time.time() - t0
+
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, service, input1, price)
+
+        doc.seek(0)
+        if ext == "png":
+            await context.bot.send_photo(
+                chat_id=user.id,
+                photo=doc,
+                caption=caption + f"\n\n@slidego | t.me/slidego"
+            )
+        else:
+            await context.bot.send_document(
+                chat_id=user.id,
+                document=doc,
+                filename=filename,
+                caption=caption + f"\n\n@slidego | t.me/slidego"
+            )
+
+        # Arxiv
+        doc.seek(0)
+        archive_doc = BytesIO(doc.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            bot=context.bot,
+            user=user,
+            service_name=title,
+            topic=input1,
+            language=lang_name,
+            page_count=1,
+            price=price,
+            document_bytes=archive_doc,
+            filename=filename,
+        )
+
+        await update.message.reply_text(
+            f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Hujjat yaratishda xatolik: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+        await update.message.reply_text(
+            f"❌ Xatolik yuz berdi.\n"
+            f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -3949,6 +4204,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -3971,6 +4227,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
+                MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             ],
@@ -4269,6 +4526,27 @@ def main() -> None:
             ],
             IN_INSTITUTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_institution),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Hujjat & Dizayn holatlari ──
+            HJ_MENU: [
+                CallbackQueryHandler(hj_get_menu, pattern=r"^hj_(rezyume|motivatsion|jadval|mindmap)$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            HJ_LANG: [
+                CallbackQueryHandler(hj_get_lang, pattern=r"^hj_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            HJ_INPUT1: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input1),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            HJ_INPUT2: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input2),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            HJ_INPUT3: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input3),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
