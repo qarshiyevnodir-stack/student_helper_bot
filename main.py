@@ -30,6 +30,8 @@ from tezis_utils import generate_tezis
 from glossary_utils import generate_glossary, GLOSSARY_SIZES
 from test_utils import generate_test
 from crossword_utils import generate_crossword, CROSSWORD_PRICES
+from annotatsiya_utils import generate_annotation, ANNOTATSIYA_PRICE, ANNOTATSIYA_TYPES, LANG_LABELS as AN_LANG_LABELS
+from taqriz_utils import generate_taqriz, TAQRIZ_PRICE, TAQRIZ_TYPES, LANG_LABELS as TQ_LANG_LABELS
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from hujjat_utils import (
     generate_cv, generate_motivation, generate_table, generate_mindmap,
@@ -245,6 +247,26 @@ logger = logging.getLogger(__name__)
     HJ_INPUT3,           # 115
 ) = range(111, 116)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Annotatsiya
+# ─────────────────────────────────────────────
+(
+    AN_LANGUAGE,         # 120
+    AN_TYPE,             # 121
+    AN_TITLE,            # 122
+    AN_AUTHOR,           # 123
+) = range(120, 124)
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Taqriz
+# ─────────────────────────────────────────────
+(
+    TQ_LANGUAGE,         # 125
+    TQ_TYPE,             # 126
+    TQ_TITLE,            # 127
+    TQ_AUTHOR,           # 128
+    TQ_REVIEWER,         # 129
+    TQ_SUMMARY,          # 130
+) = range(125, 131)
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -272,6 +294,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
+        [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
         [KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -857,6 +880,42 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return HJ_MENU
+    elif text == "📋 Annotatsiya ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "annotatsiya"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="an_lang_uz"),
+             InlineKeyboardButton("🇷🇺 Rus",     callback_data="an_lang_ru")],
+            [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="an_lang_en"),
+             InlineKeyboardButton("🇰🇷 Kores",   callback_data="an_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="an_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",   callback_data="an_lang_de")],
+        ])
+        await update.message.reply_text(
+            "📋 *Annotatsiya yaratish*\n\nNarx: *1 000 so'm*\n\nTil tanlang:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return AN_LANGUAGE
+
+    elif text == "📝 Taqriz ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "taqriz"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="tq_lang_uz"),
+             InlineKeyboardButton("🇷🇺 Rus",     callback_data="tq_lang_ru")],
+            [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="tq_lang_en"),
+             InlineKeyboardButton("🇰🇷 Kores",   callback_data="tq_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="tq_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",   callback_data="tq_lang_de")],
+        ])
+        await update.message.reply_text(
+            "📝 *Taqriz yaratish*\n\nNarx: *2 000 so'm*\n\nTil tanlang:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return TQ_LANGUAGE
+
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -3679,6 +3738,348 @@ async def _hj_generate(update: Update, context: ContextTypes.DEFAULT_TYPE,
             parse_mode="Markdown"
         )
     return ConversationHandler.END
+# ═══════════════════════════════════════════════════════════════════════════
+# ANNOTATSIYA HANDLER
+# ═══════════════════════════════════════════════════════════════════════════
+
+AN_TYPE_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📚 Ilmiy maqola",  callback_data="an_type_ilmiy"),
+     InlineKeyboardButton("📄 Kurs ishi",     callback_data="an_type_kurs")],
+    [InlineKeyboardButton("📖 Kitob",          callback_data="an_type_kitob"),
+     InlineKeyboardButton("🎓 Diplom ishi",   callback_data="an_type_diplom")],
+    [InlineKeyboardButton("📋 Referat",        callback_data="an_type_referat")],
+])
+
+async def an_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Annotatsiya — til tanlash callback."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("an_lang_", "")
+    context.user_data["an_lang"] = lang
+    lang_name = AN_LANG_LABELS.get(lang, lang)
+    await query.edit_message_text(
+        f"📋 *Annotatsiya yaratish*\\n"
+        f"🌍 Til: {lang_name}\\n\\n"
+        f"Asar turini tanlang:",
+        reply_markup=AN_TYPE_KEYBOARD,
+        parse_mode="Markdown"
+    )
+    return AN_TYPE
+
+async def an_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Annotatsiya — tur tanlash callback."""
+    query = update.callback_query
+    await query.answer()
+    doc_type = query.data.replace("an_type_", "")
+    context.user_data["an_type"] = doc_type
+    type_labels = {
+        "ilmiy": "Ilmiy maqola", "kurs": "Kurs ishi",
+        "kitob": "Kitob", "diplom": "Diplom ishi", "referat": "Referat"
+    }
+    type_name = type_labels.get(doc_type, doc_type)
+    lang = context.user_data.get("an_lang", "uz")
+    lang_name = AN_LANG_LABELS.get(lang, lang)
+    await query.edit_message_text(
+        f"📋 *Annotatsiya yaratish*\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"Asar sarlavhasini yozing:",
+        parse_mode="Markdown"
+    )
+    return AN_TITLE
+
+async def an_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Annotatsiya — sarlavha kiritish."""
+    title = update.message.text.strip()
+    context.user_data["an_title"] = title
+    lang = context.user_data.get("an_lang", "uz")
+    lang_name = AN_LANG_LABELS.get(lang, lang)
+    type_labels = {
+        "ilmiy": "Ilmiy maqola", "kurs": "Kurs ishi",
+        "kitob": "Kitob", "diplom": "Diplom ishi", "referat": "Referat"
+    }
+    doc_type = context.user_data.get("an_type", "kurs")
+    type_name = type_labels.get(doc_type, doc_type)
+    await update.message.reply_text(
+        f"📋 *Annotatsiya yaratish*\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n"
+        f"📌 Sarlavha: {title}\\n\\n"
+        f"Muallif ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
+        parse_mode="Markdown"
+    )
+    return AN_AUTHOR
+
+async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Annotatsiya — muallif va generatsiya."""
+    user = update.effective_user
+    author_text = update.message.text.strip()
+    author = "" if author_text.lower() in ["-", ".", "o'tkazib yuborish", "skip", "нет", "no"] else author_text
+
+    lang = context.user_data.get("an_lang", "uz")
+    doc_type = context.user_data.get("an_type", "kurs")
+    title = context.user_data.get("an_title", "")
+    lang_name = AN_LANG_LABELS.get(lang, lang)
+
+    # Balans tekshirish
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data["balance"] if user_data else 0
+    price = ANNOTATSIYA_PRICE
+
+    if balance < price:
+        await update.message.reply_text(
+            f"❌ *Balans yetarli emas!*\\n\\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\\n\\n"
+            f"Balansni to'ldiring:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+            ]]),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    type_labels = {
+        "ilmiy": "Ilmiy maqola", "kurs": "Kurs ishi",
+        "kitob": "Kitob", "diplom": "Diplom ishi", "referat": "Referat"
+    }
+    type_name = type_labels.get(doc_type, doc_type)
+
+    await update.message.reply_text(
+        f"⏳ *{title}* asari uchun annotatsiya yaratilmoqda...\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        doc_bytes = await generate_annotation(title, doc_type, lang, author)
+
+        # Balans yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+
+        # Foydalanuvchiga yuborish
+        filename = f"annotatsiya_{title[:20].replace(' ', '_')}.docx"
+        await update.message.reply_document(
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *Annotatsiya tayyor!*\\n\\n"
+                f"📌 {title}\\n"
+                f"📄 Tur: {type_name}\\n"
+                f"🌍 Til: {lang_name}\\n"
+                f"💰 Yechildi: {price:,} so'm\\n\\n"
+                f"@slidego | t.me/slidego"
+            ),
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+
+        # Arxivga yuborish
+        try:
+            await context.bot.send_document(
+                chat_id=ARCHIVE_CHANNEL,
+                document=doc_bytes,
+                filename=filename,
+                caption=(
+                    f"📋 Annotatsiya\\n"
+                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\\n"
+                    f"📌 {title} | {type_name} | {lang_name}"
+                )
+            )
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"Annotatsiya xatolik: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ Annotatsiya yaratishda xatolik yuz berdi.\\n{str(e)[:100]}\\n\\n"
+            f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAQRIZ HANDLER
+# ═══════════════════════════════════════════════════════════════════════════
+
+TQ_TYPE_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📄 Kurs ishi",     callback_data="tq_type_kurs"),
+     InlineKeyboardButton("🎓 Diplom ishi",   callback_data="tq_type_diplom")],
+    [InlineKeyboardButton("📚 Ilmiy maqola",  callback_data="tq_type_maqola"),
+     InlineKeyboardButton("📖 Kitob",          callback_data="tq_type_kitob")],
+    [InlineKeyboardButton("📋 Referat",        callback_data="tq_type_referat")],
+])
+
+async def tq_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — til tanlash callback."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("tq_lang_", "")
+    context.user_data["tq_lang"] = lang
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    await query.edit_message_text(
+        f"📝 *Taqriz yaratish*\\n"
+        f"🌍 Til: {lang_name}\\n\\n"
+        f"Asar turini tanlang:",
+        reply_markup=TQ_TYPE_KEYBOARD,
+        parse_mode="Markdown"
+    )
+    return TQ_TYPE
+
+async def tq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — tur tanlash callback."""
+    query = update.callback_query
+    await query.answer()
+    doc_type = query.data.replace("tq_type_", "")
+    context.user_data["tq_type"] = doc_type
+    type_name = TAQRIZ_TYPES.get(doc_type, doc_type)
+    lang = context.user_data.get("tq_lang", "uz")
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    await query.edit_message_text(
+        f"📝 *Taqriz yaratish*\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"Asar sarlavhasini yozing:",
+        parse_mode="Markdown"
+    )
+    return TQ_TITLE
+
+async def tq_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — sarlavha kiritish."""
+    title = update.message.text.strip()
+    context.user_data["tq_title"] = title
+    lang = context.user_data.get("tq_lang", "uz")
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    doc_type = context.user_data.get("tq_type", "kurs")
+    type_name = TAQRIZ_TYPES.get(doc_type, doc_type)
+    await update.message.reply_text(
+        f"📝 *Taqriz yaratish*\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n"
+        f"📌 Sarlavha: {title}\\n\\n"
+        f"Asar muallifining ismini yozing:",
+        parse_mode="Markdown"
+    )
+    return TQ_AUTHOR
+
+async def tq_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — muallif ismi."""
+    author = update.message.text.strip()
+    context.user_data["tq_author"] = author
+    lang = context.user_data.get("tq_lang", "uz")
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    await update.message.reply_text(
+        f"📝 *Taqriz yaratish*\\n"
+        f"🌍 Til: {lang_name}\\n"
+        f"✍️ Muallif: {author}\\n\\n"
+        f"Taqrizchi ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
+        parse_mode="Markdown"
+    )
+    return TQ_REVIEWER
+
+async def tq_get_reviewer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — taqrizchi ismi."""
+    reviewer_text = update.message.text.strip()
+    reviewer = "" if reviewer_text.lower() in ["-", ".", "o'tkazib yuborish", "skip", "нет", "no"] else reviewer_text
+    context.user_data["tq_reviewer"] = reviewer
+    lang = context.user_data.get("tq_lang", "uz")
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    await update.message.reply_text(
+        f"📝 *Taqriz yaratish*\\n"
+        f"🌍 Til: {lang_name}\\n\\n"
+        f"Asar haqida qisqa ma'lumot yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):\\n"
+        f"_(masalan: asosiy mavzu, qaysi fan bo'yicha)_",
+        parse_mode="Markdown"
+    )
+    return TQ_SUMMARY
+
+async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Taqriz — qisqa mazmun va generatsiya."""
+    user = update.effective_user
+    summary_text = update.message.text.strip()
+    summary = "" if summary_text.lower() in ["-", ".", "o'tkazib yuborish", "skip", "нет", "no"] else summary_text
+
+    lang = context.user_data.get("tq_lang", "uz")
+    doc_type = context.user_data.get("tq_type", "kurs")
+    title = context.user_data.get("tq_title", "")
+    author = context.user_data.get("tq_author", "")
+    reviewer = context.user_data.get("tq_reviewer", "")
+    lang_name = TQ_LANG_LABELS.get(lang, lang)
+    type_name = TAQRIZ_TYPES.get(doc_type, doc_type)
+
+    # Balans tekshirish
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data["balance"] if user_data else 0
+    price = TAQRIZ_PRICE
+
+    if balance < price:
+        await update.message.reply_text(
+            f"❌ *Balans yetarli emas!*\\n\\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\\n\\n"
+            f"Balansni to'ldiring:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+            ]]),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        f"⏳ *{title}* asari uchun taqriz yaratilmoqda...\\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        doc_bytes = await generate_taqriz(title, doc_type, author, reviewer, lang, summary)
+
+        # Balans yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+
+        # Foydalanuvchiga yuborish
+        filename = f"taqriz_{title[:20].replace(' ', '_')}.docx"
+        await update.message.reply_document(
+            document=doc_bytes,
+            filename=filename,
+            caption=(
+                f"✅ *Taqriz tayyor!*\\n\\n"
+                f"📌 {title}\\n"
+                f"✍️ Muallif: {author}\\n"
+                f"📄 Tur: {type_name}\\n"
+                f"🌍 Til: {lang_name}\\n"
+                f"💰 Yechildi: {price:,} so'm\\n\\n"
+                f"@slidego | t.me/slidego"
+            ),
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+
+        # Arxivga yuborish
+        try:
+            await context.bot.send_document(
+                chat_id=ARCHIVE_CHANNEL,
+                document=doc_bytes,
+                filename=filename,
+                caption=(
+                    f"📝 Taqriz\\n"
+                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\\n"
+                    f"📌 {title} | {author} | {type_name} | {lang_name}"
+                )
+            )
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"Taqriz xatolik: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ Taqriz yaratishda xatolik yuz berdi.\\n{str(e)[:100]}\\n\\n"
+            f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -4205,6 +4606,8 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -4547,6 +4950,48 @@ def main() -> None:
             ],
             HJ_INPUT3: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input3),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Annotatsiya holatlari ──
+            AN_LANGUAGE: [
+                CallbackQueryHandler(an_get_language, pattern=r"^an_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            AN_TYPE: [
+                CallbackQueryHandler(an_get_type, pattern=r"^an_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            AN_TITLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, an_get_title),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            AN_AUTHOR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, an_get_author),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Taqriz holatlari ──
+            TQ_LANGUAGE: [
+                CallbackQueryHandler(tq_get_language, pattern=r"^tq_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TQ_TYPE: [
+                CallbackQueryHandler(tq_get_type, pattern=r"^tq_type_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TQ_TITLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_title),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TQ_AUTHOR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_author),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TQ_REVIEWER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_reviewer),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TQ_SUMMARY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_summary),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
