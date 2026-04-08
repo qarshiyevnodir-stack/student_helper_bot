@@ -28,7 +28,8 @@ from maqola_utils import generate_maqola
 from kurs_ishi_utils import generate_kurs_ishi
 from tezis_utils import generate_tezis
 from glossary_utils import generate_glossary, GLOSSARY_SIZES
-from test_utils import generate_test, TEST_PRICES
+from test_utils import generate_test
+from crossword_utils import generate_crossword, CROSSWORD_PRICES
 from pptx import Presentation
 
 # ─────────────────────────────────────────────
@@ -54,6 +55,10 @@ SERVICE_PRICES = {
     "test_20":          2000,
     "test_30":          2000,
     "test_50":          3000,
+    # Krossvord
+    "krossvord_10":     1000,
+    "krossvord_15":     2000,
+    "krossvord_20":     2000,
     "kurs_ishi":        12000,
     "bmi":              20000,
 }
@@ -194,6 +199,15 @@ logger = logging.getLogger(__name__)
     TS_AUTHOR,           # 98
 ) = range(95, 99)
 
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Krossvord
+# ─────────────────────────────────────────────
+(
+    KR_LANGUAGE,         # 100
+    KR_COUNT,            # 101
+    KR_TOPIC,            # 102
+    KR_AUTHOR,           # 103
+) = range(100, 104)
 # ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
@@ -663,6 +677,32 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return KI_TYPE
 
+    elif text == "🧩 Krossvord ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "krossvord"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="kr_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="kr_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="kr_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="kr_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="kr_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="kr_lang_de")],
+        ])
+        await update.message.reply_text(
+            "🧩 *Krossvord yaratish*\n\n"
+            "Mavzu bo'yicha professional krossvord yaratiladi.\n"
+            "Natijada 2 ta fayl yuboriladi:\n"
+            "• 📝 *Bo'sh to'r* (o'quvchi uchun)\n"
+            "• ✅ *Javobli to'r* (o'qituvchi uchun)\n\n"
+            "Narxlar:\n"
+            "• 10 ta so'z → 1 000 so'm\n"
+            "• 15 ta so'z → 2 000 so'm\n"
+            "• 20 ta so'z → 2 000 so'm\n\n"
+            "Qaysi tilda krossvord yaratmoqchisiz?",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return KR_LANGUAGE
     elif text == "🔠 Test tuzish":
         context.user_data.clear()
         context.user_data["mode"] = "test"
@@ -3008,8 +3048,154 @@ async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
 
     return ConversationHandler.END
+# ─────────────────────────────────────────────
+# Handlerlar — Krossvord
+# ─────────────────────────────────────────────
+async def kr_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Krossvord tilini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("kr_lang_", "")
+    context.user_data["kr_lang"] = lang
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    lang_name = lang_names.get(lang, lang)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📌 10 ta so'z — 1 000 so'm", callback_data="kr_count_10")],
+        [InlineKeyboardButton("📚 15 ta so'z — 2 000 so'm", callback_data="kr_count_15")],
+        [InlineKeyboardButton("🏆 20 ta so'z — 2 000 so'm", callback_data="kr_count_20")],
+    ])
+    await query.edit_message_text(
+        f"✅ Til: {lang_name}\n\nNechta so'zli krossvord kerak?",
+        reply_markup=keyboard
+    )
+    return KR_COUNT
 
+async def kr_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Krossvord so'z sonini qabul qiladi."""
+    query = update.callback_query
+    await query.answer()
+    count = int(query.data.replace("kr_count_", ""))
+    context.user_data["kr_count"] = count
+    price = SERVICE_PRICES.get(f"krossvord_{count}", 1000)
+    await query.edit_message_text(
+        f"✅ So'zlar soni: {count} ta\n"
+        f"💰 Narx: {price:,} so'm\n\n"
+        f"Krossvord mavzusini kiriting:\n"
+        f"_(Masalan: Biologiya — hujayra, Matematika, Tarix)_",
+        parse_mode="Markdown"
+    )
+    return KR_TOPIC
 
+async def kr_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Krossvord mavzusini qabul qiladi."""
+    topic = update.message.text.strip()
+    context.user_data["kr_topic"] = topic
+    await update.message.reply_text(
+        f"✅ Mavzu: *{topic}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
+        f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
+        parse_mode="Markdown"
+    )
+    return KR_AUTHOR
+
+async def kr_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Muallif ismini qabul qiladi, so'ng krossvord yaratadi."""
+    author = update.message.text.strip()
+    if author == "-":
+        author = ""
+    context.user_data["kr_author"] = author
+    topic = context.user_data.get("kr_topic", "")
+    lang = context.user_data.get("kr_lang", "uz")
+    count = context.user_data.get("kr_count", 10)
+    user = update.effective_user
+    price = SERVICE_PRICES.get(f"krossvord_{count}", 1000)
+    # Balans tekshiruvi
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data['balance'] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return ConversationHandler.END
+    lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+    await update.message.reply_text(
+        f"⏳ *{topic}* mavzusida *{count} ta so'zli* krossvord yaratilmoqda...\n"
+        f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+    try:
+        empty_doc, answer_doc = await generate_crossword(
+            topic=topic,
+            count=count,
+            lang=lang,
+            author=author,
+        )
+        # Balansdan yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, 'krossvord', topic, price)
+        # Bo'sh to'r yuborish
+        q_filename = f"krossvord_{topic[:25].replace(' ', '_')}.docx"
+        empty_doc.seek(0)
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=empty_doc,
+            filename=q_filename,
+            caption=(
+                f"🧩 Krossvord — {topic}\n"
+                f"📌 {count} ta so'z | DOCX\n\n"
+                f"Biz bilan ishingiz oson!\n"
+                f"@slidego | t.me/slidego"
+            )
+        )
+        # Javobli to'r yuborish
+        a_filename = f"krossvord_javob_{topic[:25].replace(' ', '_')}.docx"
+        answer_doc.seek(0)
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=answer_doc,
+            filename=a_filename,
+            caption=(
+                f"✅ Krossvord javoblari — {topic}\n"
+                f"📌 {count} ta so'z | DOCX\n\n"
+                f"Biz bilan ishingiz oson!\n"
+                f"@slidego | t.me/slidego"
+            )
+        )
+        # Arxiv kanalga yuborish
+        empty_doc.seek(0)
+        archive_doc = BytesIO(empty_doc.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            bot=context.bot,
+            user=user,
+            service_name="Krossvord",
+            topic=topic,
+            language=lang_names.get(lang, lang),
+            page_count=count,
+            price=price,
+            document_bytes=archive_doc,
+            filename=q_filename,
+        )
+        await update.message.reply_text(
+            f"🎉 Krossvord muvaffaqiyatli yaratildi!\n"
+            f"📝 Bo'sh to'r + ✅ Javobli to'r yuborildi.\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Krossvord yaratishda xatolik: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+        await update.message.reply_text(
+            f"❌ Krossvord yaratishda xatolik yuz berdi.\n"
+            f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -3811,6 +3997,23 @@ def main() -> None:
             ],
             GL_AUTHOR: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, gl_get_author),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Krossvord holatlari ──
+            KR_LANGUAGE: [
+                CallbackQueryHandler(kr_get_language, pattern=r"^kr_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KR_COUNT: [
+                CallbackQueryHandler(kr_get_count, pattern=r"^kr_count_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KR_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, kr_get_topic),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            KR_AUTHOR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, kr_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
