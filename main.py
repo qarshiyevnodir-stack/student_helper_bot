@@ -222,7 +222,6 @@ def get_main_menu_keyboard():
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("💰 Balans & Referral 🔗")],
-        [KeyboardButton("🖼️ Rasm yaratish"),   KeyboardButton("🎬 Video yaratish")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
