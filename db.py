@@ -129,6 +129,16 @@ def init_db():
             ADD COLUMN IF NOT EXISTS file_name TEXT
         """)
 
+        # AI yordamchi kunlik foydalanish jadvali
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS ai_daily_usage (
+                user_id    BIGINT NOT NULL,
+                usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                count      INTEGER DEFAULT 0,
+                PRIMARY KEY (user_id, usage_date),
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
         # Topup holati jadvali
         c.execute("""
             CREATE TABLE IF NOT EXISTS user_topup_state (
@@ -507,3 +517,29 @@ def get_user_topup_state(user_id: int) -> dict | None:
 
 # Modulni import qilganda DB ni ishga tushir
 init_db()
+
+def get_ai_daily_count(user_id: int) -> int:
+    """Bugungi AI savol sonini qaytaradi."""
+    with get_conn() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT count FROM ai_daily_usage
+            WHERE user_id = %s AND usage_date = CURRENT_DATE
+        """, (user_id,))
+        row = c.fetchone()
+        return row[0] if row else 0
+
+def increment_ai_daily_count(user_id: int) -> int:
+    """AI savol sonini +1 qiladi va yangi sonni qaytaradi."""
+    with get_conn() as conn:
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO ai_daily_usage (user_id, usage_date, count)
+            VALUES (%s, CURRENT_DATE, 1)
+            ON CONFLICT (user_id, usage_date)
+            DO UPDATE SET count = ai_daily_usage.count + 1
+            RETURNING count
+        """, (user_id,))
+        row = c.fetchone()
+        conn.commit()
+        return row[0] if row else 1

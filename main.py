@@ -32,6 +32,8 @@ from test_utils import generate_test
 from crossword_utils import generate_crossword, CROSSWORD_PRICES
 from annotatsiya_utils import generate_annotation, ANNOTATSIYA_PRICE, ANNOTATSIYA_TYPES, LANG_LABELS as AN_LANG_LABELS
 from taqriz_utils import generate_taqriz, TAQRIZ_PRICE, TAQRIZ_TYPES, LANG_LABELS as TQ_LANG_LABELS
+from ai_utils import get_ai_response, AI_FREE_LIMIT, AI_PRICE_PER_MSG
+from db import get_ai_daily_count, increment_ai_daily_count
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from hujjat_utils import (
     generate_cv, generate_motivation, generate_table, generate_mindmap,
@@ -266,6 +268,10 @@ logger = logging.getLogger(__name__)
     TQ_REVIEWER,         # 129
     TQ_SUMMARY,          # 130
 ) = range(125, 131)
+# ─────────────────────────────────────────────
+(
+    AI_CHAT,             # 131
+) = range(131, 132)
 # ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
@@ -694,6 +700,27 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return RF_LANGUAGE
+
+    elif text == "🤖 AI yordamchi 💬":
+        context.user_data.clear()
+        context.user_data["mode"] = "ai_chat"
+        context.user_data["ai_history"] = []
+        # Kunlik limit tekshirish
+        daily_count = await asyncio.to_thread(get_ai_daily_count, user.id)
+        remaining = max(0, AI_FREE_LIMIT - daily_count)
+        if remaining > 0:
+            status_text = f"🎁 Bugun {remaining} ta bepul savol qoldi"
+        else:
+            status_text = f"💳 Har savol: {AI_PRICE_PER_MSG:,} so'm"
+        await update.message.reply_text(
+            f"🤖 *AI Yordamchi*\n\n"
+            f"Men professional akademik yordamchiman.\n"
+            f"Har qanday savol, tushuntirish, tahlil uchun yordamga tayyorman.\n\n"
+            f"{status_text}\n\n"
+            f"Savolingizni yozing:",
+            parse_mode="Markdown"
+        )
+        return AI_CHAT
 
     elif text == "📰 Maqola ✨":
         context.user_data.clear()
@@ -4080,6 +4107,113 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     return ConversationHandler.END
 
+# ═══════════════════════════════════════════════════════════════════════════
+# AI YORDAMCHI HANDLER
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """AI yordamchi — savol qabul qilish va javob berish."""
+    user = update.effective_user
+    text = update.message.text.strip()
+
+    # Asosiy menyu tugmalaridan biri bosilsa — suhbatni tugatish
+    main_menu_buttons = [
+        "🤖 AI yordamchi 💬", "🎧 Slayd yaratish ✨", "📄 Mustaqil ish ✨",
+        "📁 Loyiha ishi ✨", "📊 Infografika ✨", "📰 Maqola ✨",
+        "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
+        "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
+        "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "💰 Balans & Referral 🔗"
+    ]
+    if text in main_menu_buttons:
+        return await handle_main_menu_selection(update, context)
+
+    # Kunlik limit tekshirish
+    daily_count = await asyncio.to_thread(get_ai_daily_count, user.id)
+    is_free = daily_count < AI_FREE_LIMIT
+
+    if not is_free:
+        # Balans tekshirish
+        user_data = await asyncio.to_thread(db.get_user, user.id)
+        balance = user_data["balance"] if user_data else 0
+        if balance < AI_PRICE_PER_MSG:
+            await update.message.reply_text(
+                f"❌ *Balans yetarli emas!*\n\n"
+                f"💰 Balansingiz: `{balance:,}` so'm\n"
+                f"💳 Kerakli summa: `{AI_PRICE_PER_MSG:,}` so'm\n\n"
+                f"Balansni to'ldiring yoki ertaga bepul savollardan foydalaning:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+                ]]),
+                parse_mode="Markdown"
+            )
+            return AI_CHAT
+
+    # Suhbat tarixini olish
+    history = context.user_data.get("ai_history", [])
+    history.append({"role": "user", "content": text})
+
+    # Yozmoqda animatsiyasi
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+    try:
+        # GPT dan javob olish
+        response = await asyncio.to_thread(get_ai_response_sync, history)
+
+        # Tarixga qo'shish (maksimum 10 ta xabar saqlash)
+        history.append({"role": "assistant", "content": response})
+        if len(history) > 20:
+            history = history[-20:]
+        context.user_data["ai_history"] = history
+
+        # Kunlik hisobni oshirish
+        new_count = await asyncio.to_thread(increment_ai_daily_count, user.id)
+
+        # Balans yechish (bepul emas bo'lsa)
+        if not is_free:
+            await asyncio.to_thread(db.deduct_balance, user.id, AI_PRICE_PER_MSG)
+            cost_text = f"\n\n💳 Yechildi: {AI_PRICE_PER_MSG:,} so'm"
+        else:
+            remaining = max(0, AI_FREE_LIMIT - new_count)
+            if remaining > 0:
+                cost_text = f"\n\n🎁 Qolgan bepul: {remaining} ta"
+            else:
+                cost_text = f"\n\n⚠️ Bepul savollar tugadi. Keyingi savol: {AI_PRICE_PER_MSG:,} so'm"
+
+        # Javobni yuborish
+        # Telegram Markdown limit: 4096 belgi
+        full_response = response + cost_text
+        if len(full_response) > 4000:
+            # Uzun javobni bo'lib yuborish
+            await update.message.reply_text(response[:4000], parse_mode="Markdown")
+            await update.message.reply_text(response[4000:] + cost_text, parse_mode="Markdown")
+        else:
+            try:
+                await update.message.reply_text(full_response, parse_mode="Markdown")
+            except Exception:
+                # Markdown xatosi bo'lsa — oddiy matn
+                await update.message.reply_text(full_response)
+
+    except Exception as e:
+        logger.error(f"AI yordamchi xatolik: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.\n"
+            f"Balans yechilmadi."
+        )
+
+    return AI_CHAT
+
+
+def get_ai_response_sync(messages: list) -> str:
+    """Sinxron GPT javob olish (asyncio.to_thread uchun)."""
+    import asyncio as _asyncio
+    loop = _asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(get_ai_response(messages))
+    finally:
+        loop.close()
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
     await update.message.reply_text(
@@ -4992,6 +5126,11 @@ def main() -> None:
             ],
             TQ_SUMMARY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_summary),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── AI Yordamchi holatlari ──
+            AI_CHAT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ai_chat_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──
