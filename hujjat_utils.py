@@ -18,6 +18,8 @@ from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from jinja2 import Template
+import weasyprint
 
 logger = logging.getLogger(__name__)
 
@@ -47,202 +49,125 @@ LANG_LABELS = {
     "ko": "Kores", "zh": "Xitoy", "de": "Nemis",
 }
 
+# ── Til bo'yicha bo'lim sarlavhalari ──
+CV_LABELS = {
+    "uz": {
+        "summary": "Qisqacha ma'lumot", "experience": "Ish tajribasi",
+        "education": "Ta'lim", "skills": "Ko'nikmalar", "languages": "Tillar",
+        "contact": "Aloqa", "projects": "Loyihalar", "certifications": "Sertifikatlar",
+        "interests": "Qiziqishlar"
+    },
+    "ru": {
+        "summary": "Профессиональное резюме", "experience": "Опыт работы",
+        "education": "Образование", "skills": "Навыки", "languages": "Языки",
+        "contact": "Контакты", "projects": "Проекты", "certifications": "Сертификаты",
+        "interests": "Интересы"
+    },
+    "en": {
+        "summary": "Professional Summary", "experience": "Experience",
+        "education": "Education", "skills": "Skills", "languages": "Languages",
+        "contact": "Contact", "projects": "Projects", "certifications": "Certifications",
+        "interests": "Interests"
+    },
+    "ko": {
+        "summary": "자기소개", "experience": "경력",
+        "education": "학력", "skills": "기술", "languages": "언어",
+        "contact": "연락처", "projects": "프로젝트", "certifications": "자격증",
+        "interests": "관심사"
+    },
+    "zh": {
+        "summary": "个人简介", "experience": "工作经历",
+        "education": "教育背景", "skills": "技能", "languages": "语言",
+        "contact": "联系方式", "projects": "项目", "certifications": "证书",
+        "interests": "兴趣爱好"
+    },
+    "de": {
+        "summary": "Berufsprofil", "experience": "Berufserfahrung",
+        "education": "Ausbildung", "skills": "Fähigkeiten", "languages": "Sprachen",
+        "contact": "Kontakt", "projects": "Projekte", "certifications": "Zertifikate",
+        "interests": "Interessen"
+    },
+}
+
 # ═══════════════════════════════════════════════
-# 1. REZYUME / CV
+# 1. REZYUME / CV  (HTML → PDF)
 # ═══════════════════════════════════════════════
 def _generate_cv_content(name: str, profession: str, lang: str, extra: str = "") -> dict:
-    """Optimizatsiyalangan CV kontent — 1 so'rov, qisqa prompt."""
+    """Professional CV kontent — JSON formatida."""
     lang_inst = LANG_PROMPTS.get(lang, LANG_PROMPTS["uz"])
     client = get_client()
     prompt = (
         f"{lang_inst} Professional CV yoz. "
         f"Ism: {name}. Kasb: {profession}. "
         f"{('Qoshimcha: ' + extra) if extra else ''} "
-        f"JSON: {{\"objective\": \"2-3 jumlali maqsad\", "
-        f"\"skills\": [\"skill1\", \"skill2\", \"skill3\", \"skill4\", \"skill5\", \"skill6\"], "
+        f"JSON formatida qaytar: "
+        f"{{\"summary\": \"3-4 jumlali professional tavsif\", "
+        f"\"skills\": [\"skill1\", \"skill2\", \"skill3\", \"skill4\", \"skill5\", \"skill6\", \"skill7\", \"skill8\"], "
         f"\"experience\": ["
-        f"  {{\"title\":\"lavozim\",\"company\":\"kompaniya\",\"period\":\"2020-hozir\",\"desc\":\"2-3 jumla tavsif\"}},"
-        f"  {{\"title\":\"lavozim2\",\"company\":\"kompaniya2\",\"period\":\"2018-2020\",\"desc\":\"2-3 jumla tavsif\"}}"
+        f"  {{\"title\":\"lavozim\",\"company\":\"kompaniya\",\"date\":\"2021 - hozir\",\"bullets\":[\"yutuq 1\",\"yutuq 2\",\"yutuq 3\"]}},"
+        f"  {{\"title\":\"lavozim2\",\"company\":\"kompaniya2\",\"date\":\"2018-2021\",\"bullets\":[\"yutuq 1\",\"yutuq 2\"]}}"
         f"], "
         f"\"education\": ["
-        f"  {{\"degree\":\"daraja\",\"school\":\"universitet\",\"year\":\"2018\",\"gpa\":\"GPA: 3.8\"}}"
+        f"  {{\"degree\":\"daraja va mutaxassislik\",\"school\":\"universitet nomi\",\"date\":\"2014-2018\",\"description\":\"GPA 3.8, diplom bilan\"}}"
         f"], "
-        f"\"certifications\": [\"sertifikat1\", \"sertifikat2\"], "
-        f"\"languages\": [\"til1 (daraja)\", \"til2 (daraja)\"], "
-        f"\"contacts\": {{\"email\":\"email@example.com\",\"phone\":\"+998 XX XXX XX XX\",\"linkedin\":\"linkedin.com/in/username\",\"location\":\"Toshkent, O'zbekiston\"}} }}"
+        f"\"projects\": ["
+        f"  {{\"name\":\"loyiha nomi\",\"description\":\"qisqa tavsif 1-2 jumla\"}}"
+        f"], "
+        f"\"certifications\": ["
+        f"  {{\"name\":\"sertifikat nomi\",\"organization\":\"tashkilot\",\"date\":\"2023\"}}"
+        f"], "
+        f"\"languages\": ["
+        f"  {{\"name\":\"til nomi\",\"level\":\"daraja\"}}"
+        f"], "
+        f"\"interests\": [\"qiziqish1\", \"qiziqish2\"], "
+        f"\"contact\": {{\"phone\":\"+998 XX XXX XX XX\",\"email\":\"email@example.com\",\"location\":\"Toshkent, O'zbekiston\",\"linkedin\":\"\",\"telegram\":\"\"}} }}"
     )
     resp = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=2000,
+        max_tokens=2500,
         temperature=0.6,
         response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)
 
 
-def _build_cv_docx(data: dict, name: str, profession: str, lang: str) -> BytesIO:
-    doc = Document()
-    sec = doc.sections[0]
-    sec.page_width = Cm(21); sec.page_height = Cm(29.7)
-    sec.left_margin = Cm(2.5); sec.right_margin = Cm(2.0)
-    sec.top_margin = Cm(2.0); sec.bottom_margin = Cm(2.0)
+def _build_cv_pdf(data: dict, name: str, profession: str, lang: str) -> BytesIO:
+    """HTML → PDF rezyume — @slaydtopbot stilida."""
+    labels = CV_LABELS.get(lang, CV_LABELS["uz"])
 
-    def add_run(para, text, bold=False, size=12, color=None, italic=False):
-        r = para.add_run(text)
-        r.bold = bold; r.italic = italic
-        r.font.name = "Arial"; r.font.size = Pt(size)
-        if color: r.font.color.rgb = color
-        return r
+    # HTML shablonini o'qi
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resume_template.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        template_str = f.read()
 
-    def section_title(title_text):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(5)
-        add_run(p, title_text.upper(), bold=True, size=11, color=RGBColor(0x1A, 0x73, 0xE8))
-        pPr = p._p.get_or_add_pPr()
-        pBdr = OxmlElement('w:pBdr')
-        b = OxmlElement('w:bottom')
-        b.set(qn('w:val'), 'single'); b.set(qn('w:sz'), '6')
-        b.set(qn('w:space'), '1'); b.set(qn('w:color'), '1A73E8')
-        pBdr.append(b); pPr.append(pBdr)
+    tmpl = Template(template_str)
+    html = tmpl.render(
+        lang_code=lang,
+        full_name=name.upper(),
+        job_title=profession,
+        labels=labels,
+        summary=data.get("summary", ""),
+        experience=data.get("experience", []),
+        education=data.get("education", []),
+        projects=data.get("projects", []),
+        certifications=data.get("certifications", []),
+        skills=data.get("skills", []),
+        languages=data.get("languages", []),
+        interests=data.get("interests", []),
+        contact=data.get("contact", {}),
+    )
 
-    def bullet_item(text, color=None):
-        p = doc.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.5)
-        p.paragraph_format.space_after = Pt(3)
-        add_run(p, "▸  ", bold=True, size=10, color=RGBColor(0x1A, 0x73, 0xE8))
-        add_run(p, text, size=10, color=color)
-        return p
-
-    # ── Header ──
-    h = doc.add_paragraph()
-    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_run(h, name.upper(), bold=True, size=22, color=RGBColor(0x1A, 0x1A, 0x6E))
-    h.paragraph_format.space_after = Pt(3)
-
-    p2 = doc.add_paragraph()
-    p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_run(p2, profession, size=13, color=RGBColor(0x1A, 0x73, 0xE8), italic=True)
-    p2.paragraph_format.space_after = Pt(6)
-
-    # ── Kontaktlar ──
-    contacts = data.get("contacts", {})
-    if contacts:
-        cp = doc.add_paragraph()
-        cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        parts = []
-        if contacts.get("location"): parts.append(f"📍 {contacts['location']}")
-        if contacts.get("email"):    parts.append(f"✉ {contacts['email']}")
-        if contacts.get("phone"):    parts.append(f"📞 {contacts['phone']}")
-        if contacts.get("linkedin"): parts.append(f"🔗 {contacts['linkedin']}")
-        add_run(cp, "  |  ".join(parts), size=9, color=RGBColor(0x44, 0x44, 0x44))
-        cp.paragraph_format.space_after = Pt(4)
-
-    # Ajratuvchi chiziq
-    sep = doc.add_paragraph()
-    sep.paragraph_format.space_before = Pt(2)
-    sep.paragraph_format.space_after = Pt(2)
-    pPr = sep._p.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
-    b = OxmlElement('w:bottom')
-    b.set(qn('w:val'), 'single'); b.set(qn('w:sz'), '8')
-    b.set(qn('w:space'), '1'); b.set(qn('w:color'), '1A1A6E')
-    pBdr.append(b); pPr.append(pBdr)
-
-    # ── Maqsad ──
-    obj = data.get("objective", "")
-    if obj:
-        section_title("Maqsad" if lang == "uz" else "Objective" if lang == "en" else "Цель")
-        op = doc.add_paragraph()
-        op.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        add_run(op, obj, size=11)
-        op.paragraph_format.space_after = Pt(4)
-        op.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        op.paragraph_format.line_spacing = 1.2
-
-    # ── Ko'nikmalar (2 ustunli ko'rinish) ──
-    skills = data.get("skills", [])
-    if skills:
-        section_title("Ko'nikmalar" if lang == "uz" else "Skills" if lang == "en" else "Навыки")
-        # Juft-toq qilib 2 ta bullet bir qatorda
-        for i in range(0, len(skills), 2):
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(2)
-            add_run(p, "▸  ", bold=True, size=10, color=RGBColor(0x1A, 0x73, 0xE8))
-            add_run(p, skills[i], size=10)
-            if i + 1 < len(skills):
-                add_run(p, "          ▸  ", bold=True, size=10, color=RGBColor(0x1A, 0x73, 0xE8))
-                add_run(p, skills[i+1], size=10)
-
-    # ── Ish tajribasi ──
-    exp = data.get("experience", [])
-    if exp:
-        section_title("Ish tajribasi" if lang == "uz" else "Experience" if lang == "en" else "Опыт работы")
-        for e in exp:
-            ep = doc.add_paragraph()
-            ep.paragraph_format.space_before = Pt(6)
-            ep.paragraph_format.space_after = Pt(2)
-            add_run(ep, f"{e.get('title','')}", bold=True, size=11, color=RGBColor(0x1A, 0x1A, 0x6E))
-            add_run(ep, f"  —  {e.get('company','')}", size=11)
-            add_run(ep, f"  |  {e.get('period','')}", size=10, color=RGBColor(0x77,0x77,0x77), italic=True)
-
-            dp = doc.add_paragraph()
-            dp.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            dp.paragraph_format.left_indent = Cm(0.5)
-            dp.paragraph_format.space_after = Pt(4)
-            dp.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-            dp.paragraph_format.line_spacing = 1.2
-            add_run(dp, e.get('desc',''), size=10, color=RGBColor(0x33, 0x33, 0x33))
-
-    # ── Ta'lim ──
-    edu = data.get("education", [])
-    if edu:
-        section_title("Ta'lim" if lang == "uz" else "Education" if lang == "en" else "Образование")
-        for e in edu:
-            ep = doc.add_paragraph()
-            ep.paragraph_format.space_before = Pt(5)
-            ep.paragraph_format.space_after = Pt(2)
-            add_run(ep, f"{e.get('degree','')}", bold=True, size=11, color=RGBColor(0x1A, 0x1A, 0x6E))
-            add_run(ep, f"  —  {e.get('school','')}", size=11)
-            add_run(ep, f"  |  {e.get('year','')}", size=10, color=RGBColor(0x77,0x77,0x77), italic=True)
-            if e.get("gpa"):
-                gp = doc.add_paragraph()
-                gp.paragraph_format.left_indent = Cm(0.5)
-                gp.paragraph_format.space_after = Pt(2)
-                add_run(gp, e.get("gpa",""), size=10, color=RGBColor(0x44, 0x44, 0x44))
-
-    # ── Sertifikatlar ──
-    certs = data.get("certifications", [])
-    if certs:
-        section_title("Sertifikatlar" if lang == "uz" else "Certifications" if lang == "en" else "Сертификаты")
-        for c in certs:
-            bullet_item(c)
-
-    # ── Tillar ──
-    langs = data.get("languages", [])
-    if langs:
-        section_title("Tillar" if lang == "uz" else "Languages" if lang == "en" else "Языки")
-        lp = doc.add_paragraph()
-        lp.paragraph_format.space_after = Pt(4)
-        for i, l in enumerate(langs):
-            if i > 0:
-                add_run(lp, "   •   ", size=10, color=RGBColor(0x1A, 0x73, 0xE8))
-            add_run(lp, l, size=10)
-
-    # ── Footer ──
-    fp = doc.add_paragraph()
-    fp.paragraph_format.space_before = Pt(16)
-    fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_run(fp, "@slidego | t.me/slidego", size=8, color=RGBColor(0xAA, 0xAA, 0xAA), italic=True)
-
-    buf = BytesIO(); doc.save(buf); buf.seek(0)
+    # HTML → PDF
+    pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf()
+    buf = BytesIO(pdf_bytes)
+    buf.seek(0)
     return buf
 
 
 async def generate_cv(name: str, profession: str, lang: str, extra: str = "") -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_content, name, profession, lang, extra)
-    return await asyncio.to_thread(_build_cv_docx, data, name, profession, lang)
+    return await asyncio.to_thread(_build_cv_pdf, data, name, profession, lang)
 
 
 # ═══════════════════════════════════════════════

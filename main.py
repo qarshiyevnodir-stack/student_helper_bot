@@ -3696,9 +3696,9 @@ async def _hj_generate(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
         if service == "rezyume":
             doc = await generate_cv(input1, input2, lang, input3)
-            filename = f"rezyume_{input1[:20].replace(' ','_')}.docx"
-            ext = "docx"
-            caption = f"📄 Rezyume / CV\n{input1} — {input2}\n🌍 {lang_name} | DOCX"
+            filename = f"rezyume_{input1[:20].replace(' ','_')}.pdf"
+            ext = "pdf"
+            caption = f"📄 Rezyume / CV\n{input1} — {input2}\n🌍 {lang_name} | PDF"
         elif service == "motivatsion":
             doc = await generate_motivation(input1, input2, lang, input3)
             filename = f"motivatsion_{input1[:20].replace(' ','_')}.docx"

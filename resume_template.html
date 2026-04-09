@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="{{ lang_code }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', 'DejaVu Sans', Arial, sans-serif;
+    font-size: 9pt;
+    color: #2d2d2d;
+    background: #ffffff;
+    width: 210mm;
+    min-height: 297mm;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #00B5A5 0%, #007A6E 100%);
+    padding: 28px 32px 22px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 160px; height: 160px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    right: 40px; bottom: -50px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative; z-index: 1;
+  }
+  .header-left { flex: 1; }
+  .header-name {
+    font-size: 26pt;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 1px;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+  .header-title {
+    font-size: 12pt;
+    font-weight: 400;
+    color: rgba(255,255,255,0.88);
+    margin-top: 5px;
+    letter-spacing: 0.5px;
+  }
+  .header-contact-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: rgba(255,255,255,0.9);
+    font-size: 8pt;
+  }
+  .contact-icon {
+    width: 14px; height: 14px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7pt;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    min-height: calc(297mm - 130px);
+  }
+
+  /* ── LEFT COLUMN (sidebar) ── */
+  .sidebar {
+    width: 32%;
+    background: #f0faf9;
+    padding: 20px 18px;
+    border-right: 1px solid #e0f0ee;
+  }
+
+  /* ── RIGHT COLUMN (main content) ── */
+  .content {
+    width: 68%;
+    padding: 20px 22px;
+    background: #ffffff;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #007A6E;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 2px solid #00B5A5;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+    margin-top: 16px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── SKILLS ── */
+  .skill-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+    font-size: 8.5pt;
+    color: #2d2d2d;
+  }
+  .skill-dot {
+    width: 7px; height: 7px;
+    background: #00B5A5;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── LANGUAGES ── */
+  .lang-item {
+    margin-bottom: 7px;
+  }
+  .lang-name {
+    font-size: 8.5pt;
+    font-weight: 600;
+    color: #2d2d2d;
+  }
+  .lang-level {
+    font-size: 7.5pt;
+    color: #666;
+    margin-top: 2px;
+  }
+  .lang-bar {
+    height: 4px;
+    background: #d0ece9;
+    border-radius: 2px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .lang-fill {
+    height: 100%;
+    background: #00B5A5;
+    border-radius: 2px;
+  }
+
+  /* ── CONTACT (sidebar) ── */
+  .contact-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 8pt;
+    color: #2d2d2d;
+    word-break: break-all;
+  }
+  .contact-row .icon {
+    font-size: 10pt;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── INTERESTS ── */
+  .interest-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 4px;
+  }
+  .interest-tag {
+    background: #d0ece9;
+    color: #007A6E;
+    font-size: 7.5pt;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  /* ── SUMMARY ── */
+  .summary-text {
+    font-size: 9pt;
+    color: #3d3d3d;
+    line-height: 1.6;
+    text-align: justify;
+  }
+
+  /* ── EXPERIENCE ── */
+  .exp-item {
+    margin-bottom: 14px;
+    padding-left: 12px;
+    border-left: 3px solid #00B5A5;
+  }
+  .exp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .exp-title {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .exp-company {
+    font-size: 8.5pt;
+    color: #007A6E;
+    font-weight: 500;
+    margin-top: 1px;
+  }
+  .exp-date {
+    font-size: 7.5pt;
+    color: #888;
+    white-space: nowrap;
+    margin-left: 8px;
+    background: #f0faf9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .exp-bullets {
+    margin-top: 5px;
+    padding-left: 0;
+  }
+  .exp-bullet {
+    display: flex;
+    gap: 6px;
+    font-size: 8.5pt;
+    color: #444;
+    line-height: 1.5;
+    margin-bottom: 3px;
+  }
+  .bullet-dot {
+    color: #00B5A5;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── EDUCATION ── */
+  .edu-item {
+    margin-bottom: 12px;
+  }
+  .edu-degree {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .edu-school {
+    font-size: 8.5pt;
+    color: #007A6E;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .edu-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+  }
+  .edu-date {
+    font-size: 7.5pt;
+    color: #888;
+  }
+  .edu-desc {
+    font-size: 8pt;
+    color: #555;
+    margin-top: 3px;
+  }
+
+  /* ── PROJECTS ── */
+  .proj-item {
+    margin-bottom: 10px;
+  }
+  .proj-name {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .proj-desc {
+    font-size: 8.5pt;
+    color: #555;
+    margin-top: 2px;
+    line-height: 1.5;
+  }
+
+  /* ── CERTIFICATIONS ── */
+  .cert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-bottom: 7px;
+    font-size: 8.5pt;
+  }
+  .cert-name { font-weight: 600; color: #1a1a1a; }
+  .cert-org { color: #007A6E; font-size: 8pt; }
+  .cert-date { color: #888; font-size: 7.5pt; }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 8px;
+    background: #f0faf9;
+    border-top: 1px solid #d0ece9;
+    font-size: 7pt;
+    color: #aaa;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-content">
+    <div class="header-left">
+      <div class="header-name">{{ full_name }}</div>
+      <div class="header-title">{{ job_title }}</div>
+      <div class="header-contact-bar">
+        {% if contact.phone %}
+        <div class="contact-item">
+          <div class="contact-icon">📞</div>
+          <span>{{ contact.phone }}</span>
+        </div>
+        {% endif %}
+        {% if contact.email %}
+        <div class="contact-item">
+          <div class="contact-icon">✉</div>
+          <span>{{ contact.email }}</span>
+        </div>
+        {% endif %}
+        {% if contact.location %}
+        <div class="contact-item">
+          <div class="contact-icon">📍</div>
+          <span>{{ contact.location }}</span>
+        </div>
+        {% endif %}
+        {% if contact.linkedin %}
+        <div class="contact-item">
+          <div class="contact-icon">🔗</div>
+          <span>{{ contact.linkedin }}</span>
+        </div>
+        {% endif %}
+        {% if contact.telegram %}
+        <div class="contact-item">
+          <div class="contact-icon">✈</div>
+          <span>{{ contact.telegram }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- SKILLS -->
+    {% if skills %}
+    <div class="section-title">{{ labels.skills }}</div>
+    {% for skill in skills %}
+    <div class="skill-item">
+      <div class="skill-dot"></div>
+      <span>{{ skill }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- LANGUAGES -->
+    {% if languages %}
+    <div class="section-title">{{ labels.languages }}</div>
+    {% for lang in languages %}
+    <div class="lang-item">
+      <div class="lang-name">{{ lang.name }}</div>
+      <div class="lang-level">{{ lang.level }}</div>
+      <div class="lang-bar">
+        {% set lvl = lang.level | lower %}
+        {% if 'native' in lvl or 'ona' in lvl or 'родной' in lvl or 'c2' in lvl %}
+          <div class="lang-fill" style="width:100%"></div>
+        {% elif 'c1' in lvl or 'advanced' in lvl or 'ilg' in lvl %}
+          <div class="lang-fill" style="width:85%"></div>
+        {% elif 'b2' in lvl or 'upper' in lvl or 'o\'rta' in lvl %}
+          <div class="lang-fill" style="width:70%"></div>
+        {% elif 'b1' in lvl or 'intermediate' in lvl %}
+          <div class="lang-fill" style="width:55%"></div>
+        {% elif 'a2' in lvl or 'elementary' in lvl %}
+          <div class="lang-fill" style="width:35%"></div>
+        {% else %}
+          <div class="lang-fill" style="width:50%"></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- CERTIFICATIONS -->
+    {% if certifications %}
+    <div class="section-title">{{ labels.certifications }}</div>
+    {% for cert in certifications %}
+    <div class="cert-item">
+      <div class="skill-dot" style="margin-top:4px"></div>
+      <div>
+        <div class="cert-name">{{ cert.name }}</div>
+        {% if cert.organization %}<div class="cert-org">{{ cert.organization }}</div>{% endif %}
+        {% if cert.date %}<div class="cert-date">{{ cert.date }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- INTERESTS -->
+    {% if interests %}
+    <div class="section-title">{{ labels.interests }}</div>
+    <div class="interest-tags">
+      {% for interest in interests %}
+      <span class="interest-tag">{{ interest }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- SUMMARY -->
+    {% if summary %}
+    <div class="section-title">{{ labels.summary }}</div>
+    <p class="summary-text">{{ summary }}</p>
+    {% endif %}
+
+    <!-- EXPERIENCE -->
+    {% if experience %}
+    <div class="section-title">{{ labels.experience }}</div>
+    {% for exp in experience %}
+    <div class="exp-item">
+      <div class="exp-header">
+        <div>
+          <div class="exp-title">{{ exp.title }}</div>
+          <div class="exp-company">{{ exp.company }}</div>
+        </div>
+        {% if exp.date %}<div class="exp-date">{{ exp.date }}</div>{% endif %}
+      </div>
+      {% if exp.bullets %}
+      <div class="exp-bullets">
+        {% for bullet in exp.bullets %}
+        <div class="exp-bullet">
+          <span class="bullet-dot">▸</span>
+          <span>{{ bullet }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- EDUCATION -->
+    {% if education %}
+    <div class="section-title">{{ labels.education }}</div>
+    {% for edu in education %}
+    <div class="edu-item">
+      <div class="edu-degree">{{ edu.degree }}</div>
+      <div class="edu-school">{{ edu.school }}</div>
+      <div class="edu-meta">
+        {% if edu.date %}<div class="edu-date">{{ edu.date }}</div>{% endif %}
+      </div>
+      {% if edu.description %}<div class="edu-desc">{{ edu.description }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- PROJECTS -->
+    {% if projects %}
+    <div class="section-title">{{ labels.projects }}</div>
+    {% for proj in projects %}
+    <div class="proj-item">
+      <div class="proj-name">{{ proj.name }}</div>
+      <div class="proj-desc">{{ proj.description }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">@slidego_bot | t.me/slidego_bot</div>
+
+</body>
+</html>
