@@ -717,7 +717,12 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             f"Men professional akademik yordamchiman.\n"
             f"Har qanday savol, tushuntirish, tahlil uchun yordamga tayyorman.\n\n"
             f"{status_text}\n\n"
-            f"Savolingizni yozing:",
+            f"📌 *Savolingizni batafsil yozing* — bu sizga aniq va professional javob olishga yordam beradi.\n\n"
+            f"*Misol savollar:*\n"
+            f"• \'Kurs ishi kirish qismini qanday yozaman?\' \n"
+            f"• \'Mitoz va meyoz farqi nima?\'\n"
+            f"• \'Python da list va tuple qachon ishlatiladi?\'\n\n"
+            f"✏️ Savolingizni yozing:",
             parse_mode="Markdown"
         )
         return AI_CHAT
