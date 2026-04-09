@@ -3758,8 +3758,8 @@ async def an_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["an_lang"] = lang
     lang_name = AN_LANG_LABELS.get(lang, lang)
     await query.edit_message_text(
-        f"📋 *Annotatsiya yaratish*\\n"
-        f"🌍 Til: {lang_name}\\n\\n"
+        f"📋 *Annotatsiya yaratish*\n"
+        f"🌍 Til: {lang_name}\n\n"
         f"Asar turini tanlang:",
         reply_markup=AN_TYPE_KEYBOARD,
         parse_mode="Markdown"
@@ -3780,8 +3780,8 @@ async def an_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     lang = context.user_data.get("an_lang", "uz")
     lang_name = AN_LANG_LABELS.get(lang, lang)
     await query.edit_message_text(
-        f"📋 *Annotatsiya yaratish*\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"📋 *Annotatsiya yaratish*\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Asar sarlavhasini yozing:",
         parse_mode="Markdown"
     )
@@ -3800,9 +3800,9 @@ async def an_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     doc_type = context.user_data.get("an_type", "kurs")
     type_name = type_labels.get(doc_type, doc_type)
     await update.message.reply_text(
-        f"📋 *Annotatsiya yaratish*\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n"
-        f"📌 Sarlavha: {title}\\n\\n"
+        f"📋 *Annotatsiya yaratish*\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n"
+        f"📌 Sarlavha: {title}\n\n"
         f"Muallif ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
         parse_mode="Markdown"
     )
@@ -3826,9 +3826,9 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     if balance < price:
         await update.message.reply_text(
-            f"❌ *Balans yetarli emas!*\\n\\n"
-            f"💰 Balansingiz: `{balance:,}` so'm\\n"
-            f"💳 Kerakli summa: `{price:,}` so'm\\n\\n"
+            f"❌ *Balans yetarli emas!*\n\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\n\n"
             f"Balansni to'ldiring:",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
@@ -3844,8 +3844,8 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     type_name = type_labels.get(doc_type, doc_type)
 
     await update.message.reply_text(
-        f"⏳ *{title}* asari uchun annotatsiya yaratilmoqda...\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"⏳ *{title}* asari uchun annotatsiya yaratilmoqda...\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
@@ -3862,11 +3862,11 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *Annotatsiya tayyor!*\\n\\n"
-                f"📌 {title}\\n"
-                f"📄 Tur: {type_name}\\n"
-                f"🌍 Til: {lang_name}\\n"
-                f"💰 Yechildi: {price:,} so'm\\n\\n"
+                f"✅ *Annotatsiya tayyor!*\n\n"
+                f"📌 {title}\n"
+                f"📄 Tur: {type_name}\n"
+                f"🌍 Til: {lang_name}\n"
+                f"💰 Yechildi: {price:,} so'm\n\n"
                 f"@slidego | t.me/slidego"
             ),
             reply_markup=get_main_menu_keyboard(),
@@ -3880,8 +3880,8 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 document=doc_bytes,
                 filename=filename,
                 caption=(
-                    f"📋 Annotatsiya\\n"
-                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\\n"
+                    f"📋 Annotatsiya\n"
+                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\n"
                     f"📌 {title} | {type_name} | {lang_name}"
                 )
             )
@@ -3891,7 +3891,7 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     except Exception as e:
         logger.error(f"Annotatsiya xatolik: {e}", exc_info=True)
         await update.message.reply_text(
-            f"❌ Annotatsiya yaratishda xatolik yuz berdi.\\n{str(e)[:100]}\\n\\n"
+            f"❌ Annotatsiya yaratishda xatolik yuz berdi.\n{str(e)[:100]}\n\n"
             f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
@@ -3919,8 +3919,8 @@ async def tq_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["tq_lang"] = lang
     lang_name = TQ_LANG_LABELS.get(lang, lang)
     await query.edit_message_text(
-        f"📝 *Taqriz yaratish*\\n"
-        f"🌍 Til: {lang_name}\\n\\n"
+        f"📝 *Taqriz yaratish*\n"
+        f"🌍 Til: {lang_name}\n\n"
         f"Asar turini tanlang:",
         reply_markup=TQ_TYPE_KEYBOARD,
         parse_mode="Markdown"
@@ -3937,8 +3937,8 @@ async def tq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     lang = context.user_data.get("tq_lang", "uz")
     lang_name = TQ_LANG_LABELS.get(lang, lang)
     await query.edit_message_text(
-        f"📝 *Taqriz yaratish*\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"📝 *Taqriz yaratish*\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Asar sarlavhasini yozing:",
         parse_mode="Markdown"
     )
@@ -3953,9 +3953,9 @@ async def tq_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     doc_type = context.user_data.get("tq_type", "kurs")
     type_name = TAQRIZ_TYPES.get(doc_type, doc_type)
     await update.message.reply_text(
-        f"📝 *Taqriz yaratish*\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n"
-        f"📌 Sarlavha: {title}\\n\\n"
+        f"📝 *Taqriz yaratish*\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n"
+        f"📌 Sarlavha: {title}\n\n"
         f"Asar muallifining ismini yozing:",
         parse_mode="Markdown"
     )
@@ -3968,9 +3968,9 @@ async def tq_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lang = context.user_data.get("tq_lang", "uz")
     lang_name = TQ_LANG_LABELS.get(lang, lang)
     await update.message.reply_text(
-        f"📝 *Taqriz yaratish*\\n"
-        f"🌍 Til: {lang_name}\\n"
-        f"✍️ Muallif: {author}\\n\\n"
+        f"📝 *Taqriz yaratish*\n"
+        f"🌍 Til: {lang_name}\n"
+        f"✍️ Muallif: {author}\n\n"
         f"Taqrizchi ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
         parse_mode="Markdown"
     )
@@ -3984,9 +3984,9 @@ async def tq_get_reviewer(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     lang = context.user_data.get("tq_lang", "uz")
     lang_name = TQ_LANG_LABELS.get(lang, lang)
     await update.message.reply_text(
-        f"📝 *Taqriz yaratish*\\n"
-        f"🌍 Til: {lang_name}\\n\\n"
-        f"Asar haqida qisqa ma'lumot yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):\\n"
+        f"📝 *Taqriz yaratish*\n"
+        f"🌍 Til: {lang_name}\n\n"
+        f"Asar haqida qisqa ma'lumot yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):\n"
         f"_(masalan: asosiy mavzu, qaysi fan bo'yicha)_",
         parse_mode="Markdown"
     )
@@ -4013,9 +4013,9 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if balance < price:
         await update.message.reply_text(
-            f"❌ *Balans yetarli emas!*\\n\\n"
-            f"💰 Balansingiz: `{balance:,}` so'm\\n"
-            f"💳 Kerakli summa: `{price:,}` so'm\\n\\n"
+            f"❌ *Balans yetarli emas!*\n\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\n\n"
             f"Balansni to'ldiring:",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
@@ -4025,8 +4025,8 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     await update.message.reply_text(
-        f"⏳ *{title}* asari uchun taqriz yaratilmoqda...\\n"
-        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\\n\\n"
+        f"⏳ *{title}* asari uchun taqriz yaratilmoqda...\n"
+        f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
@@ -4043,12 +4043,12 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *Taqriz tayyor!*\\n\\n"
-                f"📌 {title}\\n"
-                f"✍️ Muallif: {author}\\n"
-                f"📄 Tur: {type_name}\\n"
-                f"🌍 Til: {lang_name}\\n"
-                f"💰 Yechildi: {price:,} so'm\\n\\n"
+                f"✅ *Taqriz tayyor!*\n\n"
+                f"📌 {title}\n"
+                f"✍️ Muallif: {author}\n"
+                f"📄 Tur: {type_name}\n"
+                f"🌍 Til: {lang_name}\n"
+                f"💰 Yechildi: {price:,} so'm\n\n"
                 f"@slidego | t.me/slidego"
             ),
             reply_markup=get_main_menu_keyboard(),
@@ -4062,8 +4062,8 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 document=doc_bytes,
                 filename=filename,
                 caption=(
-                    f"📝 Taqriz\\n"
-                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\\n"
+                    f"📝 Taqriz\n"
+                    f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\n"
                     f"📌 {title} | {author} | {type_name} | {lang_name}"
                 )
             )
@@ -4073,7 +4073,7 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as e:
         logger.error(f"Taqriz xatolik: {e}", exc_info=True)
         await update.message.reply_text(
-            f"❌ Taqriz yaratishda xatolik yuz berdi.\\n{str(e)[:100]}\\n\\n"
+            f"❌ Taqriz yaratishda xatolik yuz berdi.\n{str(e)[:100]}\n\n"
             f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
