@@ -4686,24 +4686,21 @@ async def topup_handle_screenshot_text(update: Update, context: ContextTypes.DEF
 
 async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Balans to'ldirish boshlaydi — callback yoki message orqali."""
+    msg = (
+        f"💳 *Balans to'ldirish*\n\n"
+        f"Karta raqami: `{CARD_NUMBER}`\n\n"
+        f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+        f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)"
+    )
     if update.callback_query:
         query = update.callback_query
         await query.answer()
-        await query.edit_message_text(
-            f"💳 *Balans to'ldirish*\n\n"
-            f"Karta raqami: `{CARD_NUMBER}`\n\n"
-            f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
-            f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
-            parse_mode="Markdown"
-        )
+        try:
+            await query.edit_message_text(msg, parse_mode="Markdown")
+        except Exception:
+            await query.message.reply_text(msg, parse_mode="Markdown")
     else:
-        await update.message.reply_text(
-            f"💳 *Balans to'ldirish*\n\n"
-            f"Karta raqami: `{CARD_NUMBER}`\n\n"
-            f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
-            f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)",
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text(msg, parse_mode="Markdown")
     _set_topup_state(context, update.effective_user.id, 'amount')
     _set_topup_amount(context, update.effective_user.id, 0)
     logger.info(f"topup_start: user {update.effective_user.id} topup boshladi")
@@ -5128,7 +5125,6 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
         per_message=False,
