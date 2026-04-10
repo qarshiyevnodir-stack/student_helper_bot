@@ -4655,6 +4655,35 @@ def _set_topup_amount(context, user_id, amount):
 # ConversationHandler dan MUSTAQIL — context.user_data['topup_state'] orqali
 # topup_state: None | 'amount' | 'screenshot'
 # ─────────────────────────────────────────────
+async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """TOPUP_AMOUNT state da foydalanuvchi kiritgan raqamni qabul qiladi."""
+    text = update.message.text.strip().replace(' ', '').replace(',', '')
+    try:
+        amount = int(text)
+    except ValueError:
+        await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting (masalan: 10000):")
+        return TOPUP_AMOUNT
+    if amount < MIN_TOPUP:
+        await update.message.reply_text(
+            f"⚠️ Minimal to'lov miqdori: *{MIN_TOPUP:,} so'm*\nIltimos, qayta kiriting:",
+            parse_mode="Markdown"
+        )
+        return TOPUP_AMOUNT
+    _set_topup_amount(context, update.effective_user.id, amount)
+    _set_topup_state(context, update.effective_user.id, 'screenshot')
+    await update.message.reply_text(
+        f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
+        f"Karta raqami: `{CARD_NUMBER}`\n\n"
+        f"Ushbu kartaga *{amount:,} so'm* o'tkazing va chek (screenshot) rasmini yuboring:",
+        parse_mode="Markdown"
+    )
+    return TOPUP_SCREENSHOT
+
+async def topup_handle_screenshot_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """TOPUP_SCREENSHOT state da matn kelganda rasm so'raydi."""
+    await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
+    return TOPUP_SCREENSHOT
+
 async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Balans to'ldirish boshlaydi — callback yoki message orqali."""
     if update.callback_query:
@@ -5562,12 +5591,12 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_handle_amount),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_handle_screenshot_text),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
         },
