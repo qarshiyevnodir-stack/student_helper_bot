@@ -1666,6 +1666,7 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         f"Bu biroz vaqt olishi mumkin, kuting!",
         parse_mode="Markdown"
     )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_photo")
     try:
         import tempfile, os
         tmp_path = tempfile.mktemp(suffix=".png")
@@ -2676,7 +2677,7 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
-
+    await context.bot.send_chat_action(chat_id=chat_id, action="upload_document")
     try:
         doc_bytes = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -2874,7 +2875,7 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
-
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         # Tezis yaratish
         doc_bytes = await generate_tezis(
@@ -3025,7 +3026,7 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
-
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         # Test yaratish (2 ta DOCX)
         question_doc, answer_doc = await generate_test(
@@ -3195,7 +3196,7 @@ async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
-
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         # Glossary yaratish
         doc_bytes = await generate_glossary(
@@ -3334,6 +3335,7 @@ async def kr_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         empty_doc, answer_doc = await generate_crossword(
             topic=topic,
@@ -3536,6 +3538,7 @@ async def in_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         doc_bytes = await generate_insho(
             topic=topic,
@@ -3788,10 +3791,10 @@ async def _hj_generate(update: Update, context: ContextTypes.DEFAULT_TYPE,
         f"⏳ *{title}* yaratilmoqda...\n🌍 Til: {lang_name}\n\nBir daqiqa kuting...",
         parse_mode="Markdown"
     )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         import time
         t0 = time.time()
-
         if service == "rezyume":
             doc = await generate_cv(input1, input2, lang, input3)
             filename = f"rezyume_{input1[:20].replace(' ','_')}.pdf"
@@ -3979,7 +3982,7 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
-
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         doc_bytes = await generate_annotation(title, doc_type, lang, author)
 
@@ -4160,7 +4163,7 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
-
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
     try:
         doc_bytes = await generate_taqriz(title, doc_type, author, reviewer, lang, summary)
 
@@ -4626,6 +4629,7 @@ async def cv_get_length(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
     )
+    await context.bot.send_chat_action(chat_id=user.id, action="upload_document")
     try:
         import time
         t0 = time.time()
