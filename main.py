@@ -479,13 +479,17 @@ async def archive_send_document(
             f"💰 Narx: {price:,} so'm\n"
             f"📅 Sana: {now}"
         )
-        # BytesIO bo'lsa, o'qish pozitsiyasini boshiga qaytarish
-        if hasattr(document_bytes, 'seek'):
+        # bytes yoki BytesIO dan yangi BytesIO nusxa yaratish
+        if isinstance(document_bytes, (bytes, bytearray)):
+            archive_doc = BytesIO(document_bytes)
+        elif hasattr(document_bytes, 'getvalue'):
+            archive_doc = BytesIO(document_bytes.getvalue())
+        elif hasattr(document_bytes, 'seek'):
             document_bytes.seek(0)
             archive_doc = BytesIO(document_bytes.read())
-            archive_doc.seek(0)
         else:
             archive_doc = document_bytes
+        archive_doc.seek(0)
         await bot.send_document(
             chat_id=ARCHIVE_CHANNEL,
             document=archive_doc,
@@ -493,7 +497,7 @@ async def archive_send_document(
             caption=caption
         )
     except Exception as e:
-        logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}")
+        logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}", exc_info=True)
 
 async def archive_send_photo(
     bot,
@@ -3917,9 +3921,16 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
         # Arxivga yuborish
         try:
+            from io import BytesIO
+            if hasattr(doc_bytes, 'getvalue'):
+                archive_doc = BytesIO(doc_bytes.getvalue())
+            else:
+                doc_bytes.seek(0)
+                archive_doc = BytesIO(doc_bytes.read())
+            archive_doc.seek(0)
             await context.bot.send_document(
                 chat_id=ARCHIVE_CHANNEL,
-                document=doc_bytes,
+                document=archive_doc,
                 filename=filename,
                 caption=(
                     f"📋 Annotatsiya\n"
@@ -3927,8 +3938,8 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                     f"📌 {title} | {type_name} | {lang_name}"
                 )
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Annotatsiya arxiv xatolik: {e}", exc_info=True)
 
     except Exception as e:
         logger.error(f"Annotatsiya xatolik: {e}", exc_info=True)
@@ -4098,9 +4109,16 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         # Arxivga yuborish
         try:
+            from io import BytesIO
+            if hasattr(doc_bytes, 'getvalue'):
+                archive_doc = BytesIO(doc_bytes.getvalue())
+            else:
+                doc_bytes.seek(0)
+                archive_doc = BytesIO(doc_bytes.read())
+            archive_doc.seek(0)
             await context.bot.send_document(
                 chat_id=ARCHIVE_CHANNEL,
-                document=doc_bytes,
+                document=archive_doc,
                 filename=filename,
                 caption=(
                     f"📝 Taqriz\n"
@@ -4108,8 +4126,8 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     f"📌 {title} | {author} | {type_name} | {lang_name}"
                 )
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Taqriz arxiv xatolik: {e}", exc_info=True)
 
     except Exception as e:
         logger.error(f"Taqriz xatolik: {e}", exc_info=True)
@@ -5125,6 +5143,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
         per_message=False,
@@ -5587,37 +5606,19 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_handle_amount),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_handle_screenshot_text),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
         },
         fallbacks=[
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
-            MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
         ],
-        allow_reentry=True,
     )
 
     application.add_handler(slayd_handler)
