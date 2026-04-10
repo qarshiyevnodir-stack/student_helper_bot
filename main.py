@@ -337,6 +337,7 @@ def get_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_slayd")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -350,6 +351,7 @@ def get_mi_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="mi_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="mi_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="mi_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_mi")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -363,6 +365,7 @@ def get_rf_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="rf_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="rf_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="rf_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_rf")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -388,6 +391,7 @@ def get_li_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="li_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="li_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="li_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_li")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -707,6 +711,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ig_lang_en")],
             [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ig_lang_ru"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ig_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_ig")],
         ])
         await update.message.reply_text(
             "📊 *Infografika* bo'limiga xush kelibsiz!\n\nQaysi tilda infografika yaratmoqchisiz?",
@@ -760,6 +765,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("Kores tili",   callback_data="mq_lang_ko")],
             [InlineKeyboardButton("Xitoy tili",   callback_data="mq_lang_zh"),
              InlineKeyboardButton("Nemis tili",   callback_data="mq_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_mq")],
         ])
         await update.message.reply_text(
             "📰 *Maqola* bo'limiga xush kelibsiz!\n\nQaysi tilda maqola yozmoqchisiz?",
@@ -802,6 +808,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="kr_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="kr_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="kr_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_kr")],
         ])
         await update.message.reply_text(
             "🧩 *Krossvord yaratish*\n\n"
@@ -828,6 +835,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="ts_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="ts_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ts_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_ts")],
         ])
         await update.message.reply_text(
             "🔠 *Test tuzish*\n\n"
@@ -856,6 +864,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="gl_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="gl_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="gl_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_gl")],
         ])
         await update.message.reply_text(
             "💡 *Glossary (Atamalar lug'ati)*\n\n"
@@ -946,6 +955,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores",   callback_data="an_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="an_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis",   callback_data="an_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_an")],
         ])
         await update.message.reply_text(
             "📋 *Annotatsiya yaratish*\n\nNarx: *1 000 so'm*\n\nTil tanlang:",
@@ -964,6 +974,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores",   callback_data="tq_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="tq_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis",   callback_data="tq_lang_de")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_tq")],
         ])
         await update.message.reply_text(
             "📝 *Taqriz yaratish*\n\nNarx: *2 000 so'm*\n\nTil tanlang:",
@@ -2428,6 +2439,7 @@ async def ki_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("Kores tili",   callback_data="ki_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="ki_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="ki_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_ki")],
     ])
     await query.edit_message_text(
         text=f"✅ Tur: *{type_name}*\n\nQaysi tilda yozmoqchisiz?",
@@ -2751,6 +2763,7 @@ async def tz_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("Kores tili", callback_data="tz_lang_ko")],
         [InlineKeyboardButton("Xitoy tili", callback_data="tz_lang_zh"),
          InlineKeyboardButton("Nemis tili", callback_data="tz_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_tz")],
     ])
     await query.edit_message_text(
         f"✅ *{type_name}* tanlandi.\n\nQaysi tilda yozilsin?",
@@ -3415,6 +3428,7 @@ async def in_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="in_lang_ko")],
         [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="in_lang_zh"),
          InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="in_lang_de")],
+        [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_in")],
     ])
     await query.edit_message_text(
         f"✅ Tur: {type_label}\n\nQaysi tilda insho yozmoqchisiz?",
@@ -3592,6 +3606,22 @@ HJ_LANG_KEYBOARD = InlineKeyboardMarkup([
     [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="hj_lang_zh"),
      InlineKeyboardButton("🇩🇪 Nemis",  callback_data="hj_lang_de")],
 ])
+
+
+async def back_to_main_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Barcha xizmatlar uchun universal bosh menyuga qaytish handler."""
+    query = update.callback_query
+    await query.answer()
+    context.user_data.clear()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+    await query.message.reply_text(
+        "Bosh menyudasiz. Xizmatni tanlang:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    return ConversationHandler.END
 
 async def hj_back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -4299,6 +4329,7 @@ CV_LANG_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("🇰🇷 Kores",  callback_data="cv_lang_ko")],
     [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="cv_lang_zh"),
      InlineKeyboardButton("🇩🇪 Nemis",  callback_data="cv_lang_de")],
+    [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_cv")],
 ])
 
 CV_TONE_KEYBOARD = InlineKeyboardMarkup([
@@ -5312,6 +5343,7 @@ def main() -> None:
             # ── Infografika holatlari ──
             IG_LANGUAGE: [
                 CallbackQueryHandler(ig_get_language, pattern=r"^ig_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ig$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IG_TYPE: [
@@ -5333,6 +5365,7 @@ def main() -> None:
             # ── Maqola holatlari ──
             MQ_LANGUAGE: [
                 CallbackQueryHandler(mq_get_language, pattern=r"^mq_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_mq$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MQ_TYPE: [
@@ -5364,6 +5397,7 @@ def main() -> None:
             ],
             KI_LANGUAGE: [
                 CallbackQueryHandler(ki_get_language, pattern=r"^ki_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ki$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KI_PAGE_COUNT: [
@@ -5406,6 +5440,7 @@ def main() -> None:
             ],
             TZ_LANGUAGE: [
                 CallbackQueryHandler(tz_get_language, pattern=r"^tz_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_tz$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TZ_PAGE_COUNT: [
@@ -5427,6 +5462,7 @@ def main() -> None:
             # ── Test tuzish holatlari ──
             TS_LANGUAGE: [
                 CallbackQueryHandler(ts_get_language, pattern=r"^ts_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ts$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TS_COUNT: [
@@ -5444,6 +5480,7 @@ def main() -> None:
             # ── Glossary holatlari ──
             GL_LANGUAGE: [
                 CallbackQueryHandler(gl_get_language, pattern=r"^gl_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_gl$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             GL_SIZE: [
@@ -5461,6 +5498,7 @@ def main() -> None:
             # ── Krossvord holatlari ──
             KR_LANGUAGE: [
                 CallbackQueryHandler(kr_get_language, pattern=r"^kr_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_kr$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KR_COUNT: [
@@ -5482,6 +5520,7 @@ def main() -> None:
             ],
             IN_LANGUAGE: [
                 CallbackQueryHandler(in_get_language, pattern=r"^in_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_in$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IN_PAGE_COUNT: [
@@ -5526,6 +5565,7 @@ def main() -> None:
             # ── Annotatsiya holatlari ──
             AN_LANGUAGE: [
                 CallbackQueryHandler(an_get_language, pattern=r"^an_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_an$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             AN_TYPE: [
@@ -5543,6 +5583,7 @@ def main() -> None:
             # ── Taqriz holatlari ──
             TQ_LANGUAGE: [
                 CallbackQueryHandler(tq_get_language, pattern=r"^tq_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_tq$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_TYPE: [
@@ -5573,6 +5614,7 @@ def main() -> None:
             # ── Rezyume CV holatlari ──
             CV_LANG: [
                 CallbackQueryHandler(cv_get_lang, pattern=r"^cv_lang_"),
+                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_cv$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_FULLNAME: [
