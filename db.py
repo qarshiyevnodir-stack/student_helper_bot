@@ -333,6 +333,21 @@ def approve_topup(tx_id: int) -> dict | None:
         release_conn(conn)
 
 
+def update_topup_amount(tx_id: int, new_amount: int) -> bool:
+    """To'lov so'rovining summasini yangilaydi (faqat pending holat uchun)."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            UPDATE transactions SET amount = %s, updated_at = NOW()
+            WHERE id = %s AND status = 'pending'
+        """, (new_amount, tx_id))
+        conn.commit()
+        return c.rowcount > 0
+    finally:
+        release_conn(conn)
+
+
 def reject_topup(tx_id: int) -> dict | None:
     conn = get_conn()
     try:

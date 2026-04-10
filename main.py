@@ -4829,7 +4829,8 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         try:
             kb = InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"admin_approve_{tx_id}"),
-                 InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")]
+                 InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")],
+                [InlineKeyboardButton("✏️ Boshqa summa", callback_data=f"admin_custom_amount_{tx_id}")]
             ])
             await context.bot.send_photo(
                 chat_id=admin_id,
@@ -4867,6 +4868,68 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         parse_mode="Markdown"
     )
     return ConversationHandler.END
+
+async def admin_custom_amount_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin 'Boshqa summa' tugmasini bosganida yangi summa so'raydi."""
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in ADMIN_IDS:
+        await query.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    tx_id_str = query.data.replace("admin_custom_amount_", "")
+    tx_id = int(tx_id_str)
+    # Admin state ni saqlash
+    context.user_data["admin_awaiting_custom_tx_id"] = tx_id
+    context.user_data["admin_awaiting_custom_msg_id"] = query.message.message_id
+    context.user_data["admin_awaiting_custom_chat_id"] = query.message.chat_id
+    await context.bot.send_message(
+        chat_id=update.effective_user.id,
+        text=f"✏️ To'lov #{tx_id} uchun yangi summani kiriting (faqat raqam, so'mda):"
+    )
+
+async def admin_custom_amount_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin yangi summani kiritganda qayta tasdiqlash/rad etish ko'rsatadi."""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if "admin_awaiting_custom_tx_id" not in context.user_data:
+        return
+    text = update.message.text.strip().replace(' ', '').replace(',', '')
+    try:
+        new_amount = int(text)
+    except ValueError:
+        await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting (masalan: 15000):")
+        return
+    if new_amount <= 0:
+        await update.message.reply_text("⚠️ Summa 0 dan katta bo'lishi kerak:")
+        return
+    tx_id = context.user_data.pop("admin_awaiting_custom_tx_id")
+    msg_id = context.user_data.pop("admin_awaiting_custom_msg_id", None)
+    chat_id = context.user_data.pop("admin_awaiting_custom_chat_id", None)
+    # DB da summani yangilash
+    await asyncio.to_thread(db.update_topup_amount, tx_id, new_amount)
+    # Yangi keyboard bilan xabarni yangilash
+    new_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"admin_approve_{tx_id}"),
+         InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")],
+        [InlineKeyboardButton("✏️ Boshqa summa", callback_data=f"admin_custom_amount_{tx_id}")]
+    ])
+    if msg_id and chat_id:
+        try:
+            await context.bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=msg_id,
+                caption=(
+                    f"💳 To'lov #{tx_id} — SUMMA YANGILANDI\n\n"
+                    f"💰 Yangi summa: {new_amount:,} so'm\n\n"
+                    f"✅ Tasdiqlash yoki ❌ Rad etish:"
+                ),
+                reply_markup=new_kb
+            )
+        except Exception as e:
+            logger.warning(f"Caption yangilashda xatolik: {e}")
+    await update.message.reply_text(
+        f"✅ Summa {new_amount:,} so'm ga yangilandi. Endi tasdiqlash yoki rad etishingiz mumkin."
+    )
 
 async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin to'lovni tasdiqlaydi."""
@@ -5633,8 +5696,13 @@ def main() -> None:
 
     # Admin callback handlerlari
     application.add_handler(CallbackQueryHandler(admin_callback,      pattern=r"^adm_"))
-    application.add_handler(CallbackQueryHandler(admin_approve_topup, pattern=r"^admin_approve_"))
-    application.add_handler(CallbackQueryHandler(admin_reject_topup,  pattern=r"^admin_reject_"))
+    application.add_handler(CallbackQueryHandler(admin_approve_topup,        pattern=r"^admin_approve_"))
+    application.add_handler(CallbackQueryHandler(admin_reject_topup,          pattern=r"^admin_reject_"))
+    application.add_handler(CallbackQueryHandler(admin_custom_amount_callback, pattern=r"^admin_custom_amount_"))
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+        admin_custom_amount_text
+    ), group=1)
     application.add_handler(CallbackQueryHandler(check_sub_callback,  pattern=r"^check_sub$"))
 
     # Balans & Referral menyu handleri
