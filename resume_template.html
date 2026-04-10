@@ -47,6 +47,14 @@
     position: relative; z-index: 1;
   }
   .header-left { flex: 1; }
+  .header-photo {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.5);
+    object-fit: cover;
+    margin-left: 20px;
+    flex-shrink: 0;
+  }
   .header-name {
     font-size: 26pt;
     font-weight: 700;
@@ -362,8 +370,17 @@
           <span>{{ contact.telegram }}</span>
         </div>
         {% endif %}
+        {% if links %}
+        <div class="contact-item">
+          <div class="contact-icon">🔗</div>
+          <span>{{ links }}</span>
+        </div>
+        {% endif %}
       </div>
     </div>
+    {% if photo_b64 %}
+    <img src="{{ photo_b64 }}" class="header-photo" alt="Profile Photo">
+    {% endif %}
   </div>
 </div>
 

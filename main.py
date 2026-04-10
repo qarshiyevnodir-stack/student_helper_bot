@@ -36,6 +36,7 @@ from ai_utils import get_ai_response, AI_FREE_LIMIT, AI_PRICE_PER_MSG
 from db import get_ai_daily_count, increment_ai_daily_count
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from hujjat_utils import (
+    generate_cv_full,
     generate_cv, generate_motivation, generate_table, generate_mindmap,
     HUJJAT_PRICES, LANG_LABELS as HJ_LANG_LABELS
 )
@@ -272,6 +273,27 @@ logger = logging.getLogger(__name__)
 (
     AI_CHAT,             # 131
 ) = range(131, 132)
+# ─────────────────────────────────────────────
+# Suhbat holatlari — Rezyume (yangi, to'liq)
+# ─────────────────────────────────────────────
+(
+    CV_LANG,             # 140
+    CV_FULLNAME,         # 141
+    CV_EMAIL,            # 142
+    CV_PHONE,            # 143
+    CV_LOCATION,         # 144
+    CV_LINKS,            # 145
+    CV_PHOTO,            # 146
+    CV_TITLE,            # 147
+    CV_SUMMARY,          # 148
+    CV_EXPERIENCE,       # 149
+    CV_PROJECTS,         # 150
+    CV_EDUCATION,        # 151
+    CV_CERTIFICATIONS,   # 152
+    CV_SKILLS,           # 153
+    CV_TONE,             # 154
+    CV_LENGTH,           # 155
+) = range(140, 156)
 # ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
@@ -3576,6 +3598,18 @@ async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     service = query.data.replace("hj_", "")
     context.user_data["hj_service"] = service
 
+    # Rezyume uchun alohida yangi flow
+    if service == "rezyume":
+        context.user_data["cv_data"] = {}
+        await query.edit_message_text(
+            "📄 *Rezyume / CV yaratish*\n\n"
+            "Professional rezyumengizni yaratish uchun bir nechta savollarga javob bering.\n"
+            "💰 Narx: 3 000 so'm\n\n"
+            "🌍 Qaysi tilda yaratilsin?",
+            parse_mode="Markdown",
+            reply_markup=CV_LANG_KEYBOARD
+        )
+        return CV_LANG
     service_info = {
         "rezyume":     ("📄 Rezyume / CV",       "Ism-familiyangizni kiriting:",                  3000),
         "motivatsion": ("📜 Motivatsion xat",  "Ism-familiyangizni kiriting:",                  2000),
@@ -4218,6 +4252,354 @@ def get_ai_response_sync(messages: list) -> str:
     finally:
         loop.close()
 
+
+# ─────────────────────────────────────────────
+# Handlerlar — Rezyume / CV (yangi, to'liq)
+# ─────────────────────────────────────────────
+CV_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+
+CV_LANG_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="cv_lang_uz"),
+     InlineKeyboardButton("🇬🇧 Ingliz", callback_data="cv_lang_en")],
+    [InlineKeyboardButton("🇷🇺 Rus",    callback_data="cv_lang_ru"),
+     InlineKeyboardButton("🇰🇷 Kores",  callback_data="cv_lang_ko")],
+    [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="cv_lang_zh"),
+     InlineKeyboardButton("🇩🇪 Nemis",  callback_data="cv_lang_de")],
+])
+
+CV_TONE_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("💼 Professional", callback_data="cv_tone_professional"),
+     InlineKeyboardButton("✍️ Ijodiy",       callback_data="cv_tone_creative")],
+    [InlineKeyboardButton("📝 Qisqa",        callback_data="cv_tone_concise"),
+     InlineKeyboardButton("📖 Batafsil",     callback_data="cv_tone_detailed")],
+])
+
+CV_LENGTH_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📄 1 sahifa", callback_data="cv_length_1"),
+     InlineKeyboardButton("📄📄 2 sahifa", callback_data="cv_length_2")],
+])
+
+def _cv_skip_text(lang: str) -> str:
+    skips = {
+        "uz": "_(o'tkazib yuborish uchun '-' yozing)_",
+        "ru": "_(введите '-' чтобы пропустить)_",
+        "en": "_(type '-' to skip)_",
+        "ko": "_(건너뛰려면 '-' 입력)_",
+        "zh": "_(输入'-'跳过)_",
+        "de": "_(geben Sie '-' ein, um zu überspringen)_",
+    }
+    return skips.get(lang, "_(type '-' to skip)_")
+
+async def cv_get_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Til tanlandi."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.replace("cv_lang_", "")
+    context.user_data["cv_data"] = {"lang": lang}
+    lang_name = CV_LANG_NAMES.get(lang, lang)
+    await query.edit_message_text(
+        f"✅ Til: {lang_name}\n\n"
+        f"👤 *1/14 — To'liq ism, familiya, otangizning ismi:*\n"
+        f"Misol: Alisher Navoiy Nizomiddinovich",
+        parse_mode="Markdown"
+    )
+    return CV_FULLNAME
+
+async def cv_get_fullname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """To'liq ism."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["fullname"] = text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"✅ Ism: *{text}*\n\n"
+        f"📧 *2/14 — Email manzilingiz:*\n"
+        f"Misol: alisher@gmail.com\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_EMAIL
+
+async def cv_get_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Email."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["email"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"📞 *3/14 — Telefon raqamingiz:*\n"
+        f"Misol: +998 90 123 45 67\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_PHONE
+
+async def cv_get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Telefon."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["phone"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"📍 *4/14 — Joylashuvingiz (Location):*\n"
+        f"Misol: Toshkent, O'zbekiston\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_LOCATION
+
+async def cv_get_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Joylashuv."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["location"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🔗 *5/14 — Havolalaringiz (Links):*\n"
+        f"GitHub, LinkedIn, Portfolio va boshqalar\n"
+        f"Misol: github.com/username | linkedin.com/in/username\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_LINKS
+
+async def cv_get_links(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Havolalar."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["links"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🖼️ *6/14 — Profil rasmi (ixtiyoriy):*\n"
+        f"Rasm yuboring yoki '-' yozing o'tkazib yuborish uchun",
+        parse_mode="Markdown"
+    )
+    return CV_PHOTO
+
+async def cv_get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Profil rasmi."""
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    if update.message.photo:
+        photo = update.message.photo[-1]
+        file = await photo.get_file()
+        import io as _io
+        photo_bytes = _io.BytesIO()
+        await file.download_to_memory(photo_bytes)
+        photo_bytes.seek(0)
+        context.user_data["cv_data"]["photo"] = photo_bytes.read()
+    elif update.message.text and update.message.text.strip() == "-":
+        context.user_data["cv_data"]["photo"] = None
+    else:
+        context.user_data["cv_data"]["photo"] = None
+    await update.message.reply_text(
+        f"💼 *7/14 — Lavozimingiz (Professional title):*\n"
+        f"Misol: Frontend Developer | Marketing Manager | Data Scientist\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_TITLE
+
+async def cv_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Lavozim."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["title"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"📝 *8/14 — Professional xulosa (Professional Summary):*\n"
+        f"O'zingiz haqida 2-3 jumlada qisqacha yozing\n"
+        f"Misol: 5 yillik tajribaga ega frontend developer. React va Vue.js da ixtisoslashganman.\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_SUMMARY
+
+async def cv_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Professional xulosa."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["summary"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"💼 *9/14 — Ish tajribangiz (Experience):*\n"
+        f"Har qatorda bitta lavozim yozing\n"
+        f"Misol:\n"
+        f"• Frontend Developer | ABC Company | 2022-2024\n"
+        f"  - React bilan web ilovalar yaratdim\n"
+        f"  - 30% tezlikni oshirdim\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_EXPERIENCE
+
+async def cv_get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tajriba."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["experience"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🚀 *10/14 — Loyihalaringiz (Projects):*\n"
+        f"Har qatorda bitta loyiha\n"
+        f"Misol:\n"
+        f"• E-commerce sayt | React + Node.js | 2023\n"
+        f"  - 10,000+ foydalanuvchi\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_PROJECTS
+
+async def cv_get_projects(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Loyihalar."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["projects"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🎓 *11/14 — Ta'limingiz (Education):*\n"
+        f"Misol:\n"
+        f"• Toshkent Davlat Texnika Universiteti\n"
+        f"  Kompyuter muhandisligi | 2018-2022\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_EDUCATION
+
+async def cv_get_education(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ta'lim."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["education"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🏆 *12/14 — Sertifikatlaringiz (Certifications):*\n"
+        f"Misol:\n"
+        f"• AWS Certified Developer | Amazon | 2023\n"
+        f"• Google Analytics Certificate | 2022\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_CERTIFICATIONS
+
+async def cv_get_certifications(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sertifikatlar."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["certifications"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"🛠️ *13/14 — Ko'nikmalaringiz (Skills):*\n"
+        f"Vergul bilan ajrating\n"
+        f"Misol: Python, React, SQL, Git, Docker, Figma\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_SKILLS
+
+async def cv_get_skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ko'nikmalar."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["skills"] = "" if text == "-" else text
+    await update.message.reply_text(
+        "🎨 *14/14 — Uslub variantlari (Style Options):*\n\n"
+        "*Ohang (Tone) tanlang:*",
+        parse_mode="Markdown",
+        reply_markup=CV_TONE_KEYBOARD
+    )
+    return CV_TONE
+
+async def cv_get_tone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tone tanlandi."""
+    query = update.callback_query
+    await query.answer()
+    tone = query.data.replace("cv_tone_", "")
+    tone_names = {
+        "professional": "💼 Professional",
+        "creative": "✍️ Ijodiy",
+        "concise": "📝 Qisqa",
+        "detailed": "📖 Batafsil"
+    }
+    context.user_data["cv_data"]["tone"] = tone
+    await query.edit_message_text(
+        f"✅ Ohang: {tone_names.get(tone, tone)}\n\n"
+        f"📏 *Uzunlik (Length) tanlang:*",
+        parse_mode="Markdown",
+        reply_markup=CV_LENGTH_KEYBOARD
+    )
+    return CV_LENGTH
+
+async def cv_get_length(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Length tanlandi — rezyume yaratish."""
+    query = update.callback_query
+    await query.answer()
+    length = int(query.data.replace("cv_length_", ""))
+    context.user_data["cv_data"]["length"] = length
+    cv_data = context.user_data.get("cv_data", {})
+    user = update.effective_user
+    price = 3000
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data["balance"] if user_data else 0
+    if balance < price:
+        await query.edit_message_text(
+            f"⚠️ Balansingiz yetarli emas!\n"
+            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
+            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting."
+        )
+        await context.bot.send_message(chat_id=user.id, text="Asosiy menyu:", reply_markup=get_main_menu_keyboard())
+        return ConversationHandler.END
+    lang = cv_data.get("lang", "uz")
+    lang_name = CV_LANG_NAMES.get(lang, lang)
+    fullname = cv_data.get("fullname", "")
+    await query.edit_message_text(
+        f"⏳ *Rezyume yaratilmoqda...*\n"
+        f"👤 {fullname}\n"
+        f"🌍 Til: {lang_name} | {length} sahifa\n\n"
+        f"Bir daqiqa kuting...",
+        parse_mode="Markdown"
+    )
+    try:
+        import time
+        t0 = time.time()
+        doc = await generate_cv_full(cv_data)
+        elapsed = time.time() - t0
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+        await asyncio.to_thread(db.log_generation, user.id, "rezyume", fullname, price)
+        doc.seek(0)
+        filename = f"rezyume_{fullname[:20].replace(' ', '_')}.pdf"
+        caption = (
+            f"📄 Rezyume / CV\n"
+            f"👤 {fullname}\n"
+            f"🌍 {lang_name} | {length} sahifa | PDF\n\n"
+            f"@slidego | t.me/slidego"
+        )
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=doc,
+            filename=filename,
+            caption=caption
+        )
+        doc.seek(0)
+        archive_doc = BytesIO(doc.read())
+        archive_doc.seek(0)
+        await archive_send_document(
+            bot=context.bot,
+            user=user,
+            service_name="Rezyume / CV",
+            topic=fullname,
+            language=lang_name,
+            page_count=length,
+            price=price,
+            document_bytes=archive_doc,
+            filename=filename,
+        )
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"CV yaratish xatolik: {e}", exc_info=True)
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=(
+                f"❌ Rezyume yaratishda xatolik yuz berdi.\n"
+                f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
+                f"Iltimos, qayta urinib ko'ring. Balans yechilmadi."
+            ),
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Suhbatni bekor qiladi."""
@@ -5136,6 +5518,71 @@ def main() -> None:
             # ── AI Yordamchi holatlari ──
             AI_CHAT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ai_chat_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Rezyume CV holatlari ──
+            CV_LANG: [
+                CallbackQueryHandler(cv_get_lang, pattern=r"^cv_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_FULLNAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_fullname),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_EMAIL: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_email),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_PHONE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_phone),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_LOCATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_location),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_LINKS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_links),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_PHOTO: [
+                MessageHandler(filters.PHOTO | (filters.TEXT & ~filters.COMMAND), cv_get_photo),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_TITLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_title),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_SUMMARY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_summary),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_EXPERIENCE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_experience),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_PROJECTS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_projects),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_EDUCATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_education),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_CERTIFICATIONS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_certifications),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_SKILLS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_skills),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_TONE: [
+                CallbackQueryHandler(cv_get_tone, pattern=r"^cv_tone_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_LENGTH: [
+                CallbackQueryHandler(cv_get_length, pattern=r"^cv_length_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──

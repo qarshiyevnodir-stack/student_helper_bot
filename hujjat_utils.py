@@ -165,6 +165,123 @@ def _build_cv_pdf(data: dict, name: str, profession: str, lang: str) -> BytesIO:
     return buf
 
 
+
+def _generate_cv_full_content(cv_data: dict) -> dict:
+    lang = cv_data.get("lang", "uz")
+    lang_inst = LANG_PROMPTS.get(lang, LANG_PROMPTS["uz"])
+    client = get_client()
+    
+    # Format user inputs
+    name = cv_data.get("fullname", "")
+    email = cv_data.get("email", "")
+    phone = cv_data.get("phone", "")
+    location = cv_data.get("location", "")
+    links = cv_data.get("links", "")
+    title = cv_data.get("title", "")
+    summary = cv_data.get("summary", "")
+    experience = cv_data.get("experience", "")
+    projects = cv_data.get("projects", "")
+    education = cv_data.get("education", "")
+    certs = cv_data.get("certifications", "")
+    skills = cv_data.get("skills", "")
+    tone = cv_data.get("tone", "professional")
+    length = cv_data.get("length", 1)
+    
+    prompt = (
+        f"{lang_inst} Professional CV yoz. "
+        f"Foydalanuvchi quyidagi ma'lumotlarni taqdim etgan. Ularni chiroyli tarzda formatlab JSON ga joyla:\n"
+        f"Ism: {name}\n"
+        f"Email: {email}\n"
+        f"Telefon: {phone}\n"
+        f"Manzil: {location}\n"
+        f"Havolalar: {links}\n"
+        f"Lavozim: {title}\n"
+        f"Xulosa: {summary}\n"
+        f"Tajriba: {experience}\n"
+        f"Loyihalar: {projects}\n"
+        f"Ta'lim: {education}\n"
+        f"Sertifikatlar: {certs}\n"
+        f"Ko'nikmalar: {skills}\n"
+        f"Ohang (Tone): {tone}\n"
+        f"Uzunlik (Sahifalar soni): {length}\n\n"
+        f"Agar ba'zi ma'lumotlar '-' bo'lsa yoki bo'sh bo'lsa, o'sha qismlarni bo'sh qoldir yoki moslab to'ldir.\n"
+        f"JSON formatida qaytar:\n"
+        f"{{\"summary\": \"professional tavsif\", "
+        f"\"skills\": [\"skill1\", \"skill2\"], "
+        f"\"experience\": ["
+        f"  {{\"title\":\"lavozim\",\"company\":\"kompaniya\",\"date\":\"sana\",\"bullets\":[\"yutuq 1\",\"yutuq 2\"]}}"
+        f"], "
+        f"\"education\": ["
+        f"  {{\"degree\":\"daraja\",\"school\":\"universitet\",\"date\":\"sana\",\"description\":\"tavsif\"}}"
+        f"], "
+        f"\"projects\": ["
+        f"  {{\"name\":\"loyiha\",\"description\":\"tavsif\"}}"
+        f"], "
+        f"\"certifications\": ["
+        f"  {{\"name\":\"sertifikat\",\"organization\":\"tashkilot\",\"date\":\"sana\"}}"
+        f"], "
+        f"\"languages\": ["
+        f"  {{\"name\":\"til\",\"level\":\"daraja\"}}"
+        f"], "
+        f"\"interests\": [], "
+        f"\"contact\": {{\"phone\":\"{phone}\",\"email\":\"{email}\",\"location\":\"{location}\",\"links\":\"{links}\"}} }}"
+    )
+    resp = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=2500,
+        temperature=0.6,
+        response_format={"type": "json_object"},
+    )
+    import json
+    return json.loads(resp.choices[0].message.content)
+
+def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
+    lang = cv_data.get("lang", "uz")
+    labels = CV_LABELS.get(lang, CV_LABELS["uz"])
+    
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resume_template.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        template_str = f.read()
+
+    from jinja2 import Template
+    tmpl = Template(template_str)
+    
+    # Process photo
+    photo_data = cv_data.get("photo")
+    photo_b64 = ""
+    if photo_data:
+        import base64
+        photo_b64 = f"data:image/jpeg;base64,{base64.b64encode(photo_data).decode('utf-8')}"
+        
+    html = tmpl.render(
+        lang_code=lang,
+        full_name=cv_data.get("fullname", "").upper(),
+        job_title=cv_data.get("title", ""),
+        labels=labels,
+        summary=data.get("summary", ""),
+        experience=data.get("experience", []),
+        education=data.get("education", []),
+        projects=data.get("projects", []),
+        certifications=data.get("certifications", []),
+        skills=data.get("skills", []),
+        languages=data.get("languages", []),
+        interests=data.get("interests", []),
+        contact=data.get("contact", {}),
+        photo_b64=photo_b64,
+        links=cv_data.get("links", "")
+    )
+
+    import weasyprint
+    pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf()
+    buf = BytesIO(pdf_bytes)
+    buf.seek(0)
+    return buf
+
+async def generate_cv_full(cv_data: dict) -> BytesIO:
+    data = await asyncio.to_thread(_generate_cv_full_content, cv_data)
+    return await asyncio.to_thread(_build_cv_full_pdf, data, cv_data)
+
 async def generate_cv(name: str, profession: str, lang: str, extra: str = "") -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_content, name, profession, lang, extra)
     return await asyncio.to_thread(_build_cv_pdf, data, name, profession, lang)
