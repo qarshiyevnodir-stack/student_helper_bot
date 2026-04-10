@@ -5699,7 +5699,25 @@ def main() -> None:
         fallbacks=[
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🔠 Test tuzish$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🧩 Krossvord ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
         ],
+        allow_reentry=True,
     )
 
     application.add_handler(slayd_handler)
