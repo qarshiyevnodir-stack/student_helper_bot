@@ -923,6 +923,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
             [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
             [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
+            [InlineKeyboardButton("🔙 Bosh menyu",         callback_data="hj_back_to_main")],
         ])
         await update.message.reply_text(
             "📂 *Hujjat & Dizayn xizmatlari*\n\n"
@@ -3592,6 +3593,38 @@ HJ_LANG_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("🇩🇪 Nemis",  callback_data="hj_lang_de")],
 ])
 
+async def hj_back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    await query.message.delete()
+    await query.message.reply_text(
+        "Bosh menyudasiz. Xizmatni tanlang:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    return ConversationHandler.END
+
+async def hj_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Rezyume / CV",       callback_data="hj_rezyume")],
+        [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
+        [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
+        [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
+        [InlineKeyboardButton("🔙 Bosh menyu",         callback_data="hj_back_to_main")],
+    ])
+    await query.edit_message_text(
+        "📂 *Hujjat & Dizayn xizmatlari*\n\n"
+        "• 📄 Rezyume / CV — 3 000 so'm\n"
+        "• 📜 Motivatsion xat — 2 000 so'm\n"
+        "• 📊 Jadval & Diagramma — 2 000 so'm\n"
+        "• 🗺️ Kontsept xarita — 2 000 so'm\n\n"
+        "Xizmatni tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return HJ_MENU
+
 async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Hujjat submenu tanlovi."""
     query = update.callback_query
@@ -5470,10 +5503,12 @@ def main() -> None:
             # ── Hujjat & Dizayn holatlari ──
             HJ_MENU: [
                 CallbackQueryHandler(hj_get_menu, pattern=r"^hj_(rezyume|motivatsion|jadval|mindmap)$"),
+                CallbackQueryHandler(hj_back_to_main, pattern=r"^hj_back_to_main$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_LANG: [
                 CallbackQueryHandler(hj_get_lang, pattern=r"^hj_lang_"),
+                CallbackQueryHandler(hj_back_to_menu, pattern=r"^hj_back_to_menu$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_INPUT1: [
