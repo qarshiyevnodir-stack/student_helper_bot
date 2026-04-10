@@ -186,6 +186,7 @@ def _generate_cv_full_content(cv_data: dict) -> dict:
     skills = cv_data.get("skills", "")
     tone = cv_data.get("tone", "professional")
     length = cv_data.get("length", 1)
+    region = cv_data.get("region", "")
     
     prompt = (
         f"{lang_inst} Professional CV yoz. "
@@ -194,6 +195,7 @@ def _generate_cv_full_content(cv_data: dict) -> dict:
         f"Email: {email}\n"
         f"Telefon: {phone}\n"
         f"Manzil: {location}\n"
+        f"Mintaqa/Xudud: {region}\n"
         f"Havolalar: {links}\n"
         f"Lavozim: {title}\n"
         f"Xulosa: {summary}\n"
@@ -254,6 +256,15 @@ def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
         import base64
         photo_b64 = f"data:image/jpeg;base64,{base64.b64encode(photo_data).decode('utf-8')}"
         
+    # contact dict ni foydalanuvchi ma'lumotlari bilan boyitish
+    contact = data.get("contact", {})
+    if not contact.get("phone") and cv_data.get("phone"):
+        contact["phone"] = cv_data.get("phone", "")
+    if not contact.get("email") and cv_data.get("email"):
+        contact["email"] = cv_data.get("email", "")
+    if not contact.get("location") and cv_data.get("location"):
+        contact["location"] = cv_data.get("location", "")
+    
     html = tmpl.render(
         lang_code=lang,
         full_name=cv_data.get("fullname", "").upper(),
@@ -267,9 +278,10 @@ def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
         skills=data.get("skills", []),
         languages=data.get("languages", []),
         interests=data.get("interests", []),
-        contact=data.get("contact", {}),
+        contact=contact,
         photo_b64=photo_b64,
-        links=cv_data.get("links", "")
+        links=cv_data.get("links", ""),
+        region=cv_data.get("region", "")
     )
 
     import weasyprint

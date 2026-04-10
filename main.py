@@ -285,15 +285,16 @@ logger = logging.getLogger(__name__)
     CV_LINKS,            # 145
     CV_PHOTO,            # 146
     CV_TITLE,            # 147
-    CV_SUMMARY,          # 148
-    CV_EXPERIENCE,       # 149
-    CV_PROJECTS,         # 150
-    CV_EDUCATION,        # 151
-    CV_CERTIFICATIONS,   # 152
-    CV_SKILLS,           # 153
-    CV_TONE,             # 154
-    CV_LENGTH,           # 155
-) = range(140, 156)
+    CV_REGION,           # 148
+    CV_SUMMARY,          # 149
+    CV_EXPERIENCE,       # 150
+    CV_PROJECTS,         # 151
+    CV_EDUCATION,        # 152
+    CV_CERTIFICATIONS,   # 153
+    CV_SKILLS,           # 154
+    CV_TONE,             # 155
+    CV_LENGTH,           # 156
+) = range(140, 157)
 # ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
@@ -4402,7 +4403,21 @@ async def cv_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"📝 *8/14 — Professional xulosa (Professional Summary):*\n"
+        f"🗺️ *8/15 — Mintaqa-xudud (Region):*\n"
+        f"Ishlash yoki yashash mintaqangizni kiriting\n"
+        f"Misol: Toshkent shahri | Samarqand viloyati | Andijon\n{skip}",
+        parse_mode="Markdown"
+    )
+    return CV_REGION
+
+async def cv_get_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mintaqa-xudud."""
+    text = update.message.text.strip()
+    context.user_data["cv_data"]["region"] = "" if text == "-" else text
+    lang = context.user_data["cv_data"].get("lang", "uz")
+    skip = _cv_skip_text(lang)
+    await update.message.reply_text(
+        f"📝 *9/15 — Professional xulosa (Professional Summary):*\n"
         f"O'zingiz haqida 2-3 jumlada qisqacha yozing\n"
         f"Misol: 5 yillik tajribaga ega frontend developer. React va Vue.js da ixtisoslashganman.\n{skip}",
         parse_mode="Markdown"
@@ -4416,7 +4431,7 @@ async def cv_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"💼 *9/14 — Ish tajribangiz (Experience):*\n"
+        f"💼 *10/15 — Ish tajribangiz (Experience):*\n"
         f"Har qatorda bitta lavozim yozing\n"
         f"Misol:\n"
         f"• Frontend Developer | ABC Company | 2022-2024\n"
@@ -4433,7 +4448,7 @@ async def cv_get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🚀 *10/14 — Loyihalaringiz (Projects):*\n"
+        f"🚀 *11/15 — Loyihalaringiz (Projects):*\n"
         f"Har qatorda bitta loyiha\n"
         f"Misol:\n"
         f"• E-commerce sayt | React + Node.js | 2023\n"
@@ -4449,7 +4464,7 @@ async def cv_get_projects(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🎓 *11/14 — Ta'limingiz (Education):*\n"
+        f"🎓 *12/15 — Ta'limingiz (Education):*\n"
         f"Misol:\n"
         f"• Toshkent Davlat Texnika Universiteti\n"
         f"  Kompyuter muhandisligi | 2018-2022\n{skip}",
@@ -4464,7 +4479,7 @@ async def cv_get_education(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🏆 *12/14 — Sertifikatlaringiz (Certifications):*\n"
+        f"🏆 *13/15 — Sertifikatlaringiz (Certifications):*\n"
         f"Misol:\n"
         f"• AWS Certified Developer | Amazon | 2023\n"
         f"• Google Analytics Certificate | 2022\n{skip}",
@@ -4479,7 +4494,7 @@ async def cv_get_certifications(update: Update, context: ContextTypes.DEFAULT_TY
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🛠️ *13/14 — Ko'nikmalaringiz (Skills):*\n"
+        f"🛠️ *14/15 — Ko'nikmalaringiz (Skills):*\n"
         f"Vergul bilan ajrating\n"
         f"Misol: Python, React, SQL, Git, Docker, Figma\n{skip}",
         parse_mode="Markdown"
@@ -4491,7 +4506,7 @@ async def cv_get_skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     text = update.message.text.strip()
     context.user_data["cv_data"]["skills"] = "" if text == "-" else text
     await update.message.reply_text(
-        "🎨 *14/14 — Uslub variantlari (Style Options):*\n\n"
+        "🎨 *15/15 — Uslub variantlari (Style Options):*\n\n"
         "*Ohang (Tone) tanlang:*",
         parse_mode="Markdown",
         reply_markup=CV_TONE_KEYBOARD
@@ -5551,6 +5566,10 @@ def main() -> None:
             ],
             CV_TITLE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_title),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_REGION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_region),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_SUMMARY: [
