@@ -328,7 +328,6 @@ def get_main_menu_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-
 def get_language_keyboard():
     keyboard = [
         [InlineKeyboardButton("O'zbek tili",  callback_data="lang_uz"),
@@ -337,10 +336,8 @@ def get_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_slayd")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 def get_mi_language_keyboard():
     """Mustaqil ish uchun til tanlash klaviaturasi."""
@@ -351,10 +348,8 @@ def get_mi_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="mi_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="mi_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="mi_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_mi")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 def get_rf_language_keyboard():
     """Referat uchun til tanlash klaviaturasi."""
@@ -365,10 +360,8 @@ def get_rf_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="rf_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="rf_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="rf_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_rf")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 def get_rf_page_count_keyboard():
     """Referat uchun sahifa soni tanlash klaviaturasi."""
@@ -381,7 +374,6 @@ def get_rf_page_count_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
 def get_li_language_keyboard():
     """Loyiha ishi uchun til tanlash klaviaturasi."""
     keyboard = [
@@ -391,10 +383,8 @@ def get_li_language_keyboard():
          InlineKeyboardButton("Kores tili",   callback_data="li_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="li_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="li_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_li")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 def get_li_page_count_keyboard():
     """Loyiha ishi uchun sahifa soni tanlash klaviaturasi."""
@@ -404,7 +394,6 @@ def get_li_page_count_keyboard():
          InlineKeyboardButton("15 sahifa", callback_data="li_pages_15")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 def get_slide_count_keyboard():
     keyboard = [
@@ -417,7 +406,6 @@ def get_slide_count_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
 def get_mi_page_count_keyboard():
     """Mustaqil ish uchun sahifa soni tanlash klaviaturasi."""
     keyboard = [
@@ -429,14 +417,12 @@ def get_mi_page_count_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
 def get_plan_confirmation_keyboard():
     keyboard = [
         [InlineKeyboardButton("✅ Tasdiqlash",   callback_data="plan_confirm_yes"),
          InlineKeyboardButton("🔄 Qayta tuzish", callback_data="plan_confirm_no")],
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 # ─────────────────────────────────────────────
 # Yordamchi: reja matnini chiroyli formatlash
@@ -459,7 +445,6 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
         f"_Ushbu reja asosida slaydlar sarlavhalari ham tayyor. "
         f"Tasdiqlasangiz, kontent yaratila boshlaydi._"
     )
-
 
 # ─────────────────────────────────────────────
 # Yordamchi: Arxiv kanalga yuborish
@@ -510,7 +495,6 @@ async def archive_send_document(
     except Exception as e:
         logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}")
 
-
 async def archive_send_photo(
     bot,
     user,
@@ -545,7 +529,6 @@ async def archive_send_photo(
     except Exception as e:
         logger.warning(f"Arxiv kanalga rasm yuborishda xatolik: {e}")
 
-
 # ─────────────────────────────────────────────
 # Majburiy obuna tekshiruvi
 # ─────────────────────────────────────────────
@@ -553,7 +536,6 @@ async def archive_send_photo(
 # Obuna holati cache: {user_id: (is_subscribed, timestamp)}
 _subscription_cache: dict = {}
 SUBSCRIPTION_CACHE_TTL = 600  # 10 daqiqa (soniyada)
-
 
 async def check_subscription(bot, user_id: int, force: bool = False) -> bool:
     """Foydalanuvchi REQUIRED_CHANNEL ga a'zo ekanligini tekshiradi.
@@ -582,14 +564,12 @@ async def check_subscription(bot, user_id: int, force: bool = False) -> bool:
     _subscription_cache[user_id] = (result, now)
     return result
 
-
 def get_subscription_keyboard():
     """Kanalga a'zo bo'lish tugmasi."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 Kanalga a'zo bo'lish", url="https://t.me/slidego")],
         [InlineKeyboardButton("✅ A'zo bo'ldim, tekshir", callback_data="check_sub")],
     ])
-
 
 # ─────────────────────────────────────────────
 # Handlerlar — Umumiy
@@ -653,7 +633,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
     return LANGUAGE_SELECTION
 
-
 async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Asosiy menyu tugmasini qayta ishlaydi."""
     text = update.message.text
@@ -711,7 +690,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ig_lang_en")],
             [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ig_lang_ru"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ig_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_ig")],
         ])
         await update.message.reply_text(
             "📊 *Infografika* bo'limiga xush kelibsiz!\n\nQaysi tilda infografika yaratmoqchisiz?",
@@ -765,7 +743,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("Kores tili",   callback_data="mq_lang_ko")],
             [InlineKeyboardButton("Xitoy tili",   callback_data="mq_lang_zh"),
              InlineKeyboardButton("Nemis tili",   callback_data="mq_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_mq")],
         ])
         await update.message.reply_text(
             "📰 *Maqola* bo'limiga xush kelibsiz!\n\nQaysi tilda maqola yozmoqchisiz?",
@@ -808,7 +785,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="kr_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="kr_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="kr_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_kr")],
         ])
         await update.message.reply_text(
             "🧩 *Krossvord yaratish*\n\n"
@@ -835,7 +811,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="ts_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="ts_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ts_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_ts")],
         ])
         await update.message.reply_text(
             "🔠 *Test tuzish*\n\n"
@@ -864,7 +839,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="gl_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="gl_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="gl_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_gl")],
         ])
         await update.message.reply_text(
             "💡 *Glossary (Atamalar lug'ati)*\n\n"
@@ -932,7 +906,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
             [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
             [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
-            [InlineKeyboardButton("🔙 Bosh menyu",         callback_data="hj_back_to_main")],
         ])
         await update.message.reply_text(
             "📂 *Hujjat & Dizayn xizmatlari*\n\n"
@@ -955,7 +928,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores",   callback_data="an_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="an_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis",   callback_data="an_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_an")],
         ])
         await update.message.reply_text(
             "📋 *Annotatsiya yaratish*\n\nNarx: *1 000 so'm*\n\nTil tanlang:",
@@ -974,7 +946,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
              InlineKeyboardButton("🇰🇷 Kores",   callback_data="tq_lang_ko")],
             [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="tq_lang_zh"),
              InlineKeyboardButton("🇩🇪 Nemis",   callback_data="tq_lang_de")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_tq")],
         ])
         await update.message.reply_text(
             "📝 *Taqriz yaratish*\n\nNarx: *2 000 so'm*\n\nTil tanlang:",
@@ -1011,7 +982,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return LANGUAGE_SELECTION
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Slayd yaratish
 # ─────────────────────────────────────────────
@@ -1030,7 +1000,6 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return TOPIC
-
 
 async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mavzuni qabul qiladi."""
@@ -1054,7 +1023,6 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return NAME_SURNAME
 
-
 async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
     _tr = await topup_message_router(update, context)
@@ -1076,7 +1044,6 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             reply_markup=get_slide_count_keyboard()
         )
     return SLIDE_COUNT
-
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Slayd sonini qabul qiladi va 1-BOSQICH ni ishga tushiradi."""
@@ -1123,7 +1090,6 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
     return PLAN_CONFIRMATION
-
 
 async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Reja tasdiqlash yoki qayta tuzish."""
@@ -1291,7 +1257,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Loyiha ishi
 # ─────────────────────────────────────────────
@@ -1307,7 +1272,6 @@ async def li_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
     return LI_TOPIC
-
 
 async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _tr = await topup_message_router(update, context)
@@ -1326,7 +1290,6 @@ async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return LI_NAME_SURNAME
-
 
 async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _tr = await topup_message_router(update, context)
@@ -1347,7 +1310,6 @@ async def li_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     return LI_PAGE_COUNT
 
-
 async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -1363,7 +1325,6 @@ async def li_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         reply_markup=keyboard, parse_mode="Markdown"
     )
     return LI_UNIVERSITY
-
 
 async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _tr = await topup_message_router(update, context)
@@ -1390,7 +1351,6 @@ async def li_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
     return LI_SUBJECT
 
-
 async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _tr = await topup_message_router(update, context)
     if _tr is not None:
@@ -1411,7 +1371,6 @@ async def li_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=skip_kb, parse_mode="Markdown"
         )
     return LI_TEACHER
-
 
 async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _tr = await topup_message_router(update, context)
@@ -1518,7 +1477,6 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     return ConversationHandler.END
 
-
 ## ─────────────────────────────────────────────
 # Handlerlar — Infografika
 # ─────────────────────────────────────────────
@@ -1547,7 +1505,6 @@ async def ig_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return IG_TYPE
 
-
 async def ig_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Infografika: turini qabul qiladi."""
     query = update.callback_query
@@ -1575,7 +1532,6 @@ async def ig_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         parse_mode="Markdown"
     )
     return IG_COLOR
-
 
 async def ig_get_color(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Infografika: rang sxemasini qabul qiladi."""
@@ -1609,7 +1565,6 @@ async def ig_get_color(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     return IG_QUALITY
 
-
 async def ig_get_quality(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Infografika: sifat (Oddiy/HD) tanlashni qabul qiladi."""
     query = update.callback_query
@@ -1626,7 +1581,6 @@ async def ig_get_quality(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         parse_mode="Markdown"
     )
     return IG_TOPIC
-
 
 async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Infografika: mavzuni qabul qiladi va generatsiya qiladi."""
@@ -1733,7 +1687,6 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         )
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Referat
 # ─────────────────────────────────────────────
@@ -1749,7 +1702,6 @@ async def rf_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
     return RF_TOPIC
-
 
 async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: mavzuni qabul qiladi."""
@@ -1773,7 +1725,6 @@ async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     return RF_NAME_SURNAME
 
-
 async def rf_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
     _tr = await topup_message_router(update, context)
@@ -1795,7 +1746,6 @@ async def rf_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     return RF_PAGE_COUNT
 
-
 async def rf_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: sahifa sonini qabul qiladi."""
     query = update.callback_query
@@ -1815,7 +1765,6 @@ async def rf_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         parse_mode="Markdown"
     )
     return RF_UNIVERSITY
-
 
 async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
@@ -1846,7 +1795,6 @@ async def rf_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
     return RF_TEACHER
-
 
 async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Referat: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
@@ -1953,7 +1901,6 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Mustaqil ish
 # ─────────────────────────────────────────────
@@ -1972,7 +1919,6 @@ async def mi_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
     return MI_TOPIC
-
 
 async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: mavzuni qabul qiladi."""
@@ -1998,7 +1944,6 @@ async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     return MI_NAME_SURNAME
 
-
 async def mi_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
     _tr = await topup_message_router(update, context)
@@ -2021,7 +1966,6 @@ async def mi_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     return MI_PAGE_COUNT
 
-
 async def mi_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: sahifa sonini qabul qiladi."""
     query = update.callback_query
@@ -2043,7 +1987,6 @@ async def mi_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         parse_mode="Markdown"
     )
     return MI_UNIVERSITY
-
 
 async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: universitet ma'lumotini qabul qiladi yoki o'tkazib yuboradi."""
@@ -2076,7 +2019,6 @@ async def mi_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
     return MI_TEACHER
-
 
 async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mustaqil ish: o'qituvchi ismini qabul qiladi va hujjat yaratadi."""
@@ -2193,7 +2135,6 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Maqola
 # ─────────────────────────────────────────────
@@ -2217,7 +2158,6 @@ async def mq_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
     return MQ_TYPE
-
 
 async def mq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Maqola: turini qabul qiladi."""
@@ -2247,7 +2187,6 @@ async def mq_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     return MQ_PAGE_COUNT
 
-
 async def mq_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Maqola: sahifa sonini qabul qiladi."""
     query = update.callback_query
@@ -2260,7 +2199,6 @@ async def mq_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         parse_mode="Markdown"
     )
     return MQ_TOPIC
-
 
 async def mq_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Maqola: mavzuni qabul qiladi."""
@@ -2284,7 +2222,6 @@ async def mq_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return MQ_NAME_SURNAME
-
 
 async def mq_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Maqola: ism-familiyani qabul qiladi yoki o'tkazib yuboradi."""
@@ -2314,7 +2251,6 @@ async def mq_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="Markdown"
         )
     return MQ_UNIVERSITY
-
 
 async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Maqola: muassasani qabul qiladi, so'ng maqolani yaratadi."""
@@ -2420,7 +2356,6 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Kurs ishi / BMI
 # ─────────────────────────────────────────────
@@ -2440,7 +2375,6 @@ async def ki_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("Kores tili",   callback_data="ki_lang_ko")],
         [InlineKeyboardButton("Xitoy tili",   callback_data="ki_lang_zh"),
          InlineKeyboardButton("Nemis tili",   callback_data="ki_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_ki")],
     ])
     await query.edit_message_text(
         text=f"✅ Tur: *{type_name}*\n\nQaysi tilda yozmoqchisiz?",
@@ -2448,7 +2382,6 @@ async def ki_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         parse_mode="Markdown"
     )
     return KI_LANGUAGE
-
 
 async def ki_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: tilni qabul qiladi."""
@@ -2479,7 +2412,6 @@ async def ki_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return KI_PAGE_COUNT
 
-
 async def ki_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: sahifa sonini qabul qiladi."""
     query = update.callback_query
@@ -2492,7 +2424,6 @@ async def ki_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         parse_mode="Markdown"
     )
     return KI_TOPIC
-
 
 async def ki_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: mavzuni qabul qiladi."""
@@ -2516,7 +2447,6 @@ async def ki_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return KI_NAME_SURNAME
-
 
 async def ki_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: ism-familiyani qabul qiladi."""
@@ -2543,7 +2473,6 @@ async def ki_get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     return KI_UNIVERSITY
 
-
 async def ki_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: universitetni qabul qiladi."""
     _tr = await topup_message_router(update, context)
@@ -2568,7 +2497,6 @@ async def ki_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
     return KI_FACULTY
-
 
 async def ki_get_faculty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: fakultetni qabul qiladi."""
@@ -2595,7 +2523,6 @@ async def ki_get_faculty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     return KI_SUBJECT
 
-
 async def ki_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: fan nomini qabul qiladi."""
     _tr = await topup_message_router(update, context)
@@ -2620,7 +2547,6 @@ async def ki_get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown"
         )
     return KI_TEACHER
-
 
 async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Kurs ishi: o'qituvchini qabul qiladi, so'ng kurs ishini yaratadi."""
@@ -2739,7 +2665,6 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Tezis
 # ─────────────────────────────────────────────
@@ -2764,7 +2689,6 @@ async def tz_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("Kores tili", callback_data="tz_lang_ko")],
         [InlineKeyboardButton("Xitoy tili", callback_data="tz_lang_zh"),
          InlineKeyboardButton("Nemis tili", callback_data="tz_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_tz")],
     ])
     await query.edit_message_text(
         f"✅ *{type_name}* tanlandi.\n\nQaysi tilda yozilsin?",
@@ -2772,7 +2696,6 @@ async def tz_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         parse_mode="Markdown"
     )
     return TZ_LANGUAGE
-
 
 async def tz_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Tezis tilini qabul qiladi."""
@@ -2795,7 +2718,6 @@ async def tz_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return TZ_PAGE_COUNT
 
-
 async def tz_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Tezis sahifa sonini qabul qiladi."""
     query = update.callback_query
@@ -2808,7 +2730,6 @@ async def tz_get_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
     return TZ_TOPIC
 
-
 async def tz_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Tezis mavzusini qabul qiladi."""
     topic = update.message.text.strip()
@@ -2818,7 +2739,6 @@ async def tz_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return TZ_NAME_SURNAME
-
 
 async def tz_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Tezis muallif ismini qabul qiladi."""
@@ -2830,7 +2750,6 @@ async def tz_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "Muassasa/universitet nomini kiriting:\n(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)"
     )
     return TZ_INSTITUTION
-
 
 async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Muassasani qabul qiladi, so'ng tezisni yaratadi."""
@@ -2935,7 +2854,6 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Handlerlar — Test tuzish
 # ─────────────────────────────────────────────
@@ -2961,7 +2879,6 @@ async def ts_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return TS_COUNT
 
-
 async def ts_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Savol sonini qabul qiladi."""
     query = update.callback_query
@@ -2977,7 +2894,6 @@ async def ts_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     return TS_TOPIC
 
-
 async def ts_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Test mavzusini qabul qiladi."""
     topic = update.message.text.strip()
@@ -2988,7 +2904,6 @@ async def ts_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return TS_AUTHOR
-
 
 async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Muallif ismini qabul qiladi, so'ng testni yaratadi."""
@@ -3128,7 +3043,6 @@ async def gl_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return GL_SIZE
 
-
 async def gl_get_size(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Glossary hajmini qabul qiladi."""
     query = update.callback_query
@@ -3144,7 +3058,6 @@ async def gl_get_size(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     return GL_TOPIC
 
-
 async def gl_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Glossary mavzusini qabul qiladi."""
     topic = update.message.text.strip()
@@ -3155,7 +3068,6 @@ async def gl_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         parse_mode="Markdown"
     )
     return GL_AUTHOR
-
 
 async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Muallif ismini qabul qiladi, so'ng glossaryni yaratadi."""
@@ -3430,7 +3342,6 @@ async def in_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
          InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="in_lang_ko")],
         [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="in_lang_zh"),
          InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="in_lang_de")],
-        [InlineKeyboardButton("🔙 Bosh menyu",    callback_data="back_to_main_in")],
     ])
     await query.edit_message_text(
         f"✅ Tur: {type_label}\n\nQaysi tilda insho yozmoqchisiz?",
@@ -3610,7 +3521,6 @@ HJ_LANG_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("🇩🇪 Nemis",  callback_data="hj_lang_de")],
 ])
 
-
 async def back_to_main_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Barcha xizmatlar uchun universal bosh menyuga qaytish handler."""
     query = update.callback_query
@@ -3644,7 +3554,6 @@ async def hj_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
         [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
         [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
-        [InlineKeyboardButton("🔙 Bosh menyu",         callback_data="hj_back_to_main")],
     ])
     await query.edit_message_text(
         "📂 *Hujjat & Dizayn xizmatlari*\n\n"
@@ -4031,7 +3940,6 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
     return ConversationHandler.END
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # TAQRIZ HANDLER
 # ═══════════════════════════════════════════════════════════════════════════
@@ -4309,7 +4217,6 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     return AI_CHAT
 
-
 def get_ai_response_sync(messages: list) -> str:
     """Sinxron GPT javob olish (asyncio.to_thread uchun)."""
     import asyncio as _asyncio
@@ -4318,7 +4225,6 @@ def get_ai_response_sync(messages: list) -> str:
         return loop.run_until_complete(get_ai_response(messages))
     finally:
         loop.close()
-
 
 # ─────────────────────────────────────────────
 # Handlerlar — Rezyume / CV (yangi, to'liq)
@@ -4332,7 +4238,6 @@ CV_LANG_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("🇰🇷 Kores",  callback_data="cv_lang_ko")],
     [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="cv_lang_zh"),
      InlineKeyboardButton("🇩🇪 Nemis",  callback_data="cv_lang_de")],
-    [InlineKeyboardButton("🔙 Bosh menyu", callback_data="back_to_main_cv")],
 ])
 
 CV_TONE_KEYBOARD = InlineKeyboardMarkup([
@@ -4692,7 +4597,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
-
 # ─────────────────────────────────────────────
 # Obuna tekshiruv callback
 # ─────────────────────────────────────────────
@@ -4721,7 +4625,6 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             text="⚠️ Siz hali kanalga a'zo bo'lmagansiz! Iltimos, avval @slidego kanaliga a'zo bo'ling.",
             show_alert=True
         )
-
 
 # ─────────────────────────────────────────────
 # Balans to'ldirish handlerlari
@@ -4777,7 +4680,6 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"topup_start: user {update.effective_user.id} topup boshladi")
     return TOPUP_AMOUNT
 
-
 async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Routes text messages based on the user's top-up state.
     
@@ -4795,7 +4697,6 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return TOPUP_SCREENSHOT
     return None
-
 
 async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """To'lov miqdorini qabul qiladi."""
@@ -4821,7 +4722,6 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
     return TOPUP_SCREENSHOT
-
 
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Screenshot (to'lov cheki) qabul qiladi va adminga yuboradi."""
@@ -4922,12 +4822,6 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     return ConversationHandler.END
 
-
-
-
-
-
-
 async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin to'lovni tasdiqlaydi."""
     query = update.callback_query
@@ -4954,7 +4848,6 @@ async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     except Exception as e:
         logger.error(f"Foydalanuvchiga xabar yuborishda xatolik: {e}")
-
 
 async def admin_reject_topup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin to'lovni rad etadi."""
@@ -4983,7 +4876,6 @@ async def admin_reject_topup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"Foydalanuvchiga xabar yuborishda xatolik: {e}")
 
-
 # ─────────────────────────────────────────────
 # Admin panel handlerlari
 # ─────────────────────────────────────────────
@@ -5005,7 +4897,6 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
-
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin panel callback handleri."""
@@ -5102,7 +4993,6 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-
 async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin qo'lda balans qo'shadi: /admin_addbal user_id miqdor"""
     if update.effective_user.id not in ADMIN_IDS:
@@ -5129,7 +5019,6 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
-
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha foydalanuvchilarga xabar yuboradi: /broadcast Xabar"""
     if update.effective_user.id not in ADMIN_IDS:
@@ -5148,7 +5037,6 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             failed += 1
     await update.message.reply_text(f"📢 Yuborildi: {sent} | Muvaffaqiyatsiz: {failed}")
-
 
 async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Foydalanuvchi haqida ma'lumot: /user_info user_id"""
@@ -5177,7 +5065,6 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏰ Oxirgi faollik: {u['last_active']}",
         parse_mode="Markdown"
     )
-
 
 # ─────────────────────────────────────────────
 # Asosiy funksiya
@@ -5347,7 +5234,6 @@ def main() -> None:
             # ── Infografika holatlari ──
             IG_LANGUAGE: [
                 CallbackQueryHandler(ig_get_language, pattern=r"^ig_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ig$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IG_TYPE: [
@@ -5369,7 +5255,6 @@ def main() -> None:
             # ── Maqola holatlari ──
             MQ_LANGUAGE: [
                 CallbackQueryHandler(mq_get_language, pattern=r"^mq_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_mq$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MQ_TYPE: [
@@ -5401,7 +5286,6 @@ def main() -> None:
             ],
             KI_LANGUAGE: [
                 CallbackQueryHandler(ki_get_language, pattern=r"^ki_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ki$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KI_PAGE_COUNT: [
@@ -5444,7 +5328,6 @@ def main() -> None:
             ],
             TZ_LANGUAGE: [
                 CallbackQueryHandler(tz_get_language, pattern=r"^tz_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_tz$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TZ_PAGE_COUNT: [
@@ -5466,7 +5349,6 @@ def main() -> None:
             # ── Test tuzish holatlari ──
             TS_LANGUAGE: [
                 CallbackQueryHandler(ts_get_language, pattern=r"^ts_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_ts$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TS_COUNT: [
@@ -5484,7 +5366,6 @@ def main() -> None:
             # ── Glossary holatlari ──
             GL_LANGUAGE: [
                 CallbackQueryHandler(gl_get_language, pattern=r"^gl_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_gl$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             GL_SIZE: [
@@ -5502,7 +5383,6 @@ def main() -> None:
             # ── Krossvord holatlari ──
             KR_LANGUAGE: [
                 CallbackQueryHandler(kr_get_language, pattern=r"^kr_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_kr$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KR_COUNT: [
@@ -5524,7 +5404,6 @@ def main() -> None:
             ],
             IN_LANGUAGE: [
                 CallbackQueryHandler(in_get_language, pattern=r"^in_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_in$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IN_PAGE_COUNT: [
@@ -5546,7 +5425,6 @@ def main() -> None:
             # ── Hujjat & Dizayn holatlari ──
             HJ_MENU: [
                 CallbackQueryHandler(hj_get_menu, pattern=r"^hj_(rezyume|motivatsion|jadval|mindmap)$"),
-                CallbackQueryHandler(hj_back_to_main, pattern=r"^hj_back_to_main$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_LANG: [
@@ -5569,7 +5447,6 @@ def main() -> None:
             # ── Annotatsiya holatlari ──
             AN_LANGUAGE: [
                 CallbackQueryHandler(an_get_language, pattern=r"^an_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_an$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             AN_TYPE: [
@@ -5587,7 +5464,6 @@ def main() -> None:
             # ── Taqriz holatlari ──
             TQ_LANGUAGE: [
                 CallbackQueryHandler(tq_get_language, pattern=r"^tq_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_tq$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_TYPE: [
@@ -5618,7 +5494,6 @@ def main() -> None:
             # ── Rezyume CV holatlari ──
             CV_LANG: [
                 CallbackQueryHandler(cv_get_lang, pattern=r"^cv_lang_"),
-                CallbackQueryHandler(back_to_main_handler, pattern=r"^back_to_main_cv$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_FULLNAME: [
@@ -5745,7 +5620,6 @@ def main() -> None:
 
     logger.info("Bot ishga tushmoqda (polling rejimi)...")
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()
