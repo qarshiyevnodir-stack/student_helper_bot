@@ -285,7 +285,29 @@ def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
     )
 
     import weasyprint
-    pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf()
+    from weasyprint import CSS
+    import numpy as np
+    from pdf2image import convert_from_bytes
+
+    # Step 1: katta sahifada render qilib haqiqiy kontent balandligini aniqlaymiz
+    large_css = CSS(string='@page { size: 210mm 9999mm; margin: 0; }')
+    pdf_large = weasyprint.HTML(string=html, base_url=".").write_pdf(stylesheets=[large_css])
+    imgs = convert_from_bytes(pdf_large, dpi=150)
+    img = imgs[0]
+    arr = np.array(img)
+    row_has_content = ~(arr == 255).all(axis=(1, 2))
+    indices = np.where(row_has_content)[0]
+    if len(indices) == 0:
+        # Fallback: oddiy A4
+        pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf()
+    else:
+        last_row = indices[-1]
+        # 150dpi: 1px = 25.4/150 mm
+        content_height_mm = (last_row + 30) * (25.4 / 150)
+        content_height_mm = max(content_height_mm, 100)
+        exact_css = CSS(string=f'@page {{ size: 210mm {content_height_mm:.1f}mm; margin: 0; }}')
+        pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf(stylesheets=[exact_css])
+
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     return buf

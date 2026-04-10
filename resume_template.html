@@ -6,6 +6,11 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+  @page {
+    size: 210mm auto;
+    margin: 0;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -14,7 +19,6 @@
     color: #2d2d2d;
     background: #ffffff;
     width: 210mm;
-    min-height: 297mm;
   }
 
   /* ── HEADER ── */
@@ -95,7 +99,7 @@
   /* ── MAIN LAYOUT ── */
   .main {
     display: flex;
-    min-height: calc(297mm - 130px);
+    align-items: stretch;
   }
 
   /* ── LEFT COLUMN (sidebar) ── */
@@ -104,6 +108,7 @@
     background: #f0faf9;
     padding: 20px 18px;
     border-right: 1px solid #e0f0ee;
+    align-self: stretch;
   }
 
   /* ── RIGHT COLUMN (main content) ── */
