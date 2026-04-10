@@ -4622,16 +4622,18 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Foydalanuvchi 'A'zo bo'ldim' tugmasini bosganda tekshiradi."""
     query = update.callback_query
-    await query.answer()
     user = update.effective_user
-
     is_subscribed = await check_subscription(context.bot, user.id, force=True)
     if is_subscribed:
+        await query.answer(text="✅ Tabriklaymiz! Kanalga a'zo bo'ldingiz.", show_alert=False)
         # A'zo bo'ldi — start ni qayta ishga tushirish
-        await query.edit_message_text(
-            f"✅ Rahmat, {user.first_name}! Kanalga a'zo bo'ldingiz.\n\n"
-            f"Endi botdan to'liq foydalanishingiz mumkin! Quyidagi /start ni bosing:"
-        )
+        try:
+            await query.edit_message_text(
+                f"✅ Rahmat, {user.first_name}! Kanalga a'zo bo'ldingiz.\n\n"
+                f"Endi botdan to'liq foydalanishingiz mumkin!"
+            )
+        except Exception:
+            pass
         # Asosiy menyuni yuborish
         await context.bot.send_message(
             chat_id=user.id,
@@ -4640,7 +4642,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     else:
         await query.answer(
-            text="⚠️ Siz hali kanalga a'zo bo'lmagansiz! Iltimos, avval @slidego kanaliga a'zo bo'ling.",
+            text="⚠️ Siz hali @slidego kanaliga a'zo bo'lmagansiz! Avval a'zo bo'ling, so'ng qayta tekshiring.",
             show_alert=True
         )
 
