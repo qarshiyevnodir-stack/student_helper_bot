@@ -579,6 +579,17 @@ def get_subscription_keyboard():
 # Handlerlar — Umumiy
 # ─────────────────────────────────────────────
 
+
+# Barcha menyu tugmalarini ushlovchi filter — conversation ichida menyu bosilganda state handlerlar ishlamasin
+MENU_REGEX = (
+    r"^(🪄 Slayd yaratish ✨|📄 Mustaqil ish ✨|📚 Referat ✨|📁 Loyiha ishi ✨|"
+    r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
+    r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
+    r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
+    r"📋 Annotatsiya ✨|📝 Taqriz ✨)$"
+)
+MENU_FILTER = filters.Regex(MENU_REGEX)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Botni ishga tushiradi va asosiy menyu ko'rsatadi."""
     context.user_data.clear()
@@ -5232,16 +5243,16 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, handle_main_menu_selection),
             ],
             TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             NAME_SURNAME: [
                 CallbackQueryHandler(get_name_surname, pattern=r"^skip_name_surname$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, get_name_surname),
             ],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern=r"^slide_count_"),
@@ -5257,13 +5268,13 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mi_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MI_NAME_SURNAME: [
                 CallbackQueryHandler(mi_get_name_surname, pattern=r"^mi_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mi_get_name_surname),
             ],
             MI_PAGE_COUNT: [
                 CallbackQueryHandler(mi_get_page_count, pattern=r"^mi_pages_"),
@@ -5272,12 +5283,12 @@ def main() -> None:
             MI_UNIVERSITY: [
                 CallbackQueryHandler(mi_get_university, pattern=r"^mi_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_university),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mi_get_university),
             ],
             MI_TEACHER: [
                 CallbackQueryHandler(mi_get_teacher, pattern=r"^mi_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mi_get_teacher),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mi_get_teacher),
             ],
             # ── Loyiha ishi holatlari ──
             LI_LANGUAGE: [
@@ -5285,13 +5296,13 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, li_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             LI_NAME_SURNAME: [
                 CallbackQueryHandler(li_get_name_surname, pattern=r"^li_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, li_get_name_surname),
             ],
             LI_PAGE_COUNT: [
                 CallbackQueryHandler(li_get_page_count, pattern=r"^li_pages_"),
@@ -5300,17 +5311,17 @@ def main() -> None:
             LI_UNIVERSITY: [
                 CallbackQueryHandler(li_get_university, pattern=r"^li_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_university),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, li_get_university),
             ],
             LI_SUBJECT: [
                 CallbackQueryHandler(li_get_subject, pattern=r"^li_skip_subject$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_subject),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, li_get_subject),
             ],
             LI_TEACHER: [
                 CallbackQueryHandler(li_get_teacher, pattern=r"^li_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, li_get_teacher),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, li_get_teacher),
             ],
             # ── Referat holatlari ──
             RF_LANGUAGE: [
@@ -5318,13 +5329,13 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, rf_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             RF_NAME_SURNAME: [
                 CallbackQueryHandler(rf_get_name_surname, pattern=r"^rf_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, rf_get_name_surname),
             ],
             RF_PAGE_COUNT: [
                 CallbackQueryHandler(rf_get_page_count, pattern=r"^rf_pages_"),
@@ -5333,12 +5344,12 @@ def main() -> None:
             RF_UNIVERSITY: [
                 CallbackQueryHandler(rf_get_university, pattern=r"^rf_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_university),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, rf_get_university),
             ],
             RF_TEACHER: [
                 CallbackQueryHandler(rf_get_teacher, pattern=r"^rf_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, rf_get_teacher),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, rf_get_teacher),
             ],
             # ── Infografika holatlari ──
             IG_LANGUAGE: [
@@ -5358,7 +5369,7 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IG_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ig_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ig_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Maqola holatlari ──
@@ -5375,18 +5386,18 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MQ_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mq_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             MQ_NAME_SURNAME: [
                 CallbackQueryHandler(mq_get_name_surname, pattern=r"^mq_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mq_get_name_surname),
             ],
             MQ_UNIVERSITY: [
                 CallbackQueryHandler(mq_get_university, pattern=r"^mq_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, mq_get_university),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, mq_get_university),
             ],
             # ── Kurs ishi / BMI holatlari ──
             KI_TYPE: [
@@ -5402,33 +5413,33 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KI_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KI_NAME_SURNAME: [
                 CallbackQueryHandler(ki_get_name_surname, pattern=r"^ki_skip_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_name_surname),
             ],
             KI_UNIVERSITY: [
                 CallbackQueryHandler(ki_get_university, pattern=r"^ki_skip_university$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_university),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_university),
             ],
             KI_FACULTY: [
                 CallbackQueryHandler(ki_get_faculty, pattern=r"^ki_skip_faculty$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_faculty),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_faculty),
             ],
             KI_SUBJECT: [
                 CallbackQueryHandler(ki_get_subject, pattern=r"^ki_skip_subject$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_subject),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_subject),
             ],
             KI_TEACHER: [
                 CallbackQueryHandler(ki_get_teacher, pattern=r"^ki_skip_teacher$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ki_get_teacher),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_teacher),
             ],
             # ── Tezis holatlari ──
             TZ_TYPE: [
@@ -5444,15 +5455,15 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TZ_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tz_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TZ_NAME_SURNAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_name),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tz_get_name),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TZ_INSTITUTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tz_get_institution),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tz_get_institution),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Test tuzish holatlari ──
@@ -5465,11 +5476,11 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TS_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ts_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ts_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TS_AUTHOR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ts_get_author),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ts_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Glossary holatlari ──
@@ -5482,11 +5493,11 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             GL_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, gl_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, gl_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             GL_AUTHOR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, gl_get_author),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, gl_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Krossvord holatlari ──
@@ -5499,11 +5510,11 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KR_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, kr_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, kr_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KR_AUTHOR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, kr_get_author),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, kr_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Insho / Esse holatlari ──
@@ -5520,15 +5531,15 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IN_TOPIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_topic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, in_get_topic),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IN_NAME_SURNAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_name_surname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, in_get_name_surname),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IN_INSTITUTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, in_get_institution),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, in_get_institution),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Hujjat & Dizayn holatlari ──
@@ -5542,15 +5553,15 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_INPUT1: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input1),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, hj_get_input1),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_INPUT2: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input2),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, hj_get_input2),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_INPUT3: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, hj_get_input3),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, hj_get_input3),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Annotatsiya holatlari ──
@@ -5563,11 +5574,11 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             AN_TITLE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, an_get_title),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, an_get_title),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             AN_AUTHOR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, an_get_author),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, an_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Taqriz holatlari ──
@@ -5580,24 +5591,24 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_TITLE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_title),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tq_get_title),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_AUTHOR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_author),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tq_get_author),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_REVIEWER: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_reviewer),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tq_get_reviewer),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TQ_SUMMARY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, tq_get_summary),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tq_get_summary),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── AI Yordamchi holatlari ──
             AI_CHAT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ai_chat_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ai_chat_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Rezyume CV holatlari ──
@@ -5606,23 +5617,23 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_FULLNAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_fullname),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_fullname),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_EMAIL: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_email),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_email),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_PHONE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_phone),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_phone),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_LOCATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_location),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_location),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_LINKS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_links),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_links),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_PHOTO: [
@@ -5630,35 +5641,35 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_TITLE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_title),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_title),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_REGION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_region),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_region),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_SUMMARY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_summary),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_summary),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_EXPERIENCE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_experience),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_experience),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_PROJECTS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_projects),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_projects),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_EDUCATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_education),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_education),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_CERTIFICATIONS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_certifications),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_certifications),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_SKILLS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cv_get_skills),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_get_skills),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_TONE: [
@@ -5671,18 +5682,19 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_message_router),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
         },
         fallbacks=[
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
+            MessageHandler(MENU_FILTER, handle_main_menu_selection),
         ],
     )
 
