@@ -5061,14 +5061,27 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
 
     elif data == "adm_users":
-        users = await asyncio.to_thread(db.get_all_users, limit=10)
-        lines = []
-        for u in users:
-            name = u['full_name'] or u['username'] or str(u['user_id'])
-            lines.append(f"• {name} | 💰 {u['balance']:,} so'm")
-        text = "👥 *So'nggi 10 foydalanuvchi:*\n\n" + "\n".join(lines) if lines else "Foydalanuvchilar yo'q."
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
-        await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
+        try:
+            users = await asyncio.to_thread(db.get_all_users, limit=20)
+            lines = []
+            for u in users:
+                name = esc_md(u['full_name'] or u['username'] or str(u['user_id']))
+                uid = u['user_id']
+                bal = u['balance']
+                lines.append(f"• {name} | `{uid}` | 💰 {bal:,} so'm")
+            if lines:
+                text = "👥 *So'nggi 20 foydalanuvchi:*\n\n" + "\n".join(lines)
+                # Telegram xabar limiti 4096 belgi
+                if len(text) > 4000:
+                    text = text[:4000] + "\n...\n_(qisqartirildi)_"
+            else:
+                text = "Foydalanuvchilar yo'q."
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+            await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"adm_users xatolik: {e}")
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
+            await query.edit_message_text(f"❌ Xatolik: {str(e)[:200]}", reply_markup=back_kb)
 
     elif data == "adm_pending":
         pending = await asyncio.to_thread(db.get_pending_topups)
@@ -5189,8 +5202,8 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"👤 *Foydalanuvchi ma'lumotlari*\n\n"
         f"ID: `{u['user_id']}`\n"
-        f"Ism: {u['full_name'] or 'Nomsiz'}\n"
-        f"Username: @{u['username'] or 'yoq'}\n"
+        f"Ism: {esc_md(u['full_name'] or 'Nomsiz')}\n"
+        f"Username: @{esc_md(u['username'] or 'yoq')}\n"
         f"💰 Balans: *{u['balance']:,} so'm*\n"
         f"🔗 Referral kodi: `{u['referral_code']}`\n"
         f"📅 Qo'shilgan: {u['joined_at']}\n"
