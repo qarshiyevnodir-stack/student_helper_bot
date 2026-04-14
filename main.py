@@ -425,6 +425,18 @@ def get_plan_confirmation_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 # ─────────────────────────────────────────────
+# Yordamchi: Markdown maxsus belgilarni escape qilish
+# ─────────────────────────────────────────────
+def esc_md(text) -> str:
+    """Markdown v1 uchun maxsus belgilarni escape qiladi."""
+    if not text:
+        return str(text) if text is not None else ""
+    text = str(text)
+    for ch in ['_', '*', '[', ']', '`']:
+        text = text.replace(ch, f'\\{ch}')
+    return text
+
+# ─────────────────────────────────────────────
 # Yordamchi: reja matnini chiroyli formatlash
 # ─────────────────────────────────────────────
 
@@ -434,12 +446,12 @@ def format_plan_message(topic, slide_count, language_name, plan_items):
     clean_lines = []
     for idx, item in enumerate(plan_items):
         text = re.sub(r'^[\d]+[\d\.]*\.?\s*', '', str(item)).strip()
-        clean_lines.append(f"{idx+1}. {text}")
+        clean_lines.append(f"{idx+1}. {esc_md(text)}")
     plan_lines = "\n".join(clean_lines)
     return (
         f"📋 *Reja tayyor!*\n\n"
-        f"📌 *Mavzu:* {topic}\n"
-        f"🌐 *Til:* {language_name}\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n"
+        f"🌐 *Til:* {esc_md(language_name)}\n"
         f"📊 *Slaydlar soni:* {slide_count}\n\n"
         f"*Reja:*\n{plan_lines}\n\n"
         f"_Ushbu reja asosida slaydlar sarlavhalari ham tayyor. "
@@ -1032,7 +1044,7 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         [InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="skip_name_surname")]
     ])
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\nIsm va familiyangizni kiriting (ixtiyoriy):",
+        f"📌 *Mavzu:* {esc_md(topic)}\n\nIsm va familiyangizni kiriting (ixtiyoriy):",
         reply_markup=skip_button,
         parse_mode="Markdown"
     )
@@ -1089,10 +1101,10 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if not result or not result.get("plan"):
         result = {
-            "plan": [f"1. {topic} haqida umumiy ma'lumot",
-                     f"2. {topic} ning asosiy jihatlari",
-                     f"3. {topic} ning ahamiyati"],
-            "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
+            "plan": [f"1. {esc_md(topic)} haqida umumiy ma'lumot",
+                     f"2. {esc_md(topic)} ning asosiy jihatlari",
+                     f"3. {esc_md(topic)} ning ahamiyati"],
+            "slide_titles": [f"{esc_md(topic)} — {i+1}" for i in range(slide_count)]
         }
 
     context.user_data["stage1_result"] = result
@@ -1131,10 +1143,10 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
         if not result or not result.get("plan"):
             result = {
-                "plan": [f"1. {topic} haqida umumiy ma'lumot",
-                         f"2. {topic} ning asosiy jihatlari",
-                         f"3. {topic} ning ahamiyati"],
-                "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
+                "plan": [f"1. {esc_md(topic)} haqida umumiy ma'lumot",
+                         f"2. {esc_md(topic)} ning asosiy jihatlari",
+                         f"3. {esc_md(topic)} ning ahamiyati"],
+                "slide_titles": [f"{esc_md(topic)} — {i+1}" for i in range(slide_count)]
             }
 
         context.user_data["stage1_result"] = result
@@ -1229,7 +1241,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             document=presentation_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* — taqdimot tayyor!\n"
+                f"✅ *{esc_md(topic)}* — taqdimot tayyor!\n"
                 f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -1299,7 +1311,7 @@ async def li_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data["li_topic"] = topic
     # Ism-familiya MAJBURIY — "Shart emas" yo'q
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n\n"
         f"👤 Ism-familiyangizni kiriting:\n"
         f"_(Hujjatda 'Bajardi:' qatorida yoziladi — majburiy)_",
         parse_mode="Markdown"
@@ -1452,7 +1464,7 @@ async def li_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* — loyiha ishi tayyor!\n"
+                f"✅ *{esc_md(topic)}* — loyiha ishi tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -1631,7 +1643,7 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
     quality_label = "✨ HD (DALL-E 3)" if is_hd else "📊 Oddiy"
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida *{quality_label}* infografika yaratilmoqda...\n"
+        f"⏳ *{esc_md(topic)}* mavzusida *{quality_label}* infografika yaratilmoqda...\n"
         f"Bu biroz vaqt olishi mumkin, kuting!",
         parse_mode="Markdown"
     )
@@ -1664,13 +1676,13 @@ async def ig_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         # Balansdan yechish
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         service_label = "Infografika HD" if is_hd else "Infografika"
-        await asyncio.to_thread(db.log_deduction, user_id, price, f"{service_label}: {topic}")
+        await asyncio.to_thread(db.log_deduction, user_id, price, f"{service_label}: {esc_md(topic)}")
         # PNG yuborish
         with open(out_path, "rb") as f:
             await update.message.reply_photo(
                 photo=f,
                 caption=(
-                    f"✅ *{topic}* — {quality_label} infografika tayyor!\n"
+                    f"✅ *{esc_md(topic)}* — {quality_label} infografika tayyor!\n"
                     f"🖼 PNG\n\n"
                     f"📚 Biz bilan ishingiz oson!\n"
                     f"🤖 @slidego\n"
@@ -1732,7 +1744,7 @@ async def rf_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [InlineKeyboardButton("⏭ Shart emas", callback_data="rf_skip_name")]
     ])
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n\n"
         f"Ism-familiyangizni kiriting:\n"
         f"_(Kiritilgan ism hujjatda 'Tayyorladi:' qatorida yoziladi)_",
         reply_markup=keyboard,
@@ -1876,7 +1888,7 @@ async def rf_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* — referat tayyor!\n"
+                f"✅ *{esc_md(topic)}* — referat tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -1951,7 +1963,7 @@ async def mi_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [InlineKeyboardButton("⏭ Shart emas", callback_data="mi_skip_name")]
     ])
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n\n"
         f"Ism-familiyangizni kiriting:\n"
         f"_(Kiritilgan ism hujjatda 'Tayyorladi:' qatorida yoziladi)_",
         reply_markup=keyboard,
@@ -2108,7 +2120,7 @@ async def mi_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* — mustaqil ish tayyor!\n"
+                f"✅ *{esc_md(topic)}* — mustaqil ish tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -2230,7 +2242,7 @@ async def mq_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [InlineKeyboardButton("⏭ Shart emas", callback_data="mq_skip_name")]
     ])
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n\n"
         f"Muallif ism-familiyasini kiriting:\n"
         f"_(Ixtiyoriy — maqola sarlavha sahifasida ko'rinadi)_",
         reply_markup=keyboard,
@@ -2331,7 +2343,7 @@ async def mq_get_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ *{topic}* — maqola tayyor!\n"
+                f"✅ *{esc_md(topic)}* — maqola tayyor!\n"
                 f"📰 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -2455,7 +2467,7 @@ async def ki_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_name")]
     ])
     await update.message.reply_text(
-        f"📌 *Mavzu:* {topic}\n\n"
+        f"📌 *Mavzu:* {esc_md(topic)}\n\n"
         f"Ism-familiyangizni kiriting:\n"
         f"_(Ixtiyoriy — muqovada ko'rinadi)_",
         reply_markup=keyboard,
@@ -2642,7 +2654,7 @@ async def ki_get_teacher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             document=doc_bytes,
             filename=filename,
             caption=(
-                f"✅ {topic} — {service_label} tayyor!\n"
+                f"✅ {esc_md(topic)} — {service_label} tayyor!\n"
                 f"📄 Taxminiy {page_count} sahifa | 📎 DOCX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
@@ -2750,7 +2762,7 @@ async def tz_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = update.message.text.strip()
     context.user_data["tz_topic"] = topic
     await update.message.reply_text(
-        f"✅ Mavzu: *{topic}*\n\nMuallif ism-familiyasini kiriting:\n(Ixtiyoriy — o'tkazib yuborish uchun \"- \" yozing)",
+        f"✅ Mavzu: *{esc_md(topic)}*\n\nMuallif ism-familiyasini kiriting:\n(Ixtiyoriy — o'tkazib yuborish uchun \"- \" yozing)",
         parse_mode="Markdown"
     )
     return TZ_NAME_SURNAME
@@ -2804,7 +2816,7 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(
         f"⏳ *{type_names.get(tz_type, 'Tezis')}* yaratilmoqda...\n"
-        f"📌 Mavzu: {topic}\n"
+        f"📌 Mavzu: {esc_md(topic)}\n"
         f"🌍 Til: {lang_names.get(lang, lang)} | 📄 {pages} sahifa\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -2851,7 +2863,7 @@ async def tz_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.bot,
             document=archive_doc,
             filename=file_name,
-            caption=f"📜 Tezis | {topic} | {lang_names.get(lang, lang)} | {pages} sah | User: {user.id}"
+            caption=f"📜 Tezis | {esc_md(topic)} | {lang_names.get(lang, lang)} | {pages} sah | User: {user.id}"
         )
 
         await update.message.reply_text(
@@ -2914,7 +2926,7 @@ async def ts_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = update.message.text.strip()
     context.user_data["ts_topic"] = topic
     await update.message.reply_text(
-        f"✅ Mavzu: *{topic}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
+        f"✅ Mavzu: *{esc_md(topic)}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
         f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
         parse_mode="Markdown"
     )
@@ -2951,7 +2963,7 @@ async def ts_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
 
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida *{count} ta savol* yaratilmoqda...\n"
+        f"⏳ *{esc_md(topic)}* mavzusida *{count} ta savol* yaratilmoqda...\n"
         f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -3078,7 +3090,7 @@ async def gl_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = update.message.text.strip()
     context.user_data["gl_topic"] = topic
     await update.message.reply_text(
-        f"✅ Mavzu: *{topic}*\n\nMuallif ism-familiyasini kiriting:\n"
+        f"✅ Mavzu: *{esc_md(topic)}*\n\nMuallif ism-familiyasini kiriting:\n"
         f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
         parse_mode="Markdown"
     )
@@ -3118,7 +3130,7 @@ async def gl_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
 
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida glossary yaratilmoqda...\n"
+        f"⏳ *{esc_md(topic)}* mavzusida glossary yaratilmoqda...\n"
         f"📌 Hajm: {size_labels.get(size, size)} | 🌍 Til: {lang_names.get(lang, lang)}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -3227,7 +3239,7 @@ async def kr_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = update.message.text.strip()
     context.user_data["kr_topic"] = topic
     await update.message.reply_text(
-        f"✅ Mavzu: *{topic}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
+        f"✅ Mavzu: *{esc_md(topic)}*\n\nMuallif / o'qituvchi ismini kiriting:\n"
         f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
         parse_mode="Markdown"
     )
@@ -3257,7 +3269,7 @@ async def kr_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return ConversationHandler.END
     lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida *{count} ta so'zli* krossvord yaratilmoqda...\n"
+        f"⏳ *{esc_md(topic)}* mavzusida *{count} ta so'zli* krossvord yaratilmoqda...\n"
         f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -3405,7 +3417,7 @@ async def in_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     topic = update.message.text.strip()
     context.user_data["in_topic"] = topic
     await update.message.reply_text(
-        f"✅ Mavzu: *{topic}*\n\nIsm-familiyangizni kiriting:\n"
+        f"✅ Mavzu: *{esc_md(topic)}*\n\nIsm-familiyangizni kiriting:\n"
         f"_(Ixtiyoriy — o'tkazib yuborish uchun \"-\" yozing)_",
         parse_mode="Markdown"
     )
@@ -3459,7 +3471,7 @@ async def in_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
     lang_names = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
 
     await update.message.reply_text(
-        f"⏳ *{topic}* mavzusida *{pages} sahifali {type_labels.get(insho_type, 'insho')}* yozilmoqda...\n"
+        f"⏳ *{esc_md(topic)}* mavzusida *{pages} sahifali {type_labels.get(insho_type, 'insho')}* yozilmoqda...\n"
         f"🌍 Til: {lang_names.get(lang, lang)}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -3712,7 +3724,7 @@ async def _hj_generate(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return ConversationHandler.END
 
     await update.message.reply_text(
-        f"⏳ *{title}* yaratilmoqda...\n🌍 Til: {lang_name}\n\nBir daqiqa kuting...",
+        f"⏳ *{esc_md(title)}* yaratilmoqda...\n🌍 Til: {lang_name}\n\nBir daqiqa kuting...",
         parse_mode="Markdown"
     )
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
@@ -3859,7 +3871,7 @@ async def an_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await update.message.reply_text(
         f"📋 *Annotatsiya yaratish*\n"
         f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n"
-        f"📌 Sarlavha: {title}\n\n"
+        f"📌 Sarlavha: {esc_md(title)}\n\n"
         f"Muallif ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
         parse_mode="Markdown"
     )
@@ -3901,7 +3913,7 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     type_name = type_labels.get(doc_type, doc_type)
 
     await update.message.reply_text(
-        f"⏳ *{title}* asari uchun annotatsiya yaratilmoqda...\n"
+        f"⏳ *{esc_md(title)}* asari uchun annotatsiya yaratilmoqda...\n"
         f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -3920,7 +3932,7 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             filename=filename,
             caption=(
                 f"✅ *Annotatsiya tayyor!*\n\n"
-                f"📌 {title}\n"
+                f"📌 {esc_md(title)}\n"
                 f"📄 Tur: {type_name}\n"
                 f"🌍 Til: {lang_name}\n"
                 f"💰 Yechildi: {price:,} so'm\n\n"
@@ -3946,7 +3958,7 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 caption=(
                     f"📋 Annotatsiya\n"
                     f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\n"
-                    f"📌 {title} | {type_name} | {lang_name}"
+                    f"📌 {esc_md(title)} | {type_name} | {lang_name}"
                 )
             )
         except Exception as e:
@@ -4018,7 +4030,7 @@ async def tq_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await update.message.reply_text(
         f"📝 *Taqriz yaratish*\n"
         f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n"
-        f"📌 Sarlavha: {title}\n\n"
+        f"📌 Sarlavha: {esc_md(title)}\n\n"
         f"Asar muallifining ismini yozing:",
         parse_mode="Markdown"
     )
@@ -4033,7 +4045,7 @@ async def tq_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text(
         f"📝 *Taqriz yaratish*\n"
         f"🌍 Til: {lang_name}\n"
-        f"✍️ Muallif: {author}\n\n"
+        f"✍️ Muallif: {esc_md(author)}\n\n"
         f"Taqrizchi ismini yozing (ixtiyoriy, o'tkazib yuborish uchun — yozing):",
         parse_mode="Markdown"
     )
@@ -4088,7 +4100,7 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     await update.message.reply_text(
-        f"⏳ *{title}* asari uchun taqriz yaratilmoqda...\n"
+        f"⏳ *{esc_md(title)}* asari uchun taqriz yaratilmoqda...\n"
         f"🌍 Til: {lang_name} | 📄 Tur: {type_name}\n\n"
         f"Bir daqiqa kuting...",
         parse_mode="Markdown"
@@ -4107,8 +4119,8 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             filename=filename,
             caption=(
                 f"✅ *Taqriz tayyor!*\n\n"
-                f"📌 {title}\n"
-                f"✍️ Muallif: {author}\n"
+                f"📌 {esc_md(title)}\n"
+                f"✍️ Muallif: {esc_md(author)}\n"
                 f"📄 Tur: {type_name}\n"
                 f"🌍 Til: {lang_name}\n"
                 f"💰 Yechildi: {price:,} so'm\n\n"
@@ -4134,7 +4146,7 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 caption=(
                     f"📝 Taqriz\n"
                     f"👤 {user.full_name} (@{user.username or 'nouser'}) | ID: {user.id}\n"
-                    f"📌 {title} | {author} | {type_name} | {lang_name}"
+                    f"📌 {esc_md(title)} | {esc_md(author)} | {type_name} | {lang_name}"
                 )
             )
         except Exception as e:
