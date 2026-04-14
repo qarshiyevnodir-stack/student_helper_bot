@@ -5221,7 +5221,12 @@ def main() -> None:
         logger.error("BOT_TOKEN topilmadi!")
         return
 
-    application = Application.builder().token(token).build()
+    application = (
+        Application.builder()
+        .token(token)
+        .concurrent_updates(True)  # Parallel foydalanuvchilar uchun
+        .build()
+    )
 
     # ── Slayd yaratish ──
     slayd_handler = ConversationHandler(
@@ -5751,8 +5756,11 @@ def main() -> None:
     # Global handler for photo submissions for top-up
     application.add_handler(MessageHandler(filters.PHOTO, topup_get_screenshot), group=-1)
 
-    logger.info("Bot ishga tushmoqda (polling rejimi)...")
-    application.run_polling()
+    logger.info("Bot ishga tushmoqda (polling rejimi, concurrent_updates=True)...")
+    application.run_polling(
+        drop_pending_updates=True,  # Restart paytida eski xabarlarni o'tkazib yuborish
+        allowed_updates=["message", "callback_query", "chat_member"],
+    )
 
 if __name__ == "__main__":
     main()
