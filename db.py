@@ -42,8 +42,8 @@ def _get_pool():
                 "Railway da PostgreSQL qo'shib, DATABASE_URL ni bot servisiga ulang."
             )
         _pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
+            minconn=2,
+            maxconn=20,
             dsn=DATABASE_URL
         )
     return _pool
@@ -535,7 +535,8 @@ init_db()
 
 def get_ai_daily_count(user_id: int) -> int:
     """Bugungi AI savol sonini qaytaradi."""
-    with get_conn() as conn:
+    conn = get_conn()
+    try:
         c = conn.cursor()
         c.execute("""
             SELECT count FROM ai_daily_usage
@@ -543,10 +544,13 @@ def get_ai_daily_count(user_id: int) -> int:
         """, (user_id,))
         row = c.fetchone()
         return row[0] if row else 0
+    finally:
+        release_conn(conn)
 
 def increment_ai_daily_count(user_id: int) -> int:
     """AI savol sonini +1 qiladi va yangi sonni qaytaradi."""
-    with get_conn() as conn:
+    conn = get_conn()
+    try:
         c = conn.cursor()
         c.execute("""
             INSERT INTO ai_daily_usage (user_id, usage_date, count)
@@ -558,3 +562,5 @@ def increment_ai_daily_count(user_id: int) -> int:
         row = c.fetchone()
         conn.commit()
         return row[0] if row else 1
+    finally:
+        release_conn(conn)
