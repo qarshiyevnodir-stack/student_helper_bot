@@ -82,6 +82,7 @@ SERVICE_PRICES = {
     "kurs_ishi":        12000,
     "bmi":              20000,
     "arxivlash":        1000,
+    "pdf_convert":      1500,
 }
 MIN_TOPUP = 3000
 
@@ -303,6 +304,12 @@ logger = logging.getLogger(__name__)
     ARX_RECEIVE,         # 160 — fayllarni qabul qilish
 ) = range(160, 161)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — PDF Konvertatsiya
+# ─────────────────────────────────────────────
+(
+    PDF_RECEIVE,         # 165 — fayl qabul qilish
+) = range(165, 166)
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -331,7 +338,8 @@ def get_main_menu_keyboard():
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
         [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
-        [KeyboardButton("📦 Ziplash/Arxivlash 🗜️"),            KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("📦 Ziplash/Arxivlash 🗜️"),  KeyboardButton("📄 PDF Konvertatsiya 🔄")],
+        [KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -605,7 +613,7 @@ MENU_REGEX = (
     r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
-    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️)$"
+    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
@@ -1016,6 +1024,34 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return ARX_RECEIVE
+    elif text == "📄 PDF Konvertatsiya 🔄":
+        context.user_data.clear()
+        context.user_data["mode"] = "pdf_convert"
+        price = SERVICE_PRICES["pdf_convert"]
+        yo_riqnoma = (
+            f"📄 *PDF Konvertatsiya xizmati*\n\n"
+            f"💰 Narx: *{price:,} so'm* \(bitta fayl\)\n\n"
+            f"📌 *Qo'llab\-quvvatlanadigan formatlar:*\n"
+            f"• 📝 *Word* \(DOCX, DOC\)\n"
+            f"• 📊 *Excel* \(XLSX, XLS\)\n"
+            f"• 📊 *PowerPoint* \(PPTX, PPT\)\n"
+            f"• 🖼️ *Rasm* \(JPG, PNG, BMP, WEBP\)\n\n"
+            f"📌 *Yo'riqnoma:*\n"
+            f"1️⃣ Faylingizni yuboring\n"
+            f"2️⃣ Bot uni PDF ga aylantirib qaytaradi\n"
+            f"3️⃣ Har bir fayl uchun *{price:,} so'm* yechiladi\n\n"
+            f"⚠️ Fayl hajmi maksimal *20 MB*\n\n"
+            f"📤 Faylingizni yuboring:"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="pdf_cancel")],
+        ])
+        await update.message.reply_text(
+            yo_riqnoma,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return PDF_RECEIVE
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -4384,10 +4420,200 @@ async def arx_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=get_main_menu_keyboard()
     )
     return ConversationHandler.END
+# ═══════════════════════════════════════════════════════════════════════════
+# PDF KONVERTATSIYA HANDLER
+# ═══════════════════════════════════════════════════════════════════════════
+# Qo'llab-quvvatlanadigan kengaytmalar
+PDF_SUPPORTED_DOCS = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".odt", ".ods", ".odp", ".txt", ".html", ".htm"}
+PDF_SUPPORTED_IMGS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tiff", ".tif"}
+PDF_ALL_SUPPORTED = PDF_SUPPORTED_DOCS | PDF_SUPPORTED_IMGS
+
+
+async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """PDF Konvertatsiya — foydalanuvchi fayl yuboradi, bot PDF ga aylantiradi."""
+    user = update.effective_user
+    if context.user_data.get("mode") != "pdf_convert":
+        return PDF_RECEIVE
+
+    msg = update.message
+    file_obj = None
+    file_name = None
+
+    if msg.document:
+        file_obj = msg.document
+        file_name = msg.document.file_name or "fayl"
+    elif msg.photo:
+        file_obj = msg.photo[-1]
+        file_name = "rasm.jpg"
+    else:
+        await update.message.reply_text(
+            "⚠️ Faqat fayl yoki rasm yuboring.\n"
+            "Qo'llab-quvvatlanadigan: DOCX, XLSX, PPTX, JPG, PNG va boshqalar.",
+            parse_mode="Markdown"
+        )
+        return PDF_RECEIVE
+
+    # Kengaytmani tekshirish
+    ext = os.path.splitext(file_name)[1].lower()
+    if ext not in PDF_ALL_SUPPORTED and not msg.photo:
+        await update.message.reply_text(
+            f"⚠️ *{esc_md(file_name)}* formati qo'llab-quvvatlanmaydi\.\n\n"
+            f"Qo'llab-quvvatlanadigan formatlar:\n"
+            f"DOCX, DOC, XLSX, XLS, PPTX, PPT, JPG, PNG, BMP, WEBP",
+            parse_mode="Markdown"
+        )
+        return PDF_RECEIVE
+
+    # Fayl hajmini tekshirish
+    file_size = getattr(file_obj, 'file_size', 0) or 0
+    if file_size > 20 * 1024 * 1024:
+        await update.message.reply_text(
+            f"⚠️ Fayl juda katta \\({file_size // (1024*1024)} MB\\)\. Maksimal: *20 MB*",
+            parse_mode="Markdown"
+        )
+        return PDF_RECEIVE
+
+    # Balans tekshirish
+    price = SERVICE_PRICES["pdf_convert"]
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data["balance"] if user_data else 0
+    if balance < price:
+        await update.message.reply_text(
+            f"❌ *Balans yetarli emas\!*\n\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\n\n"
+            f"Balansni to'ldiring:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+            ]]),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    # Jarayon boshlanmoqda
+    await update.message.reply_text(
+        f"⏳ *{esc_md(file_name)}* PDF ga aylantirilmoqda...\nBir daqiqa kuting.",
+        parse_mode="Markdown"
+    )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
+
+    try:
+        import subprocess, tempfile, shutil
+
+        # Faylni Telegram dan yuklab olish
+        tg_file = await context.bot.get_file(file_obj.file_id)
+        file_bytes = await tg_file.download_as_bytearray()
+
+        # Vaqtinchalik papka
+        tmp_dir = tempfile.mkdtemp(prefix="pdf_conv_")
+        try:
+            input_path = os.path.join(tmp_dir, file_name)
+            with open(input_path, 'wb') as f:
+                f.write(file_bytes)
+
+            pdf_name = os.path.splitext(file_name)[0] + ".pdf"
+            pdf_path = os.path.join(tmp_dir, pdf_name)
+
+            if msg.photo or ext in PDF_SUPPORTED_IMGS:
+                # Rasm → PDF (Pillow)
+                from PIL import Image
+                img = Image.open(input_path)
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGB')
+                img.save(pdf_path, 'PDF', resolution=150)
+            else:
+                # Office/Text → PDF (LibreOffice)
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ['libreoffice', '--headless', '--convert-to', 'pdf',
+                     '--outdir', tmp_dir, input_path],
+                    capture_output=True, text=True, timeout=60
+                )
+                if result.returncode != 0 or not os.path.exists(pdf_path):
+                    raise Exception(f"LibreOffice xatolik: {result.stderr[:200]}")
+
+            # PDF ni o'qish
+            with open(pdf_path, 'rb') as f:
+                pdf_bytes = BytesIO(f.read())
+
+            pdf_size_kb = os.path.getsize(pdf_path) // 1024
+
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        # Balans yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+
+        # PDF ni foydalanuvchiga yuborish
+        pdf_bytes.seek(0)
+        await update.message.reply_document(
+            document=pdf_bytes,
+            filename=pdf_name,
+            caption=(
+                f"✅ *PDF tayyor\!*\n\n"
+                f"📄 {esc_md(file_name)} → {esc_md(pdf_name)}\n"
+                f"📁 Hajmi: *{pdf_size_kb:,} KB*\n"
+                f"💰 Yechildi: *{price:,} so'm*\n\n"
+                f"@slidego \| t\.me/slidego"
+            ),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Yana konvertatsiya", callback_data="pdf_again")],
+                [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="pdf_cancel")],
+            ]),
+            parse_mode="Markdown"
+        )
+        logger.info(f"PDF konvert: {user.id} | {file_name} -> {pdf_name} | {price} so'm")
+
+    except Exception as e:
+        logger.error(f"PDF konvertatsiya xatolik: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ PDF yaratishda xatolik yuz berdi\.\n"
+            f"`{esc_md(str(e)[:150])}`\n\n"
+            f"Balans yechilmadi\. Qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
+async def pdf_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """PDF Konvertatsiya — yana konvertatsiya qilish."""
+    query = update.callback_query
+    await query.answer()
+    context.user_data["mode"] = "pdf_convert"
+    price = SERVICE_PRICES["pdf_convert"]
+    await query.edit_message_reply_markup(reply_markup=None)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=(
+            f"📄 *Yana fayl yuboring:*\n\n"
+            f"DOCX, XLSX, PPTX, JPG, PNG va boshqalar\n"
+            f"💰 Narx: *{price:,} so'm*/fayl"
+        ),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="pdf_cancel")],
+        ]),
+        parse_mode="Markdown"
+    )
+    return PDF_RECEIVE
+
+
+async def pdf_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """PDF Konvertatsiya — bekor qilish."""
+    query = update.callback_query
+    await query.answer()
+    context.user_data.clear()
+    await query.edit_message_reply_markup(reply_markup=None)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Asosiy menyu:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    return ConversationHandler.END
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AI YORDAMCHI HANDLER
+# AI YORDAMCHI HANDLERR
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -4402,7 +4628,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
         "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
         "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
-        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "💰 Balans & Referral 🔗"
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "📄 PDF Konvertatsiya 🔄", "💰 Balans & Referral 🔗"
     ]
     if text in main_menu_buttons:
         return await handle_main_menu_selection(update, context)
@@ -5474,6 +5700,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📦 Ziplash/Arxivlash 🗜️$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📄 PDF Konvertatsiya 🔄$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -5869,6 +6096,16 @@ def main() -> None:
                 ),
                 CallbackQueryHandler(arx_done_callback, pattern=r"^arx_done$"),
                 CallbackQueryHandler(arx_cancel_callback, pattern=r"^arx_cancel$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── PDF Konvertatsiya holatlari ──
+            PDF_RECEIVE: [
+                MessageHandler(
+                    filters.Document.ALL | filters.PHOTO,
+                    pdf_receive_file
+                ),
+                CallbackQueryHandler(pdf_again_callback, pattern=r"^pdf_again$"),
+                CallbackQueryHandler(pdf_cancel_callback, pattern=r"^pdf_cancel$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── AI Yordamchi holatlari ──
