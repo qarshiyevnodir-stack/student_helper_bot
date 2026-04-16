@@ -81,6 +81,7 @@ SERVICE_PRICES = {
     "insho_5":          3000,
     "kurs_ishi":        12000,
     "bmi":              20000,
+    "arxivlash":        1000,
 }
 MIN_TOPUP = 3000
 
@@ -296,6 +297,12 @@ logger = logging.getLogger(__name__)
     CV_LENGTH,           # 156
 ) = range(140, 157)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Arxivlash
+# ─────────────────────────────────────────────
+(
+    ARX_RECEIVE,         # 160 — fayllarni qabul qilish
+) = range(160, 161)
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -324,7 +331,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
         [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
-        [KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("📦 Arxivlash 🗜️"),            KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -598,7 +605,7 @@ MENU_REGEX = (
     r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
-    r"📋 Annotatsiya ✨|📝 Taqriz ✨)$"
+    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Arxivlash 🗜️)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
@@ -980,7 +987,35 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return TQ_LANGUAGE
-
+    elif text == "📦 Arxivlash 🗜️":
+        context.user_data.clear()
+        context.user_data["mode"] = "arxivlash"
+        context.user_data["arxiv_files"] = []
+        price = SERVICE_PRICES["arxivlash"]
+        yo_riqnoma = (
+            f"📦 *Arxivlash xizmati*\n\n"
+            f"💰 Narx: *{price:,} so'm*\n\n"
+            f"📌 *Yo'riqnoma:*\n"
+            f"1️⃣ Fayllaringizni yuboring \\(PDF, DOCX, XLSX, JPG, PNG va boshqalar\\)\n"
+            f"2️⃣ Bir nechta fayl yuborishingiz mumkin \\(max 20 MB/fayl\\)\n"
+            f"3️⃣ Barcha fayllar yuborilgach *Arxivlash* tugmasini bosing\n"
+            f"4️⃣ Bot fayllaringizni *\.zip* arxivga yig'ib qaytaradi\n\n"
+            f"⚠️ *Cheklovlar:*\n"
+            f"• Har bir fayl maksimal *20 MB*\n"
+            f"• Maksimal *20 ta fayl* bir arxivda\n"
+            f"• Fayllar 5 daqiqa ichida yuborilishi kerak\n\n"
+            f"📤 Fayllarni yuboring:"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🗜️ Arxivlash", callback_data="arx_done")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="arx_cancel")],
+        ])
+        await update.message.reply_text(
+            yo_riqnoma,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        return ARX_RECEIVE
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -4163,6 +4198,195 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 # ═══════════════════════════════════════════════════════════════════════════
+# ARXIVLASH HANDLER
+# ═══════════════════════════════════════════════════════════════════════════
+async def arx_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Arxivlash — foydalanuvchi fayl yuboradi."""
+    user = update.effective_user
+    # Faqat arxivlash rejimida ishlaydi
+    if context.user_data.get("mode") != "arxivlash":
+        return ARX_RECEIVE
+
+    arxiv_files = context.user_data.setdefault("arxiv_files", [])
+
+    # Maksimal fayl soni tekshiruvi
+    if len(arxiv_files) >= 20:
+        await update.message.reply_text(
+            "⚠️ Maksimal *20 ta fayl* yuborishingiz mumkin.\n"
+            "Arxivlash uchun *Arxivlash* tugmasini bosing.",
+            parse_mode="Markdown"
+        )
+        return ARX_RECEIVE
+
+    # Fayl turini aniqlash
+    msg = update.message
+    file_obj = None
+    file_name = None
+
+    if msg.document:
+        file_obj = msg.document
+        file_name = msg.document.file_name or f"fayl_{len(arxiv_files)+1}"
+    elif msg.photo:
+        file_obj = msg.photo[-1]  # eng katta o'lcham
+        file_name = f"rasm_{len(arxiv_files)+1}.jpg"
+    elif msg.video:
+        file_obj = msg.video
+        file_name = msg.video.file_name or f"video_{len(arxiv_files)+1}.mp4"
+    elif msg.audio:
+        file_obj = msg.audio
+        file_name = msg.audio.file_name or f"audio_{len(arxiv_files)+1}.mp3"
+    elif msg.voice:
+        file_obj = msg.voice
+        file_name = f"ovoz_{len(arxiv_files)+1}.ogg"
+    else:
+        await update.message.reply_text(
+            "⚠️ Faqat fayl, rasm, video yoki audio yuboring.\n"
+            "Yoki *Arxivlash* tugmasini bosib arxivni yarating.",
+            parse_mode="Markdown"
+        )
+        return ARX_RECEIVE
+
+    # Fayl hajmini tekshirish (20 MB)
+    file_size = getattr(file_obj, 'file_size', 0) or 0
+    if file_size > 20 * 1024 * 1024:
+        await update.message.reply_text(
+            f"⚠️ *{esc_md(file_name)}* fayli juda katta \\({file_size // (1024*1024)} MB\\).\n"
+            f"Maksimal fayl hajmi: *20 MB*",
+            parse_mode="Markdown"
+        )
+        return ARX_RECEIVE
+
+    # file_id ni saqlash
+    arxiv_files.append({"file_id": file_obj.file_id, "name": file_name})
+    count = len(arxiv_files)
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🗜️ Arxivlash ({count} ta fayl)", callback_data="arx_done")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="arx_cancel")],
+    ])
+    await update.message.reply_text(
+        f"✅ *{esc_md(file_name)}* qabul qilindi \\({count}/20\\)\n\n"
+        f"Yana fayl yuborishingiz yoki *Arxivlash* tugmasini bosishingiz mumkin.",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return ARX_RECEIVE
+
+
+async def arx_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Arxivlash — 'Arxivlash' tugmasi bosildi, zip yaratish va to'lov."""
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+
+    arxiv_files = context.user_data.get("arxiv_files", [])
+    if not arxiv_files:
+        await query.edit_message_text(
+            "⚠️ Hech qanday fayl yuklanmadi.\nIltimos, avval fayllarni yuboring.",
+            parse_mode="Markdown"
+        )
+        return ARX_RECEIVE
+
+    # Balans tekshirish
+    price = SERVICE_PRICES["arxivlash"]
+    user_data = await asyncio.to_thread(db.get_user, user.id)
+    balance = user_data["balance"] if user_data else 0
+    if balance < price:
+        await query.edit_message_text(
+            f"❌ *Balans yetarli emas\!*\n\n"
+            f"💰 Balansingiz: `{balance:,}` so'm\n"
+            f"💳 Kerakli summa: `{price:,}` so'm\n\n"
+            f"Balansni to'ldiring:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+            ]]),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
+    await query.edit_message_text(
+        f"⏳ *{len(arxiv_files)} ta fayl* yuklanmoqda va arxivlanmoqda...\n\nBir daqiqa kuting.",
+        parse_mode="Markdown"
+    )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
+
+    try:
+        import zipfile
+        zip_buffer = BytesIO()
+        # Fayllarni yuklab zip ga qo'shish
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for i, finfo in enumerate(arxiv_files):
+                try:
+                    tg_file = await context.bot.get_file(finfo["file_id"])
+                    file_bytes = await tg_file.download_as_bytearray()
+                    # Bir xil nomli fayllar uchun raqam qo'shish
+                    fname = finfo["name"]
+                    existing_names = [f["name"] for f in arxiv_files[:i]]
+                    if fname in existing_names:
+                        base, ext = fname.rsplit('.', 1) if '.' in fname else (fname, '')
+                        fname = f"{base}_{i+1}.{ext}" if ext else f"{base}_{i+1}"
+                    zf.writestr(fname, bytes(file_bytes))
+                except Exception as e:
+                    logger.warning(f"Fayl yuklab olishda xatolik {finfo['name']}: {e}")
+
+        zip_buffer.seek(0)
+        zip_size_kb = len(zip_buffer.getvalue()) // 1024
+
+        # Balans yechish
+        await asyncio.to_thread(db.deduct_balance, user.id, price)
+
+        # Arxivni foydalanuvchiga yuborish
+        zip_name = f"arxiv_{user.id}_{len(arxiv_files)}fayl.zip"
+        zip_buffer.seek(0)
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=zip_buffer,
+            filename=zip_name,
+            caption=(
+                f"✅ *Arxiv tayyor\!*\n\n"
+                f"📦 Fayllar soni: *{len(arxiv_files)} ta*\n"
+                f"📁 Arxiv hajmi: *{zip_size_kb:,} KB*\n"
+                f"💰 Yechildi: *{price:,} so'm*\n\n"
+                f"@slidego \| t\.me/slidego"
+            ),
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+        logger.info(f"Arxivlash: {user.id} | {len(arxiv_files)} fayl | {price} so'm")
+
+    except Exception as e:
+        logger.error(f"Arxivlash xatolik: {e}", exc_info=True)
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=(
+                f"❌ Arxiv yaratishda xatolik yuz berdi.\n"
+                f"`{str(e)[:100]}`\n\n"
+                f"Balans yechilmadi. Qayta urinib ko'ring."
+            ),
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    return ConversationHandler.END
+
+
+async def arx_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Arxivlash — bekor qilish."""
+    query = update.callback_query
+    await query.answer()
+    context.user_data.clear()
+    await query.edit_message_text(
+        "❌ Arxivlash bekor qilindi.",
+        parse_mode="Markdown"
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Asosiy menyu:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    return ConversationHandler.END
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # AI YORDAMCHI HANDLER
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -4178,7 +4402,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
         "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
         "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
-        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "💰 Balans & Referral 🔗"
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Arxivlash 🗜️", "💰 Balans & Referral 🔗"
     ]
     if text in main_menu_buttons:
         return await handle_main_menu_selection(update, context)
@@ -5249,6 +5473,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📦 Arxivlash 🗜️$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
@@ -5634,6 +5859,16 @@ def main() -> None:
             ],
             TQ_SUMMARY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, tq_get_summary),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Arxivlash holatlari ──
+            ARX_RECEIVE: [
+                MessageHandler(
+                    filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO | filters.VOICE,
+                    arx_receive_file
+                ),
+                CallbackQueryHandler(arx_done_callback, pattern=r"^arx_done$"),
+                CallbackQueryHandler(arx_cancel_callback, pattern=r"^arx_cancel$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── AI Yordamchi holatlari ──
