@@ -331,7 +331,7 @@ def get_main_menu_keyboard():
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
         [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
-        [KeyboardButton("📦 Arxivlash 🗜️"),            KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("📦 Ziplash/Arxivlash 🗜️"),            KeyboardButton("💰 Balans & Referral 🔗")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -605,7 +605,7 @@ MENU_REGEX = (
     r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
-    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Arxivlash 🗜️)$"
+    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
@@ -987,7 +987,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return TQ_LANGUAGE
-    elif text == "📦 Arxivlash 🗜️":
+    elif text == "📦 Ziplash/Arxivlash 🗜️":
         context.user_data.clear()
         context.user_data["mode"] = "arxivlash"
         context.user_data["arxiv_files"] = []
@@ -4402,7 +4402,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
         "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
         "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
-        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Arxivlash 🗜️", "💰 Balans & Referral 🔗"
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "💰 Balans & Referral 🔗"
     ]
     if text in main_menu_buttons:
         return await handle_main_menu_selection(update, context)
@@ -5473,7 +5473,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📦 Arxivlash 🗜️$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📦 Ziplash/Arxivlash 🗜️$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
         ],
