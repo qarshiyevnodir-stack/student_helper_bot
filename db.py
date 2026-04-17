@@ -257,6 +257,37 @@ def get_all_users(limit: int = 50, offset: int = 0) -> list:
         release_conn(conn)
 
 
+def count_users() -> int:
+    """Jami foydalanuvchilar sonini qaytaradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM users")
+        return c.fetchone()[0]
+    finally:
+        release_conn(conn)
+
+
+def get_users_page(page: int = 1, per_page: int = 15, sort_by: str = 'joined_at') -> list:
+    """Foydalanuvchilarni sahifalab qaytaradi.
+    sort_by: 'joined_at' | 'balance' | 'last_active'
+    """
+    allowed_sorts = {'joined_at', 'balance', 'last_active'}
+    if sort_by not in allowed_sorts:
+        sort_by = 'joined_at'
+    offset = (page - 1) * per_page
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute(f"""
+            SELECT user_id, username, full_name, balance, joined_at, last_active
+            FROM users ORDER BY {sort_by} DESC LIMIT %s OFFSET %s
+        """, (per_page, offset))
+        return _rows_to_dicts(c, c.fetchall())
+    finally:
+        release_conn(conn)
+
+
 def give_welcome_bonus(user_id: int, amount: int = 6000) -> bool:
     """Yangi foydalanuvchiga bir martalik xush kelibsiz bonusini beradi.
     

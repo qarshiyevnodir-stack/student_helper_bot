@@ -5511,24 +5511,66 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
         await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
 
-    elif data == "adm_users":
+    elif data == "adm_users" or data.startswith("adm_users_p_"):
         try:
-            users = await asyncio.to_thread(db.get_all_users, limit=20)
+            PER_PAGE = 15
+            # Sahifa raqamini aniqlash
+            if data.startswith("adm_users_p_"):
+                parts = data.split("_")
+                page = int(parts[-1])
+                sort_by = parts[-2] if parts[-2] in ('joined_at', 'balance', 'last_active') else 'joined_at'
+            else:
+                page = 1
+                sort_by = 'joined_at'
+
+            total = await asyncio.to_thread(db.count_users)
+            users = await asyncio.to_thread(db.get_users_page, page, PER_PAGE, sort_by)
+            total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+
+            sort_labels = {'joined_at': '🗓 Yangi', 'balance': '💰 Balans', 'last_active': '⏰ Faol'}
+            sort_label = sort_labels.get(sort_by, '🗓 Yangi')
+
             lines = []
-            for u in users:
+            start_num = (page - 1) * PER_PAGE + 1
+            for i, u in enumerate(users, start=start_num):
                 name = esc_md(u['full_name'] or u['username'] or str(u['user_id']))
                 uid = u['user_id']
                 bal = u['balance']
-                lines.append(f"• {name} | `{uid}` | 💰 {bal:,} so'm")
+                lines.append(f"`{i}.` {name}\n    🆔 `{uid}` | 💰 `{bal:,}` so'm")
+
             if lines:
-                text = "👥 *So'nggi 20 foydalanuvchi:*\n\n" + "\n".join(lines)
-                # Telegram xabar limiti 4096 belgi
+                header = (
+                    f"👥 *Foydalanuvchilar* ({total} ta) | {sort_label}\n"
+                    f"📄 Sahifa {page}/{total_pages}\n"
+                    f"──────────────────────────────\n"
+                )
+                text = header + "\n".join(lines)
                 if len(text) > 4000:
-                    text = text[:4000] + "\n...\n_(qisqartirildi)_"
+                    text = text[:4000] + "\n..."
             else:
                 text = "Foydalanuvchilar yo'q."
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
-            await query.edit_message_text(text, reply_markup=back_kb, parse_mode="Markdown")
+
+            # Navigatsiya tugmalari
+            nav_buttons = []
+            if page > 1:
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"adm_users_p_{sort_by}_{page-1}"))
+            nav_buttons.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="adm_noop"))
+            if page < total_pages:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"adm_users_p_{sort_by}_{page+1}"))
+
+            # Saralash tugmalari
+            sort_buttons = [
+                InlineKeyboardButton("🗓 Yangi",  callback_data=f"adm_users_p_joined_at_1"),
+                InlineKeyboardButton("💰 Balans", callback_data=f"adm_users_p_balance_1"),
+                InlineKeyboardButton("⏰ Faol",   callback_data=f"adm_users_p_last_active_1"),
+            ]
+
+            kb = InlineKeyboardMarkup([
+                nav_buttons,
+                sort_buttons,
+                [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")],
+            ])
+            await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"adm_users xatolik: {e}")
             back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]])
@@ -5645,6 +5687,9 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]]),
                 parse_mode="Markdown"
             )
+    elif data == "adm_noop":
+        await query.answer()
+        return
     elif data == "adm_back":
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📊 Statistika",           callback_data="adm_stats"),
