@@ -5473,6 +5473,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⏳ Kutayotgan to'lovlar", callback_data="adm_pending"),
          InlineKeyboardButton("💰 Balans qo'shish",     callback_data="adm_add_bal")],
         [InlineKeyboardButton("📢 Xabar yuborish",      callback_data="adm_broadcast")],
+        [InlineKeyboardButton("🗑️ Foydalanuvchi o'chirish", callback_data="adm_delete_user")],
     ])
     await update.message.reply_text(
         "🔐 *Admin Panel*\n\nQuyidagi bo'limlardan birini tanlang:",
@@ -5573,7 +5574,77 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📢 *Xabar yuborish*\n\n/broadcast buyrug'ini yuboring.\nFormat: `/broadcast Xabar matni`",
             parse_mode="Markdown"
         )
-
+    elif data == "adm_delete_user":
+        await query.edit_message_text(
+            "🗑️ *Foydalanuvchi o'chirish*\n\n"
+            "O'chirmoqchi bo'lgan foydalanuvchining *Telegram ID* sini yuboring\.\n\n"
+            "Masalan: `123456789`\n\n"
+            "⚠️ Bu amal *qaytarib bo'lmaydi* \u2014 foydalanuvchining barcha ma'lumotlari \(balans, tarix\) o'chiriladi\!",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
+            ]]),
+            parse_mode="Markdown"
+        )
+        context.user_data["adm_mode"] = "delete_user"
+    elif data.startswith("adm_confirm_delete_"):
+        target_id = int(data.split("_")[-1])
+        # Foydalanuvchi ma'lumotlarini olish
+        target_user = await asyncio.to_thread(db.get_user, target_id)
+        if not target_user:
+            await query.edit_message_text(
+                f"❌ Foydalanuvchi `{target_id}` topilmadi\.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
+                ]]),
+                parse_mode="Markdown"
+            )
+            return
+        name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+        bal = target_user.get('balance', 0)
+        await query.edit_message_text(
+            f"⚠️ *Tasdiqlang!*\n\n"
+            f"👤 Foydalanuvchi: {name}\n"
+            f"🆔 ID: `{target_id}`\n"
+            f"💰 Balans: `{bal:,}` so'm\n\n"
+            f"Bu foydalanuvchini *to'liq o'chirasizmi?*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🗑️ Ha, o'chirish", callback_data=f"adm_do_delete_{target_id}"),
+                 InlineKeyboardButton("❌ Bekor qilish", callback_data="adm_back")]
+            ]),
+            parse_mode="Markdown"
+        )
+    elif data.startswith("adm_do_delete_"):
+        target_id = int(data.split("_")[-1])
+        target_user = await asyncio.to_thread(db.get_user, target_id)
+        if not target_user:
+            await query.edit_message_text(
+                f"❌ Foydalanuvchi `{target_id}` topilmadi yoki allaqachon o'chirilgan\.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
+                ]]),
+                parse_mode="Markdown"
+            )
+            return
+        name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+        success = await asyncio.to_thread(db.delete_user, target_id)
+        if success:
+            logger.info(f"Admin {update.effective_user.id} foydalanuvchi {target_id} ni o'chirdi")
+            await query.edit_message_text(
+                f"✅ *O'chirildi!*\n\n"
+                f"👤 {name} \(`{target_id}`\) bazadan to'liq o'chirildi\.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
+                ]]),
+                parse_mode="Markdown"
+            )
+        else:
+            await query.edit_message_text(
+                f"❌ O'chirishda xatolik yuz berdi\.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
+                ]]),
+                parse_mode="Markdown"
+            )
     elif data == "adm_back":
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📊 Statistika",           callback_data="adm_stats"),
@@ -5581,6 +5652,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⏳ Kutayotgan to'lovlar", callback_data="adm_pending"),
              InlineKeyboardButton("💰 Balans qo'shish",     callback_data="adm_add_bal")],
             [InlineKeyboardButton("📢 Xabar yuborish",      callback_data="adm_broadcast")],
+            [InlineKeyboardButton("🗑️ Foydalanuvchi o'chirish", callback_data="adm_delete_user")],
         ])
         await query.edit_message_text(
             "🔐 *Admin Panel*\n\nQuyidagi bo'limlardan birini tanlang:",
@@ -5613,6 +5685,46 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception:
         pass
+
+async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin foydalanuvchi ID sini kiritganda - tasdiqlash so'raydi."""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if context.user_data.get("adm_mode") != "delete_user":
+        return
+    text = update.message.text.strip()
+    try:
+        target_id = int(text)
+    except ValueError:
+        await update.message.reply_text(
+            "⚠️ Faqat raqam kiriting. Masalan: `123456789`",
+            parse_mode="Markdown"
+        )
+        return
+    # Foydalanuvchini topish
+    target_user = await asyncio.to_thread(db.get_user, target_id)
+    if not target_user:
+        await update.message.reply_text(
+            f"❌ Foydalanuvchi `{target_id}` topilmadi.",
+            parse_mode="Markdown"
+        )
+        return
+    name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+    bal = target_user.get('balance', 0)
+    context.user_data["adm_mode"] = None
+    await update.message.reply_text(
+        f"⚠️ *Tasdiqlang!*\n\n"
+        f"👤 Foydalanuvchi: {name}\n"
+        f"🆔 ID: `{target_id}`\n"
+        f"💰 Balans: `{bal:,}` so'm\n\n"
+        f"Bu foydalanuvchini *to'liq o'chirasizmi?*",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🗑️ Ha, o'chirish", callback_data=f"adm_do_delete_{target_id}"),
+             InlineKeyboardButton("❌ Bekor qilish", callback_data="adm_back")]
+        ]),
+        parse_mode="Markdown"
+    )
+
 
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha foydalanuvchilarga xabar yuboradi: /broadcast Xabar"""
@@ -6206,6 +6318,10 @@ def main() -> None:
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
     application.add_handler(CommandHandler("broadcast", admin_broadcast))
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+        admin_delete_user_message
+    ))
     application.add_handler(CommandHandler("user_info", admin_user_info))
 
     # Admin callback handlerlari

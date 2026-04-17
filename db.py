@@ -564,3 +564,22 @@ def increment_ai_daily_count(user_id: int) -> int:
         return row[0] if row else 1
     finally:
         release_conn(conn)
+
+
+def delete_user(user_id: int) -> bool:
+    """Foydalanuvchini va uning barcha ma'lumotlarini bazadan to'liq o'chiradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        # Bog'liq jadvallardan o'chirish (FOREIGN KEY CASCADE bo'lmagan hollarda qo'lda)
+        c.execute("DELETE FROM ai_daily_usage WHERE user_id = %s", (user_id,))
+        c.execute("DELETE FROM generations WHERE user_id = %s", (user_id,))
+        c.execute("DELETE FROM transactions WHERE user_id = %s", (user_id,))
+        c.execute("DELETE FROM user_topup_state WHERE user_id = %s", (user_id,))
+        # Asosiy foydalanuvchi yozuvini o'chirish
+        c.execute("DELETE FROM users WHERE user_id = %s RETURNING user_id", (user_id,))
+        deleted = c.fetchone()
+        conn.commit()
+        return deleted is not None
+    finally:
+        release_conn(conn)
