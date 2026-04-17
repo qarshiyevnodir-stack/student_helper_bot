@@ -5627,7 +5627,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]]),
             parse_mode="Markdown"
         )
-        context.user_data["adm_mode"] = "delete_user"
+        # application.user_data - ConversationHandler dan mustaqil, global admin state
+        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = "delete_user"
     elif data.startswith("adm_confirm_delete_"):
         target_id = int(data.split("_")[-1])
         # Foydalanuvchi ma'lumotlarini olish
@@ -5732,11 +5733,17 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin foydalanuvchi ID sini kiritganda - tasdiqlash so'raydi."""
+    """Admin foydalanuvchi ID sini kiritganda - tasdiqlash so'raydi.
+    ConversationHandler ichida ham, tashqarisida ham ishlaydi.
+    """
     if update.effective_user.id not in ADMIN_IDS:
         return
-    if context.user_data.get("adm_mode") != "delete_user":
-        return
+    # Faqat adm_mode='delete_user' bo'lganda ishlaydi
+    # application_data yoki chat_data dan o'qish (ConversationHandler user_data dan alohida)
+    adm_mode = context.application.user_data.get(update.effective_user.id, {}).get("adm_mode")
+    if adm_mode != "delete_user":
+        # adm_mode yo'q - bu oddiy xabar, handle_main_menu_selection ga o'tkazamiz
+        return await handle_main_menu_selection(update, context)
     text = update.message.text.strip()
     try:
         target_id = int(text)
@@ -5756,7 +5763,8 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
         return
     name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
     bal = target_user.get('balance', 0)
-    context.user_data["adm_mode"] = None
+    # adm_mode ni tozalash
+    context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
     await update.message.reply_text(
         f"⚠️ *Tasdiqlang!*\n\n"
         f"👤 Foydalanuvchi: {name}\n"
@@ -5882,6 +5890,10 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^✍️ Insho / Esse ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~MENU_FILTER & filters.User(ADMIN_IDS),
+                    admin_delete_user_message
+                ),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, handle_main_menu_selection),
             ],
             TOPIC: [
