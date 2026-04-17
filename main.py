@@ -5606,10 +5606,38 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"⏳ {len(pending)} ta kutayotgan to'lov yuborildi.", reply_markup=back_kb)
 
     elif data == "adm_add_bal":
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Balans qo'shish",      callback_data="adm_bal_add"),
+             InlineKeyboardButton("⚙️ Balans o'rnatish",   callback_data="adm_bal_set")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")],
+        ])
         await query.edit_message_text(
-            "💰 *Balans qo'shish*\n\nFormat: `user_id miqdor`\nMasalan: `123456789 10000`\n\n/admin_addbal buyrug'ini yuboring.",
+            "💰 *Balans boshqarish*\n\n"
+            "➕ *Qo'shish* \u2014 mavjud balansga qo'shadi\n"
+            "⚙️ *O'rnatish* \u2014 balansi to'g'ridan\-to'g'ri o'rnatadi \(chek bilan farq bo'lganda\)",
+            reply_markup=kb,
             parse_mode="Markdown"
         )
+    elif data == "adm_bal_add":
+        await query.edit_message_text(
+            "➕ *Balans qo'shish*\n\n"
+            "Format: `user_id miqdor`\n"
+            "Masalan: `123456789 10000`\n\n"
+            "/admin\_addbal buyrug'ini yuboring\.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
+            parse_mode="Markdown"
+        )
+    elif data == "adm_bal_set":
+        await query.edit_message_text(
+            "⚙️ *Balans o'rnatish*\n\n"
+            "Foydalanuvchi ID va *yangi balans miqdorini* yuboring\:\n"
+            "Format: `user_id yangi_miqdor`\n"
+            "Masalan: `123456789 25000`\n\n"
+            "⚠️ Bu amal mavjud balansni *to'liq almashtiradi*\!",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
+            parse_mode="Markdown"
+        )
+        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = "set_balance"
 
     elif data == "adm_broadcast":
         await query.edit_message_text(
@@ -5733,50 +5761,104 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin foydalanuvchi ID sini kiritganda - tasdiqlash so'raydi.
+    """Admin xabarlarini boshqaradi: foydalanuvchi o'chirish va balans o'rnatish.
     ConversationHandler ichida ham, tashqarisida ham ishlaydi.
     """
     if update.effective_user.id not in ADMIN_IDS:
         return
-    # Faqat adm_mode='delete_user' bo'lganda ishlaydi
-    # application_data yoki chat_data dan o'qish (ConversationHandler user_data dan alohida)
     adm_mode = context.application.user_data.get(update.effective_user.id, {}).get("adm_mode")
-    if adm_mode != "delete_user":
-        # adm_mode yo'q - bu oddiy xabar, handle_main_menu_selection ga o'tkazamiz
-        return await handle_main_menu_selection(update, context)
-    text = update.message.text.strip()
-    try:
-        target_id = int(text)
-    except ValueError:
+
+    # ── Balans o'rnatish rejimi ──────────────────────────────────────────────
+    if adm_mode == "set_balance":
+        text = update.message.text.strip()
+        parts = text.split()
+        if len(parts) != 2:
+            await update.message.reply_text(
+                "⚠️ Format: `user_id yangi_miqdor`\nMasalan: `123456789 25000`",
+                parse_mode="Markdown"
+            )
+            return
+        try:
+            target_id  = int(parts[0])
+            new_balance = int(parts[1])
+        except ValueError:
+            await update.message.reply_text(
+                "⚠️ Faqat raqam kiriting. Masalan: `123456789 25000`",
+                parse_mode="Markdown"
+            )
+            return
+        if new_balance < 0:
+            await update.message.reply_text("⚠️ Balans manfiy bo'lishi mumkin emas.")
+            return
+        target_user = await asyncio.to_thread(db.get_user, target_id)
+        if not target_user:
+            await update.message.reply_text(
+                f"❌ Foydalanuvchi `{target_id}` topilmadi.",
+                parse_mode="Markdown"
+            )
+            return
+        old_balance = target_user.get('balance', 0)
+        name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+        success = await asyncio.to_thread(db.set_balance, target_id, new_balance)
+        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
+        if success:
+            logger.info(f"Admin {update.effective_user.id}: {target_id} balansi {old_balance} -> {new_balance}")
+            await update.message.reply_text(
+                f"✅ *Balans o'rnatildi!*\n\n"
+                f"👤 {name} \(`{target_id}`\)\n"
+                f"💰 Eski balans: `{old_balance:,}` so'm\n"
+                f"💰 Yangi balans: `{new_balance:,}` so'm",
+                parse_mode="Markdown"
+            )
+            try:
+                await context.bot.send_message(
+                    chat_id=target_id,
+                    text=f"💰 Balansingiz *{new_balance:,} so'm* ga o'rnatildi \(admin tomonidan\).",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+        else:
+            await update.message.reply_text("❌ Balansni o'rnatishda xatolik yuz berdi.")
+        return
+
+    # ── Foydalanuvchi o'chirish rejimi ───────────────────────────────────────
+    if adm_mode == "delete_user":
+        text = update.message.text.strip()
+        try:
+            target_id = int(text)
+        except ValueError:
+            await update.message.reply_text(
+                "⚠️ Faqat raqam kiriting. Masalan: `123456789`",
+                parse_mode="Markdown"
+            )
+            return
+        target_user = await asyncio.to_thread(db.get_user, target_id)
+        if not target_user:
+            await update.message.reply_text(
+                f"❌ Foydalanuvchi `{target_id}` topilmadi.",
+                parse_mode="Markdown"
+            )
+            return
+        name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+        bal = target_user.get('balance', 0)
+        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
         await update.message.reply_text(
-            "⚠️ Faqat raqam kiriting. Masalan: `123456789`",
+            f"⚠️ *Tasdiqlang!*\n\n"
+            f"👤 Foydalanuvchi: {name}\n"
+            f"🆔 ID: `{target_id}`\n"
+            f"💰 Balans: `{bal:,}` so'm\n\n"
+            f"Bu foydalanuvchini *to'liq o'chirasizmi?*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🗑️ Ha, o'chirish", callback_data=f"adm_do_delete_{target_id}"),
+                 InlineKeyboardButton("❌ Bekor qilish", callback_data="adm_back")]
+            ]),
             parse_mode="Markdown"
         )
         return
-    # Foydalanuvchini topish
-    target_user = await asyncio.to_thread(db.get_user, target_id)
-    if not target_user:
-        await update.message.reply_text(
-            f"❌ Foydalanuvchi `{target_id}` topilmadi.",
-            parse_mode="Markdown"
-        )
-        return
-    name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
-    bal = target_user.get('balance', 0)
-    # adm_mode ni tozalash
-    context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
-    await update.message.reply_text(
-        f"⚠️ *Tasdiqlang!*\n\n"
-        f"👤 Foydalanuvchi: {name}\n"
-        f"🆔 ID: `{target_id}`\n"
-        f"💰 Balans: `{bal:,}` so'm\n\n"
-        f"Bu foydalanuvchini *to'liq o'chirasizmi?*",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑️ Ha, o'chirish", callback_data=f"adm_do_delete_{target_id}"),
-             InlineKeyboardButton("❌ Bekor qilish", callback_data="adm_back")]
-        ]),
-        parse_mode="Markdown"
-    )
+
+    # ── Boshqa xabarlar ─────────────────────────────────────────────────────
+    return await handle_main_menu_selection(update, context)
 
 
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):

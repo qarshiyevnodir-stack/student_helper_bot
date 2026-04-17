@@ -228,6 +228,22 @@ def add_balance(user_id: int, amount: int):
         release_conn(conn)
 
 
+def set_balance(user_id: int, new_balance: int) -> bool:
+    """Foydalanuvchi balansini to'g'ridan-to'g'ri o'rnatadi (admin uchun)."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "UPDATE users SET balance = %s WHERE user_id = %s RETURNING user_id",
+            (new_balance, user_id)
+        )
+        updated = c.fetchone()
+        conn.commit()
+        return updated is not None
+    finally:
+        release_conn(conn)
+
+
 def deduct_balance(user_id: int, amount: int) -> bool:
     """Balansdan yechadi. Yetarli bo'lmasa False qaytaradi."""
     conn = get_conn()
