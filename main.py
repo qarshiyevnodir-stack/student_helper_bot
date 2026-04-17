@@ -5201,10 +5201,20 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Routes text messages based on the user's top-up state.
+    Admin mode ham shu yerda tekshiriladi - barcha state larda ishlashi uchun.
     
     Returns:
         int or None: TOPUP_AMOUNT, TOPUP_SCREENSHOT yoki None (topup aktiv emas)
     """
+    # Admin mode tekshiruvi - barcha state larda birinchi ishlaydi
+    user_id = update.effective_user.id
+    if user_id in ADMIN_IDS:
+        adm_mode = context.application.user_data.get(user_id, {}).get("adm_mode")
+        if adm_mode in ("set_balance", "delete_user"):
+            await admin_delete_user_message(update, context)
+            # ConversationHandler.END - admin conversation dan chiqadi
+            return ConversationHandler.END
+
     # This router now only handles TEXT messages during the top-up flow.
     # Photo messages are handled by the global topup_get_screenshot handler.
     topup_state = _get_topup_state(context, update.effective_user.id)
@@ -6447,6 +6457,11 @@ def main() -> None:
         fallbacks=[
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
+            # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+                admin_delete_user_message
+            ),
             MessageHandler(MENU_FILTER, handle_main_menu_selection),
         ],
     )
