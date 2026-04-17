@@ -5209,7 +5209,7 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
     # Admin mode tekshiruvi - barcha state larda birinchi ishlaydi
     user_id = update.effective_user.id
     if user_id in ADMIN_IDS:
-        adm_mode = context.application.user_data.get(user_id, {}).get("adm_mode")
+        adm_mode = context.bot_data.get("admin_modes", {}).get(user_id)
         if adm_mode in ("set_balance", "delete_user"):
             await admin_delete_user_message(update, context)
             # ConversationHandler.END - admin conversation dan chiqadi
@@ -5647,7 +5647,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
             parse_mode="Markdown"
         )
-        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = "set_balance"
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = "set_balance"
 
     elif data == "adm_broadcast":
         await query.edit_message_text(
@@ -5665,8 +5665,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]]),
             parse_mode="Markdown"
         )
-        # application.user_data - ConversationHandler dan mustaqil, global admin state
-        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = "delete_user"
+        # bot_data - global dict, ConversationHandler dan mustaqil, barcha handlerlar uchun bir xil
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = "delete_user"
     elif data.startswith("adm_confirm_delete_"):
         target_id = int(data.split("_")[-1])
         # Foydalanuvchi ma'lumotlarini olish
@@ -5776,7 +5776,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
     """
     if update.effective_user.id not in ADMIN_IDS:
         return
-    adm_mode = context.application.user_data.get(update.effective_user.id, {}).get("adm_mode")
+    adm_mode = context.bot_data.get("admin_modes", {}).get(update.effective_user.id)
 
     # ── Balans o'rnatish rejimi ──────────────────────────────────────────────
     if adm_mode == "set_balance":
@@ -5810,7 +5810,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
         old_balance = target_user.get('balance', 0)
         name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
         success = await asyncio.to_thread(db.set_balance, target_id, new_balance)
-        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = None
         if success:
             logger.info(f"Admin {update.effective_user.id}: {target_id} balansi {old_balance} -> {new_balance}")
             await update.message.reply_text(
@@ -5852,7 +5852,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
             return
         name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
         bal = target_user.get('balance', 0)
-        context.application.user_data.setdefault(update.effective_user.id, {})["adm_mode"] = None
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = None
         await update.message.reply_text(
             f"⚠️ *Tasdiqlang!*\n\n"
             f"👤 Foydalanuvchi: {name}\n"
