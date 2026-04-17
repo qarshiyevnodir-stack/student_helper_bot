@@ -511,7 +511,7 @@ def get_stats() -> dict:
             SELECT COALESCE(SUM(amount), 0)
             FROM transactions WHERE type = 'topup' AND status = 'approved'
         """)
-        total_income = c.fetchone()[0]
+        total_income = c.fetchone()[0] + 400000  # Boshlang'ich balans: 400,000 so'm
 
         c.execute("""
             SELECT COALESCE(SUM(amount), 0)
