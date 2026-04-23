@@ -5210,7 +5210,7 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     if user_id in ADMIN_IDS:
         adm_mode = context.bot_data.get("admin_modes", {}).get(user_id)
-        if adm_mode in ("set_balance", "delete_user"):
+        if adm_mode in ("set_balance", "delete_user", "add_balance"):
             await admin_delete_user_message(update, context)
             # ConversationHandler.END - admin conversation dan chiqadi
             return ConversationHandler.END
@@ -5631,12 +5631,14 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_bal_add":
         await query.edit_message_text(
             "➕ *Balans qo'shish*\n\n"
+            "Foydalanuvchi ID va *qo'shish miqdorini* yuboring\:\n"
             "Format: `user_id miqdor`\n"
             "Masalan: `123456789 10000`\n\n"
-            "/admin\_addbal buyrug'ini yuboring\.",
+            "⚠️ Bu amal mavjud balansga *qo'shadi*\!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
             parse_mode="Markdown"
         )
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = "add_balance"
     elif data == "adm_bal_set":
         await query.edit_message_text(
             "⚙️ *Balans o'rnatish*\n\n"
@@ -5730,6 +5732,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         return
     elif data == "adm_back":
+        # Admin mode ni tozalash (agar aktiv bo'lsa)
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = None
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📊 Statistika",           callback_data="adm_stats"),
              InlineKeyboardButton("👥 Foydalanuvchilar",    callback_data="adm_users")],
@@ -5758,13 +5762,31 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("⚠️ Noto'g'ri format. Masalan: /admin_addbal 123456 5000")
         return
+    # Foydalanuvchi mavjudligini tekshirish
+    target_user = await asyncio.to_thread(db.get_user, target_id)
+    if not target_user:
+        await update.message.reply_text(
+            f"❌ Foydalanuvchi `{target_id}` topilmadi.",
+            parse_mode="Markdown"
+        )
+        return
+    old_balance = target_user.get('balance', 0)
     await asyncio.to_thread(db.add_balance, target_id, amount)
-    await asyncio.to_thread(db.log_deduction, target_id, amount, note="Admin qo'lda qo'shdi")
-    await update.message.reply_text(f"✅ {target_id} ga {amount:,} so'm qo'shildi.")
+    # Jami tushum uchun topup transaction yozish
+    await asyncio.to_thread(db.create_topup_request_approved, target_id, amount)
+    new_balance = old_balance + amount
+    await update.message.reply_text(
+        f"✅ *Balans qo'shildi!*\n\n"
+        f"🆔 ID: `{target_id}`\n"
+        f"💰 Eski: `{old_balance:,}` so'm\n"
+        f"➕ Qo'shildi: `{amount:,}` so'm\n"
+        f"💰 Yangi: `{new_balance:,}` so'm",
+        parse_mode="Markdown"
+    )
     try:
         await context.bot.send_message(
             chat_id=target_id,
-            text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi (admin tomonidan).",
+            text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi \(admin tomonidan\).",
             parse_mode="Markdown"
         )
     except Exception:
@@ -5777,6 +5799,61 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
     if update.effective_user.id not in ADMIN_IDS:
         return
     adm_mode = context.bot_data.get("admin_modes", {}).get(update.effective_user.id)
+
+    # ── Balans qo'shish rejimi ─────────────────────────────────────────────────
+    if adm_mode == "add_balance":
+        text = update.message.text.strip()
+        parts = text.split()
+        if len(parts) != 2:
+            await update.message.reply_text(
+                "⚠️ Format: `user_id miqdor`\nMasalan: `123456789 10000`",
+                parse_mode="Markdown"
+            )
+            return
+        try:
+            target_id = int(parts[0])
+            amount    = int(parts[1])
+        except ValueError:
+            await update.message.reply_text(
+                "⚠️ Faqat raqam kiriting. Masalan: `123456789 10000`",
+                parse_mode="Markdown"
+            )
+            return
+        if amount <= 0:
+            await update.message.reply_text("⚠️ Miqdor 0 dan katta bo'lishi kerak.")
+            return
+        target_user = await asyncio.to_thread(db.get_user, target_id)
+        if not target_user:
+            await update.message.reply_text(
+                f"❌ Foydalanuvchi `{target_id}` topilmadi.",
+                parse_mode="Markdown"
+            )
+            return
+        old_balance = target_user.get('balance', 0)
+        name = esc_md(target_user.get('full_name') or target_user.get('username') or str(target_id))
+        await asyncio.to_thread(db.add_balance, target_id, amount)
+        # Jami tushum uchun topup transaction yozish (status=approved)
+        await asyncio.to_thread(db.create_topup_request_approved, target_id, amount)
+        context.bot_data.setdefault("admin_modes", {})[update.effective_user.id] = None
+        new_balance = old_balance + amount
+        logger.info(f"Admin {update.effective_user.id}: {target_id} ga {amount} so'm qo'shildi ({old_balance} -> {new_balance})")
+        await update.message.reply_text(
+            f"✅ *Balans qo'shildi\!*\n\n"
+            f"👤 {name} \(`{target_id}`\)\n"
+            f"💰 Eski balans: `{old_balance:,}` so'm\n"
+            f"➕ Qo'shildi: `{amount:,}` so'm\n"
+            f"💰 Yangi balans: `{new_balance:,}` so'm",
+            parse_mode="Markdown"
+        )
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi \(admin tomonidan\).",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+        return
 
     # ── Balans o'rnatish rejimi ──────────────────────────────────────────────
     if adm_mode == "set_balance":

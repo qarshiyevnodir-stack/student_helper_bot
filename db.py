@@ -430,6 +430,23 @@ def get_pending_topups() -> list:
         release_conn(conn)
 
 
+def create_topup_request_approved(user_id: int, amount: int, note: str = "Admin qo'lda qo'shdi") -> int:
+    """Admin tomonidan to'g'ridan-to'g'ri tasdiqlangan topup yozadi (jami tushum uchun)."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO transactions (user_id, amount, type, status, note, updated_at)
+            VALUES (%s, %s, 'topup', 'approved', %s, NOW())
+            RETURNING id
+        """, (user_id, amount, note))
+        tx_id = c.fetchone()[0]
+        conn.commit()
+        return tx_id
+    finally:
+        release_conn(conn)
+
+
 def log_deduction(user_id: int, amount: int, note: str = ""):
     conn = get_conn()
     try:
