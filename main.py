@@ -1088,25 +1088,24 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         return LANGUAGE_SELECTION
     elif text == "💳 Balans to'ldirish":
-        # Balans to'ldirish: karta raqami va /chekyubor buyrug'ini ko'rsatish
+        # Balans to'ldirish: summa so'rab TOPUP_AMOUNT state ga o'tish
+        _set_topup_state(context, user.id, 'amount')
+        _set_topup_amount(context, user.id, 0)
+        db.set_user_topup_state(user.id, 'amount', 0)
         msg = (
-            f"💳 *To'lov kartasi:*\n"
+            f"💳 *Balans to'ldirish*\n\n"
+            f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
-            f"⚠️ Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
-            f"✅ Kerakli summani kartaga o'tkazing\n"
-            f"📸 So'ng /chekyubor buyrug'i orqali chek rasmini yuboring\."
+            f"📝 *Kartaga qancha so'm o'tkazdingiz?*\n"
+            f"Faqat raqam kiriting \(masalan: `10000`\):\n\n"
+            f"_Bekor qilish uchun /start bosing_"
         )
-        balans_keyboard = ReplyKeyboardMarkup([
-            [KeyboardButton("💳 Balans to'ldirish")],
-            [KeyboardButton("⬅️ Orqaga")],
-        ], resize_keyboard=True)
         await update.message.reply_text(
             msg,
-            reply_markup=balans_keyboard,
             parse_mode="Markdown"
         )
-        return LANGUAGE_SELECTION
+        return TOPUP_AMOUNT
     elif text == "⬅️ Orqaga":       # Asosiy menyuga qaytish
         _set_topup_state(context, user.id, None)
         await update.message.reply_text(
