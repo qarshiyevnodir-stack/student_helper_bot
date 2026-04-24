@@ -1058,13 +1058,36 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         ref_code = user_data['referral_code'] if user_data else ''
         bot_username = (await context.bot.get_me()).username
         ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
+
+        # Xizmat narxlari jadvali
+        prices_text = (
+            "📋 *Xizmat narxlari:*\n"
+            "• Slayd / Referat / Mustaqil ish / Loyiha: `3 000` so'm\n"
+            "• Kurs ishi: `12 000` so'm | BMI: `20 000` so'm\n"
+            "• Infografika: `1 500` so'm | HD: `3 000` so'm\n"
+            "• Maqola / Tezis: `2 000–3 000` so'm\n"
+            "• Test / Krossvord / Glossary: `1 000–3 000` so'm\n"
+            "• Arxivlash: `1 000` so'm | PDF: `1 500` so'm\n"
+            "• AI yordamchi: `500` so'm/xabar (kuniga 3 ta bepul)"
+        )
+
+        msg = (
+            f"💰 *Balansingiz:* `{balance:,}` so'm\n\n"
+            f"{prices_text}\n\n"
+            f"🏦 *To'lov kartasi:*\n"
+            f"`{CARD_NUMBER}`\n"
+            f"👤 Abramatova Madina\n\n"
+            f"💡 Kerakli summani kartaga o'tkazing va \"💳 Balans to'ldirish\" tugmasini bosing\.\n\n"
+            f"👥 *Do'st taklif qiling:*\n"
+            f"Har bir do'stingiz uchun *2 000 so'm* bonus\!"
+        )
+
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]
+            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")],
+            [InlineKeyboardButton("🔗 Referral havolani ulashish", url=f"https://t.me/share/url?url={ref_link}&text=SlideGo+botidan+foydalaning!")],
         ])
         await update.message.reply_text(
-            f"💰 *Balansingiz:* `{balance:,}` so'm\n\n"
-            f"🔗 *Referral havolangiz:*\n`{ref_link}`\n\n"
-            f"Do'stlaringizni taklif qiling va bonuslar oling!",
+            msg,
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -5181,9 +5204,11 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Balans to'ldirish boshlaydi — callback yoki message orqali."""
     msg = (
         f"💳 *Balans to'ldirish*\n\n"
-        f"Karta raqami: `{CARD_NUMBER}`\n\n"
-        f"Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
-        f"Qancha so'm to'lamoqchisiz? (raqam kiriting, masalan: 10000)"
+        f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
+        f"👤 Abramatova Madina\n\n"
+        f"⚠️ Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+        f"📝 Qancha so'm to'lamoqchisiz?\n"
+        f"Faqat raqam kiriting \(masalan: `10000`\):"
     )
     if update.callback_query:
         query = update.callback_query
@@ -5244,9 +5269,11 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
-        f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
-        f"Karta raqami: `{CARD_NUMBER}`\n\n"
-        f"Ushbu kartaga *{amount:,} so'm* o'tkazing va chek (screenshot) rasmini yuboring:",
+        f"💳 *To'lov miqdori: {amount:,} so'm*\n\n"
+        f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
+        f"👤 Abramatova Madina\n\n"
+        f"✅ Ushbu kartaga *{amount:,} so'm* o'tkazing\n"
+        f"📸 So'ng to'lov cheki \(screenshot\) rasmini shu yerga yuboring:",
         parse_mode="Markdown"
     )
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
@@ -5343,10 +5370,11 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Foydalanuvchiga javob
     await update.message.reply_text(
-        f"✅ *Chekingiz qabul qilindi!*\n\n"
+        f"✅ *Chekingiz qabul qilindi\!*\n\n"
         f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
-        f"🔢 So'rov raqami: #{tx_id}\n\n"
-        f"Admin tekshirib, balansni tez orada to'ldiradi. ⏳",
+        f"🔢 So'rov raqami: `#{tx_id}`\n\n"
+        f"⏳ Admin tekshirib, balansni *10–30 daqiqa* ichida to'ldiradi\.\n"
+        f"Bildirishnoma avtomatik yuboriladi\.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
