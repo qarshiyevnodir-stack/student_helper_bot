@@ -691,9 +691,10 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             reply_markup=get_subscription_keyboard()
         )
         return LANGUAGE_SELECTION
-    # Har qanday menyu tugmasi bosilganda topup holatini tozalash
-    # (foydalanuvchi topup oqimini bekor qilib boshqa xizmatga o'tgan bo'lishi mumkin)
-    _set_topup_state(context, user.id, None)
+    # Balans sahifasiga kirish uchun topup state ni tozalamaymiz
+    # Faqat boshqa xizmatga o'tganda tozalaymiz
+    if text != "💰 Balans & Referral 🔗":
+        _set_topup_state(context, user.id, None)
 
     if text == "🪄 Slayd yaratish ✨":
         context.user_data.clear()
@@ -5253,14 +5254,25 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # This router now only handles TEXT messages during the top-up flow.
     # Photo messages are handled by the global topup_get_screenshot handler.
+    # NOTE: This router is called from TOPIC, NAME_SURNAME, and other states.
+    # If topup_state is active, we need to redirect user to topup flow.
+    # But we cannot return TOPUP_AMOUNT or TOPUP_SCREENSHOT from those states
+    # because those states don't have handlers for them.
+    # So we just show a message and return None (let the current state handle it).
     topup_state = _get_topup_state(context, update.effective_user.id)
-    if topup_state == 'amount':
-        result = await _topup_get_amount(update, context)
-        return result if result is not None else TOPUP_SCREENSHOT
-
-    elif topup_state == 'screenshot':
-        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
-        return TOPUP_SCREENSHOT
+    if topup_state in ('amount', 'screenshot'):
+        # Foydalanuvchi topup jarayonida boshqa state da xabar yubordi
+        # Uni topup ga yo'naltiramiz
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+        ]])
+        await update.message.reply_text(
+            "⚠️ Siz balans to'ldirish jarayonidasiz\!\n"
+            "Davom etish uchun quyidagi tugmani bosing:",
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
+        return None
     return None
 
 async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6571,11 +6583,13 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
+                MessageHandler(MENU_FILTER, handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_amount),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
+                MessageHandler(MENU_FILTER, handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_screenshot_text),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
