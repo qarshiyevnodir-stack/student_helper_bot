@@ -5322,9 +5322,10 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return TOPUP_SCREENSHOT
 
 async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/chekyubor buyrug'i - avval summa so'raydi, keyin chek rasm."""
+    """/chekyubor buyrug'i - avval summa so'raydi, keyin chek rasm. TOPUP_AMOUNT state qaytaradi."""
     user_id = update.effective_user.id
-    # Avval 'amount' state ga o'rnatamiz - foydalanuvchi summani kiriting
+    _set_topup_state(context, user_id, 'amount')
+    _set_topup_amount(context, user_id, 0)
     db.set_user_topup_state(user_id, 'amount', 0)
     await update.message.reply_text(
         "💳 *Balans to'ldirish*\n\n"
@@ -5336,6 +5337,7 @@ async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "_Bekor qilish uchun /start bosing_",
         parse_mode="Markdown"
     )
+    return TOPUP_AMOUNT
 
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Screenshot (to'lov cheki) qabul qiladi va adminga yuboradi."""
@@ -6103,6 +6105,7 @@ def main() -> None:
     slayd_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
+            CommandHandler("chekyubor", chekyubor_command),
             MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📄 Mustaqil ish ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
@@ -6128,6 +6131,7 @@ def main() -> None:
         per_message=False,
         states={
             LANGUAGE_SELECTION: [
+                CommandHandler("chekyubor", chekyubor_command),
                 CallbackQueryHandler(get_language, pattern=r"^lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.Regex(r"^🪄 Slayd yaratish ✨$"), handle_main_menu_selection),
@@ -6609,11 +6613,13 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
+                CommandHandler("chekyubor", chekyubor_command),
                 MessageHandler(MENU_FILTER, handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_amount),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
+                CommandHandler("chekyubor", chekyubor_command),
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
                 MessageHandler(MENU_FILTER, handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_screenshot_text),
@@ -6623,6 +6629,7 @@ def main() -> None:
         fallbacks=[
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
+            CommandHandler("chekyubor", chekyubor_command),
             # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
@@ -6633,9 +6640,6 @@ def main() -> None:
     )
 
     application.add_handler(slayd_handler)
-
-    # /chekyubor buyrug'i - foydalanuvchi chek yuborish uchun
-    application.add_handler(CommandHandler("chekyubor", chekyubor_command))
     # Admin handlerlari
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
