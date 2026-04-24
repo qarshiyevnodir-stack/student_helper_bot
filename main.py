@@ -46,6 +46,7 @@ from pptx import Presentation
 # Admin va narx sozlamalari
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
+ADMIN_USERNAME = "slidego_admin"  # Admin telegram username (@ belgisisiz)
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
@@ -613,7 +614,8 @@ MENU_REGEX = (
     r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
-    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄)$"
+    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
+    r"💳 Balans to'ldirish|💬 Adminga yozish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
@@ -693,7 +695,8 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         return LANGUAGE_SELECTION
     # Balans sahifasiga kirish uchun topup state ni tozalamaymiz
     # Faqat boshqa xizmatga o'tganda tozalaymiz
-    if text != "💰 Balans & Referral 🔗":
+    balans_tugmalari = {"💰 Balans & Referral 🔗", "💳 Balans to'ldirish", "💬 Adminga yozish", "⬅️ Orqaga"}
+    if text not in balans_tugmalari:
         _set_topup_state(context, user.id, None)
 
     if text == "🪄 Slayd yaratish ✨":
@@ -1056,41 +1059,84 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     elif text == "💰 Balans & Referral 🔗":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
-        ref_code = user_data['referral_code'] if user_data else ''
-        bot_username = (await context.bot.get_me()).username
-        ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
-
         # Xizmat narxlari jadvali
         prices_text = (
             "📋 *Xizmat narxlari:*\n"
-            "• Slayd / Referat / Mustaqil ish / Loyiha: `3 000` so'm\n"
+            "• Taqdimot \(Slayd\): `3 000` so'm\n"
+            "• Mustaqil ish / Referat / Loyiha: `3 000` so'm\n"
             "• Kurs ishi: `12 000` so'm | BMI: `20 000` so'm\n"
             "• Infografika: `1 500` so'm | HD: `3 000` so'm\n"
             "• Maqola / Tezis: `2 000–3 000` so'm\n"
             "• Test / Krossvord / Glossary: `1 000–3 000` so'm\n"
             "• Arxivlash: `1 000` so'm | PDF: `1 500` so'm\n"
-            "• AI yordamchi: `500` so'm/xabar (kuniga 3 ta bepul)"
+            "• AI yordamchi: `500` so'm/xabar \(kuniga 3 ta bepul\)"
         )
-
         msg = (
-            f"💰 *Balansingiz:* `{balance:,}` so'm\n\n"
+            f"💰 *Balansingiz: {balance:,} so'm*\n\n"
             f"{prices_text}\n\n"
             f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
-            f"💡 Kerakli summani kartaga o'tkazing va \"💳 Balans to'ldirish\" tugmasini bosing\.\n\n"
-            f"👥 *Do'st taklif qiling:*\n"
-            f"Har bir do'stingiz uchun *2 000 so'm* bonus\!"
+            f"💡 Kerakli summani kartaga o'tkazing va /chekyubor "
+            f"buyrug'i orqali chek rasmini yuboring\."
         )
-
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")],
-            [InlineKeyboardButton("🔗 Referral havolani ulashish", url=f"https://t.me/share/url?url={ref_link}&text=SlideGo+botidan+foydalaning!")],
-        ])
+        # Balans sahifasi uchun alohida ReplyKeyboard
+        balans_keyboard = ReplyKeyboardMarkup([
+            [KeyboardButton("💳 Balans to'ldirish")],
+            [KeyboardButton("💬 Adminga yozish")],
+            [KeyboardButton("⬅️ Orqaga")],
+        ], resize_keyboard=True)
         await update.message.reply_text(
             msg,
-            reply_markup=keyboard,
+            reply_markup=balans_keyboard,
             parse_mode="Markdown"
+        )
+        return LANGUAGE_SELECTION
+    elif text == "💳 Balans to'ldirish":
+        # Balans to'ldirish: karta raqami va /chekyubor buyrug'ini ko'rsatish
+        msg = (
+            f"💳 *To'lov kartasi:*\n"
+            f"`{CARD_NUMBER}`\n"
+            f"👤 Abramatova Madina\n\n"
+            f"⚠️ Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
+            f"✅ Kerakli summani kartaga o'tkazing\n"
+            f"📸 So'ng /chekyubor buyrug'i orqali chek rasmini yuboring\."
+        )
+        balans_keyboard = ReplyKeyboardMarkup([
+            [KeyboardButton("💳 Balans to'ldirish")],
+            [KeyboardButton("💬 Adminga yozish")],
+            [KeyboardButton("⬅️ Orqaga")],
+        ], resize_keyboard=True)
+        await update.message.reply_text(
+            msg,
+            reply_markup=balans_keyboard,
+            parse_mode="Markdown"
+        )
+        return LANGUAGE_SELECTION
+    elif text == "💬 Adminga yozish":
+        # Adminga yozish - admin telegram username ga yo'naltirish
+        admin_link = f"https://t.me/{ADMIN_USERNAME}"
+        keyboard_adm = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💬 Adminga yozish", url=admin_link)]
+        ])
+        balans_keyboard = ReplyKeyboardMarkup([
+            [KeyboardButton("💳 Balans to'ldirish")],
+            [KeyboardButton("💬 Adminga yozish")],
+            [KeyboardButton("⬅️ Orqaga")],
+        ], resize_keyboard=True)
+        await update.message.reply_text(
+            "💬 *Adminga yozish*\n\n"
+            "Savolingiz yoki muammoingiz bo'lsa, quyidagi tugmani bosing:",
+            reply_markup=keyboard_adm,
+            parse_mode="Markdown"
+        )
+        return LANGUAGE_SELECTION
+    elif text == "⬅️ Orqaga":
+        # Asosiy menyuga qaytish
+        _set_topup_state(context, user.id, None)
+        await update.message.reply_text(
+            "🏠 Asosiy menyu:",
+            reply_markup=get_main_menu_keyboard()
         )
         return LANGUAGE_SELECTION
     else:
@@ -5302,6 +5348,20 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
     return TOPUP_SCREENSHOT
 
+async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/chekyubor buyrug'i - foydalanuvchi chek rasmini yuborish uchun."""
+    user_id = update.effective_user.id
+    # Topup state ni 'screenshot' ga o'rnatamiz - lekin amount yo'q
+    # Foydalanuvchi avval karta raqamiga pul o'tkazgan bo'lishi kerak
+    # Amount ni 0 qilib qo'yamiz - admin tasdiqlashda miqdorni o'zi kiritadi
+    db.set_user_topup_state(user_id, 'screenshot', 0)
+    await update.message.reply_text(
+        "💳 *To'lov chekini yuborish*\n\n"
+        "Chek rasmini yoki PDF faylini yuboring\.\n"
+        "\(Bekor qilish uchun /start bosing\)",
+        parse_mode="Markdown"
+    )
+
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Screenshot (to'lov cheki) qabul qiladi va adminga yuboradi."""
     user_id = update.effective_user.id
@@ -5322,21 +5382,8 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
         return
 
-    if amount <= 0:
-        logger.warning(f"topup_get_screenshot: user={user_id} amount=0, DB dan qayta o'qilmoqda")
-        # Qayta urinish
-        topup_row = db.get_user_topup_state(user_id)
-        amount = topup_row['amount'] if topup_row else 0
-        if amount <= 0:
-            await update.message.reply_text(
-                "⚠️ Miqdor aniqlanmadi\. Iltimos, qaytadan boshlang:",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
-                ]]),
-                parse_mode="Markdown"
-            )
-            db.set_user_topup_state(user_id, None)
-            return
+    # amount=0 bo'lsa ham davom etamiz - /chekyubor orqali kelgan bo'lishi mumkin
+    # Admin xabarida miqdor ko'rsatilmaydi, admin o'zi kiritadi
 
     user = update.effective_user
     photo_id = update.message.photo[-1].file_id
@@ -5375,6 +5422,7 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                  InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")],
                 [InlineKeyboardButton("✏️ Boshqa summa", callback_data=f"admin_custom_amount_{tx_id}")]
             ])
+            amount_line = f"💰 Miqdor: {amount:,} so'm\n" if amount > 0 else "💰 Miqdor: (foydalanuvchi ko'rsatmagan)\n"
             await context.bot.send_photo(
                 chat_id=admin_id,
                 photo=photo_id,
@@ -5382,7 +5430,7 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"💳 Yangi to'lov so'rovi #{tx_id}\n\n"
                     f"👤 Ism: {full_name}\n"
                     f"📱 {username_str} | ID: {user.id}\n"
-                    f"💰 Miqdor: {amount:,} so'm\n\n"
+                    f"{amount_line}\n"
                     f"✅ Tasdiqlash yoki ❌ Rad etish:"
                 ),
                 reply_markup=kb,
@@ -5402,9 +5450,10 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.warning(f"State tozalashda xatolik: {e}")
 
     # Foydalanuvchiga javob
+    amount_text = f"💰 So'ralgan miqdor: *{amount:,} so'm*\n" if amount > 0 else ""
     await update.message.reply_text(
         f"✅ *Chekingiz qabul qilindi\!*\n\n"
-        f"💰 So'ralgan miqdor: *{amount:,} so'm*\n"
+        f"{amount_text}"
         f"🔢 So'rov raqami: `#{tx_id}`\n\n"
         f"⏳ Admin tekshirib, balansni *10–30 daqiqa* ichida to'ldiradi\.\n"
         f"Bildirishnoma avtomatik yuboriladi\.",
@@ -6608,6 +6657,8 @@ def main() -> None:
 
     application.add_handler(slayd_handler)
 
+    # /chekyubor buyrug'i - foydalanuvchi chek yuborish uchun
+    application.add_handler(CommandHandler("chekyubor", chekyubor_command))
     # Admin handlerlari
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
