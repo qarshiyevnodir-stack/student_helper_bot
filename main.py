@@ -5177,27 +5177,38 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         amount = int(text)
     except ValueError:
-        await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting (masalan: 10000):")
+        await update.message.reply_text(
+            "⚠️ Faqat raqam kiriting\!\n"
+            "Masalan: `10000`",
+            parse_mode="Markdown"
+        )
         return TOPUP_AMOUNT
     if amount < MIN_TOPUP:
         await update.message.reply_text(
-            f"⚠️ Minimal to'lov miqdori: *{MIN_TOPUP:,} so'm*\nIltimos, qayta kiriting:",
+            f"⚠️ Minimal to'lov miqdori: *{MIN_TOPUP:,} so'm*\n"
+            f"Iltimos, kamida `{MIN_TOPUP:,}` so'm kiriting:",
             parse_mode="Markdown"
         )
         return TOPUP_AMOUNT
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
-        f"💳 To'lov miqdori: *{amount:,} so'm*\n\n"
-        f"Karta raqami: `{CARD_NUMBER}`\n\n"
-        f"Ushbu kartaga *{amount:,} so'm* o'tkazing va chek (screenshot) rasmini yuboring:",
+        f"💳 *To'lov miqdori: {amount:,} so'm*\n\n"
+        f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
+        f"👤 Abramatova Madina\n\n"
+        f"✅ Ushbu kartaga *{amount:,} so'm* o'tkazing\n"
+        f"📸 So'ng to'lov cheki \(screenshot\) rasmini shu yerga yuboring:",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
 
 async def topup_handle_screenshot_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """TOPUP_SCREENSHOT state da matn kelganda rasm so'raydi."""
-    await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
+    await update.message.reply_text(
+        "📸 *To'lov cheki rasmini yuboring\!*\n\n"
+        "Kartaga o'tkazgandan so'ng screenshot oling va shu yerga yuboring\.",
+        parse_mode="Markdown"
+    )
     return TOPUP_SCREENSHOT
 
 async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5304,6 +5315,16 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         # Qayta urinish
         topup_row = db.get_user_topup_state(user_id)
         amount = topup_row['amount'] if topup_row else 0
+        if amount <= 0:
+            await update.message.reply_text(
+                "⚠️ Miqdor aniqlanmadi\. Iltimos, qaytadan boshlang:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
+                ]]),
+                parse_mode="Markdown"
+            )
+            db.set_user_topup_state(user_id, None)
+            return
 
     user = update.effective_user
     photo_id = update.message.photo[-1].file_id
@@ -6550,12 +6571,12 @@ def main() -> None:
             ],
             # ── Balans to'ldirish holatlari ──
             TOPUP_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_amount),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TOPUP_SCREENSHOT: [
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_message_router),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_screenshot_text),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
         },
@@ -6601,7 +6622,9 @@ def main() -> None:
     ))
 
     # Global handler for photo submissions for top-up
-    application.add_handler(MessageHandler(filters.PHOTO, topup_get_screenshot), group=-1)
+    # ESLATMA: topup_get_screenshot TOPUP_SCREENSHOT state ichida ishlaydi
+    # group=-1 olib tashlandi — ConversationHandler bilan to'qnashardi
+    application.add_handler(MessageHandler(filters.PHOTO, topup_get_screenshot), group=2)
 
     logger.info("Bot ishga tushmoqda (polling rejimi, concurrent_updates=True)...")
     application.run_polling(
