@@ -46,7 +46,7 @@ from pptx import Presentation
 # Admin va narx sozlamalari
 # ─────────────────────────────────────────────
 ADMIN_IDS = {6813160650}
-ADMIN_USERNAME = "slidego_admin"  # Admin telegram username (@ belgisisiz)
+ADMIN_USERNAME = "Slidego_adminbot"  # Admin telegram username (@ belgisisiz)
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
@@ -615,7 +615,7 @@ MENU_REGEX = (
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
     r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
-    r"💳 Balans to'ldirish|💬 Adminga yozish|⬅️ Orqaga)$"
+    r"💳 Balans to'ldirish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
@@ -695,7 +695,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         return LANGUAGE_SELECTION
     # Balans sahifasiga kirish uchun topup state ni tozalamaymiz
     # Faqat boshqa xizmatga o'tganda tozalaymiz
-    balans_tugmalari = {"💰 Balans & Referral 🔗", "💳 Balans to'ldirish", "💬 Adminga yozish", "⬅️ Orqaga"}
+    balans_tugmalari = {"💰 Balans & Referral 🔗", "💳 Balans to'ldirish", "⬅️ Orqaga"}
     if text not in balans_tugmalari:
         _set_topup_state(context, user.id, None)
 
@@ -1083,7 +1083,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         # Balans sahifasi uchun alohida ReplyKeyboard
         balans_keyboard = ReplyKeyboardMarkup([
             [KeyboardButton("💳 Balans to'ldirish")],
-            [KeyboardButton("💬 Adminga yozish")],
             [KeyboardButton("⬅️ Orqaga")],
         ], resize_keyboard=True)
         await update.message.reply_text(
@@ -1104,7 +1103,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         )
         balans_keyboard = ReplyKeyboardMarkup([
             [KeyboardButton("💳 Balans to'ldirish")],
-            [KeyboardButton("💬 Adminga yozish")],
             [KeyboardButton("⬅️ Orqaga")],
         ], resize_keyboard=True)
         await update.message.reply_text(
@@ -1113,26 +1111,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return LANGUAGE_SELECTION
-    elif text == "💬 Adminga yozish":
-        # Adminga yozish - admin telegram username ga yo'naltirish
-        admin_link = f"https://t.me/{ADMIN_USERNAME}"
-        keyboard_adm = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 Adminga yozish", url=admin_link)]
-        ])
-        balans_keyboard = ReplyKeyboardMarkup([
-            [KeyboardButton("💳 Balans to'ldirish")],
-            [KeyboardButton("💬 Adminga yozish")],
-            [KeyboardButton("⬅️ Orqaga")],
-        ], resize_keyboard=True)
-        await update.message.reply_text(
-            "💬 *Adminga yozish*\n\n"
-            "Savolingiz yoki muammoingiz bo'lsa, quyidagi tugmani bosing:",
-            reply_markup=keyboard_adm,
-            parse_mode="Markdown"
-        )
-        return LANGUAGE_SELECTION
-    elif text == "⬅️ Orqaga":
-        # Asosiy menyuga qaytish
+    elif text == "⬅️ Orqaga":       # Asosiy menyuga qaytish
         _set_topup_state(context, user.id, None)
         await update.message.reply_text(
             "🏠 Asosiy menyu:",
