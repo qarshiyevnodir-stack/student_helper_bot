@@ -1060,25 +1060,21 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
         # Xizmat narxlari jadvali
-        prices_text = (
-            "📋 *Xizmat narxlari:*\n"
-            "• Taqdimot \(Slayd\): `3 000` so'm\n"
-            "• Mustaqil ish / Referat / Loyiha: `3 000` so'm\n"
-            "• Kurs ishi: `12 000` so'm | BMI: `20 000` so'm\n"
-            "• Infografika: `1 500` so'm | HD: `3 000` so'm\n"
-            "• Maqola / Tezis: `2 000–3 000` so'm\n"
-            "• Test / Krossvord / Glossary: `1 000–3 000` so'm\n"
-            "• Arxivlash: `1 000` so'm | PDF: `1 500` so'm\n"
-            "• AI yordamchi: `500` so'm/xabar \(kuniga 3 ta bepul\)"
-        )
         msg = (
             f"💰 *Balansingiz: {balance:,} so'm*\n\n"
-            f"{prices_text}\n\n"
+            "📋 *Xizmat narxlari:*\n"
+            "• Taqdimot: `3 000` so'm\n"
+            "• Mustaqil ish: `3 000` so'm\n"
+            "• Kurs ishi: `12 000` so'm\n"
+            "• Infografika: `1 500` so'm\n"
+            "• Maqola / Tezis: `2 000` so'm\n"
+            "• Test / Krossvord: `1 000–3 000` so'm\n"
+            "• Arxivlash: `1 000` so'm\n"
+            "• AI yordamchi: \(kuniga 3 ta bepul\)\n\n"
             f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
-            f"💡 Kerakli summani kartaga o'tkazing va /chekyubor "
-            f"buyrug'i orqali chek rasmini yuboring\."
+            f"💡 Kerakli summani kartaga o'tkazing va /chekyubor buyrug'i orqali chek rasmini yuboring\."
         )
         # Balans sahifasi uchun alohida ReplyKeyboard
         balans_keyboard = ReplyKeyboardMarkup([
