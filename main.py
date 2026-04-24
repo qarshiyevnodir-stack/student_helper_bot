@@ -5215,11 +5215,10 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
-        f"💳 *To'lov miqdori: {amount:,} so'm*\n\n"
-        f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
-        f"👤 Abramatova Madina\n\n"
-        f"✅ Ushbu kartaga *{amount:,} so'm* o'tkazing\n"
-        f"📸 So'ng to'lov cheki \(screenshot\) rasmini shu yerga yuboring:",
+        f"✅ *{amount:,} so'm qabul qilindi\!*\n\n"
+        f"📸 Endi to'lov cheki rasmini yuboring\:\n"
+        f"\(Bank ilovasidan screenshot oling\)\n\n"
+        f"_Bekor qilish uchun /start bosing_",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
@@ -5227,8 +5226,8 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def topup_handle_screenshot_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """TOPUP_SCREENSHOT state da matn kelganda rasm so'raydi."""
     await update.message.reply_text(
-        "📸 *To'lov cheki rasmini yuboring\!*\n\n"
-        "Kartaga o'tkazgandan so'ng screenshot oling va shu yerga yuboring\.",
+        "📸 *Chek rasmini yuboring\!*\n\n"
+        "Bank ilovasidan to'lov tasdig'i screenshotini yuboring\.",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
@@ -5324,16 +5323,18 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return TOPUP_SCREENSHOT
 
 async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/chekyubor buyrug'i - foydalanuvchi chek rasmini yuborish uchun."""
+    """/chekyubor buyrug'i - avval summa so'raydi, keyin chek rasm."""
     user_id = update.effective_user.id
-    # Topup state ni 'screenshot' ga o'rnatamiz - lekin amount yo'q
-    # Foydalanuvchi avval karta raqamiga pul o'tkazgan bo'lishi kerak
-    # Amount ni 0 qilib qo'yamiz - admin tasdiqlashda miqdorni o'zi kiritadi
-    db.set_user_topup_state(user_id, 'screenshot', 0)
+    # Avval 'amount' state ga o'rnatamiz - foydalanuvchi summani kiriting
+    db.set_user_topup_state(user_id, 'amount', 0)
     await update.message.reply_text(
-        "💳 *To'lov chekini yuborish*\n\n"
-        "Chek rasmini yoki PDF faylini yuboring\.\n"
-        "\(Bekor qilish uchun /start bosing\)",
+        "💳 *Balans to'ldirish*\n\n"
+        f"🏦 To'lov kartasi:\n"
+        f"`{CARD_NUMBER}`\n"
+        f"👤 Abramatova Madina\n\n"
+        "📝 *Kartaga qancha so'm o'tkazdingiz?*\n"
+        "Faqat raqam kiriting \(masalan: `10000`\):\n\n"
+        "_Bekor qilish uchun /start bosing_",
         parse_mode="Markdown"
     )
 
@@ -5397,16 +5398,16 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                  InlineKeyboardButton("❌ Rad etish",  callback_data=f"admin_reject_{tx_id}")],
                 [InlineKeyboardButton("✏️ Boshqa summa", callback_data=f"admin_custom_amount_{tx_id}")]
             ])
-            amount_line = f"💰 Miqdor: {amount:,} so'm\n" if amount > 0 else "💰 Miqdor: (foydalanuvchi ko'rsatmagan)\n"
+            amount_line = f"💰 Miqdor: {amount:,} so'm" if amount > 0 else "💰 Miqdor: (ko'rsatilmagan)"
             await context.bot.send_photo(
                 chat_id=admin_id,
                 photo=photo_id,
                 caption=(
                     f"💳 Yangi to'lov so'rovi #{tx_id}\n\n"
-                    f"👤 Ism: {full_name}\n"
-                    f"📱 {username_str} | ID: {user.id}\n"
-                    f"{amount_line}\n"
-                    f"✅ Tasdiqlash yoki ❌ Rad etish:"
+                    f"👤 {full_name} | {username_str}\n"
+                    f"🆔 ID: {user.id}\n"
+                    f"{amount_line}\n\n"
+                    f"✅ Tasdiqlash | ❌ Rad etish | ✏️ Boshqa summa"
                 ),
                 reply_markup=kb,
             )
@@ -5425,13 +5426,15 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.warning(f"State tozalashda xatolik: {e}")
 
     # Foydalanuvchiga javob
-    amount_text = f"💰 So'ralgan miqdor: *{amount:,} so'm*\n" if amount > 0 else ""
+    if amount > 0:
+        amount_text = f"💰 O'tkazilgan summa: *{amount:,} so'm*\n"
+    else:
+        amount_text = ""
     await update.message.reply_text(
-        f"✅ *Chekingiz qabul qilindi\!*\n\n"
+        f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"{amount_text}"
-        f"🔢 So'rov raqami: `#{tx_id}`\n\n"
         f"⏳ Admin tekshirib, balansni *10–30 daqiqa* ichida to'ldiradi\.\n"
-        f"Bildirishnoma avtomatik yuboriladi\.",
+        f"Balans to'ldirilgach, sizga bildirishnoma yuboriladi\.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
