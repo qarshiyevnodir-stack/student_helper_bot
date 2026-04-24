@@ -5321,22 +5321,21 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return TOPUP_SCREENSHOT
 
 async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/chekyubor buyrug'i - avval summa so'raydi, keyin chek rasm. TOPUP_AMOUNT state qaytaradi."""
+    """/chekyubor buyrug'i - to'g'ridan-to'g'ri chek rasmi yoki PDF so'raydi."""
     user_id = update.effective_user.id
-    _set_topup_state(context, user_id, 'amount')
-    _set_topup_amount(context, user_id, 0)
-    db.set_user_topup_state(user_id, 'amount', 0)
+    # Mavjud summani saqlab, faqat state ni 'screenshot' ga o'tkazamiz
+    topup_row = db.get_user_topup_state(user_id)
+    existing_amount = topup_row['amount'] if topup_row else 0
+    _set_topup_state(context, user_id, 'screenshot')
+    _set_topup_amount(context, user_id, existing_amount)
+    db.set_user_topup_state(user_id, 'screenshot', existing_amount)
     await update.message.reply_text(
-        "💳 *Balans to'ldirish*\n\n"
-        f"🏦 To'lov kartasi:\n"
-        f"`{CARD_NUMBER}`\n"
-        f"👤 Abramatova Madina\n\n"
-        "📝 *Kartaga qancha so'm o'tkazdingiz?*\n"
-        "Faqat raqam kiriting \(masalan: `10000`\):\n\n"
-        "_Bekor qilish uchun /start bosing_",
+        "💳 *To'lov chekini yuborish*\n\n"
+        "Chek rasmini yoki PDF faylini yuboring\.\n"
+        "_\(Bekor qilish uchun /start bosing\)_",
         parse_mode="Markdown"
     )
-    return TOPUP_AMOUNT
+    return TOPUP_SCREENSHOT
 
 async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Screenshot (to'lov cheki) qabul qiladi va adminga yuboradi."""
