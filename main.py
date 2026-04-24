@@ -5348,25 +5348,28 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
 
     logger.info(f"topup_get_screenshot: user={user_id}, state={topup_state}, amount={amount}")
 
-    # Faqat 'screenshot' holatida ishlash
+       # Faqat 'screenshot' holatida ishlash
     if topup_state != 'screenshot':
-        logger.info(f"Photo from user {user_id} ignored (topup_state='{topup_state}')")
+        logger.info(f"Photo/Doc from user {user_id} ignored (topup_state='{topup_state}')")
         return
-
-    if not update.message.photo:
-        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini (screenshot) yuboring:")
+    # Rasm yoki PDF hujjat bo'lishi mumkin
+    is_photo = bool(update.message.photo)
+    is_document = bool(update.message.document)
+    if not is_photo and not is_document:
+        await update.message.reply_text("⚠️ Iltimos, to'lov cheki rasmini yoki PDF faylini yuboring:")
         return
-
-    # amount=0 bo'lsa ham davom etamiz - /chekyubor orqali kelgan bo'lishi mumkin
-    # Admin xabarida miqdor ko'rsatilmaydi, admin o'zi kiritadi
-
     user = update.effective_user
-    photo_id = update.message.photo[-1].file_id
-
+    # file_id va fayl turi aniqlash
+    if is_photo:
+        file_id = update.message.photo[-1].file_id
+        file_type = 'photo'
+    else:
+        file_id = update.message.document.file_id
+        file_type = 'document'
     # DB ga saqlash
     try:
-        tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, photo_id)
-        logger.info(f"Topup request yaratildi: tx_id={tx_id}, user={user.id}, amount={amount}")
+        tx_id = await asyncio.to_thread(db.create_topup_request, user.id, amount, file_id)
+        logger.info(f"Topup request yaratildi: tx_id={tx_id}, user={user.id}, amount={amount}, type={file_type}")
     except Exception as e:
         logger.error(f"create_topup_request xatolik: {e}")
         await update.message.reply_text(
@@ -5374,7 +5377,6 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
             reply_markup=get_main_menu_keyboard()
         )
         return
-
     full_name = (user.full_name or '').strip() or 'Nomsiz'
     username_str = f"@{user.username}" if user.username else "username yo'q"
 
@@ -5398,18 +5400,27 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
                 [InlineKeyboardButton("✏️ Boshqa summa", callback_data=f"admin_custom_amount_{tx_id}")]
             ])
             amount_line = f"💰 Miqdor: {amount:,} so'm" if amount > 0 else "💰 Miqdor: (ko'rsatilmagan)"
-            await context.bot.send_photo(
-                chat_id=admin_id,
-                photo=photo_id,
-                caption=(
-                    f"💳 Yangi to'lov so'rovi #{tx_id}\n\n"
-                    f"👤 {full_name} | {username_str}\n"
-                    f"🆔 ID: {user.id}\n"
-                    f"{amount_line}\n\n"
-                    f"✅ Tasdiqlash | ❌ Rad etish | ✏️ Boshqa summa"
-                ),
-                reply_markup=kb,
+            caption_text = (
+                f"💳 Yangi to'lov so'rovi #{tx_id}\n\n"
+                f"👤 {full_name} | {username_str}\n"
+                f"🆔 ID: {user.id}\n"
+                f"{amount_line}\n\n"
+                f"✅ Tasdiqlash | ❌ Rad etish | ✏️ Boshqa summa"
             )
+            if file_type == 'photo':
+                await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=file_id,
+                    caption=caption_text,
+                    reply_markup=kb,
+                )
+            else:
+                await context.bot.send_document(
+                    chat_id=admin_id,
+                    document=file_id,
+                    caption=caption_text,
+                    reply_markup=kb,
+                )
             admin_notified = True
             logger.info(f"✅ Admin {admin_id} ga to'lov #{tx_id} yuborildi (user={user.id}, {amount} so'm)")
         except Exception as e:
@@ -6619,6 +6630,7 @@ def main() -> None:
             TOPUP_SCREENSHOT: [
                 CommandHandler("chekyubor", chekyubor_command),
                 MessageHandler(filters.PHOTO, topup_get_screenshot),
+                MessageHandler(filters.Document.ALL, topup_get_screenshot),
                 MessageHandler(MENU_FILTER, handle_main_menu_selection),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, topup_handle_screenshot_text),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
