@@ -5215,10 +5215,9 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
-        f"✅ *{amount:,} so'm qabul qilindi\!*\n\n"
-        f"📸 Endi to'lov cheki rasmini yuboring\:\n"
-        f"\(Bank ilovasidan screenshot oling\)\n\n"
-        f"_Bekor qilish uchun /start bosing_",
+        f"✅ Kerakli summani kartaga o'tkazing\.\n\n"
+        f"💳 *{amount:,} so'm*\n\n"
+        f"Endi chekni /chekyubor buyrug'i orqali chek rasmi yoki PDF ni yuboring\.",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
