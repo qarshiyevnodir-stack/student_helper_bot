@@ -5211,6 +5211,8 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="Markdown"
         )
         return TOPUP_AMOUNT
+    # DB ga ham yozish - /chekyubor buyrug'i uchun
+    db.set_user_topup_state(update.effective_user.id, 'screenshot', amount)
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
@@ -5429,8 +5431,10 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
     if not admin_notified:
         logger.error(f"❌ Hech bir adminga to'lov #{tx_id} yuborilmadi! ADMIN_IDS={ADMIN_IDS}")
 
-    # State tozalash
+    # State tozalash (ham context, ham DB)
     try:
+        _set_topup_state(context, user_id, None)
+        _set_topup_amount(context, user_id, 0)
         db.set_user_topup_state(user_id, None)
     except Exception as e:
         logger.warning(f"State tozalashda xatolik: {e}")
@@ -6677,10 +6681,8 @@ def main() -> None:
         handle_main_menu_selection
     ))
 
-    # Global handler for photo submissions for top-up
-    # ESLATMA: topup_get_screenshot TOPUP_SCREENSHOT state ichida ishlaydi
-    # group=-1 olib tashlandi — ConversationHandler bilan to'qnashardi
-    application.add_handler(MessageHandler(filters.PHOTO, topup_get_screenshot), group=2)
+    # ESLATMA: topup_get_screenshot TOPUP_SCREENSHOT state ichida ishlaydi (ConversationHandler)
+    # Global handler olib tashlandi — ikki marta chaqirilishni oldini olish uchun
 
     logger.info("Bot ishga tushmoqda (polling rejimi, concurrent_updates=True)...")
     application.run_polling(
