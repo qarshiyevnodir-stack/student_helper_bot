@@ -15,6 +15,7 @@ from utils import (
     generate_template_4_presentation,
     generate_template_5_presentation,
     generate_template_6_presentation,
+    generate_template_7_presentation,
     generate_plan_with_titles,
     generate_all_content,
     SLIDE_TYPE_NAMES,
@@ -22,6 +23,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T4,
     SLIDE_TYPE_NAMES_T5,
     SLIDE_TYPE_NAMES_T6,
+    SLIDE_TYPE_NAMES_T7,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1355,6 +1357,9 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             InlineKeyboardButton("5️⃣ Silliq",     callback_data="template_select_5"),
             InlineKeyboardButton("6️⃣ Elegant",    callback_data="template_select_6"),
         ],
+        [
+            InlineKeyboardButton("7️⃣ Klassik 2",  callback_data="template_select_7"),
+        ],
     ])
     if os.path.exists(collage_path):
         with open(collage_path, "rb") as f:
@@ -1401,6 +1406,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         4: SLIDE_TYPE_NAMES_T4,
         5: SLIDE_TYPE_NAMES_T5,
         6: SLIDE_TYPE_NAMES_T6,
+        7: SLIDE_TYPE_NAMES_T7,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1409,6 +1415,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         4: generate_template_4_presentation,
         5: generate_template_5_presentation,
         6: generate_template_6_presentation,
+        7: generate_template_7_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
