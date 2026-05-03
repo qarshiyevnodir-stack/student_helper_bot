@@ -1162,12 +1162,39 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     context.user_data["topic"] = topic
 
-    skip_button = InlineKeyboardMarkup([
+    name_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
         [InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="skip_name_surname")]
     ])
     await update.message.reply_text(
         f"📌 *Mavzu:* {esc_md(topic)}\n\nIsm va familiyangizni kiriting (ixtiyoriy):",
-        reply_markup=skip_button,
+        reply_markup=name_keyboard,
+        parse_mode="Markdown"
+    )
+    return NAME_SURNAME
+
+async def edit_topic_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mavzuni tahrirlash tugmasi bosilganda."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        text="✏️ Yangi mavzuni kiriting:\nIltimos mavzuni aniq va tushunarli holda, ilmo xatolarsiz yozing:",
+        parse_mode="Markdown"
+    )
+    return TOPIC
+
+async def edit_name_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ism/familiyani tahrirlash tugmasi bosilganda."""
+    query = update.callback_query
+    await query.answer()
+    topic = context.user_data.get("topic", "")
+    name_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
+        [InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="skip_name_surname")]
+    ])
+    await query.edit_message_text(
+        text=f"📌 *Mavzu:* {esc_md(topic)}\n\n✏️ Yangi ism va familiyangizni kiriting:",
+        reply_markup=name_keyboard,
         parse_mode="Markdown"
     )
     return NAME_SURNAME
@@ -1188,10 +1215,19 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         name_surname = update.message.text.strip()
         context.user_data["name_surname"] = name_surname
+        topic = context.user_data.get("topic", "")
+        edit_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
+            [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
+        ])
         await update.message.reply_text(
-            "Nechta slayd kerak?",
-            reply_markup=get_slide_count_keyboard()
+            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\nNechta slayd kerak?",
+            reply_markup=InlineKeyboardMarkup(
+                get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
+            ),
+            parse_mode="Markdown"
         )
+        return SLIDE_COUNT
     return SLIDE_COUNT
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -6277,11 +6313,15 @@ def main() -> None:
             ],
             NAME_SURNAME: [
                 CallbackQueryHandler(get_name_surname, pattern=r"^skip_name_surname$"),
+                CallbackQueryHandler(edit_topic_handler, pattern=r"^edit_topic$"),
+                CallbackQueryHandler(edit_name_handler, pattern=r"^edit_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, get_name_surname),
             ],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern=r"^slide_count_"),
+                CallbackQueryHandler(edit_topic_handler, pattern=r"^edit_topic$"),
+                CallbackQueryHandler(edit_name_handler, pattern=r"^edit_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             PLAN_CONFIRMATION: [
