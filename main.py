@@ -1300,28 +1300,75 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         parse_mode="Markdown"
     )
     chat_id = query.message.chat_id
-    # Preview rasmlarni media group sifatida yuborish
+    # Collage rasm + tugmalar yuborish
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    template_names = [
-        "1️⃣ Klassik (Krем rang)",
-        "2️⃣ Minimal (Oq-ko'k)",
-        "3️⃣ Qorong'i (Binafsha)",
-        "4️⃣ Zamonaviy (Ko'k gradient)",
-        "5️⃣ Silliq (Ko'k to'lqin)",
-    ]
-    # Har bir shablonni alohida rasm + tugma sifatida yuborish
-    for i in range(1, 6):
-        preview_path = os.path.join(previews_dir, f"{i}.png")
-        if os.path.exists(preview_path):
-            with open(preview_path, "rb") as f:
-                await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=f,
-                    caption=template_names[i-1],
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(f"✅ {template_names[i-1]} ni tanlash", callback_data=f"template_select_{i}")]
-                    ])
-                )
+    collage_path = os.path.join(previews_dir, "collage.png")
+    # Agar collage yo'q bo'lsa, yaratib olamiz
+    if not os.path.exists(collage_path):
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            THUMB_W, THUMB_H, GAP = 480, 270, 8
+            BG_COLOR = (30, 30, 30)
+            thumbs = []
+            for _i in range(1, 6):
+                _p = os.path.join(previews_dir, f"{_i}.png")
+                _img = Image.open(_p).convert("RGB").resize((THUMB_W, THUMB_H), Image.LANCZOS)
+                thumbs.append(_img)
+            cols = 2
+            total_w = cols * THUMB_W + (cols + 1) * GAP
+            row1_y = GAP; row2_y = GAP + THUMB_H + GAP; row3_y = GAP + 2*(THUMB_H+GAP)
+            total_h = row3_y + THUMB_H + GAP
+            collage = Image.new("RGB", (total_w, total_h), BG_COLOR)
+            collage.paste(thumbs[0], (GAP, row1_y))
+            collage.paste(thumbs[1], (GAP + THUMB_W + GAP, row1_y))
+            collage.paste(thumbs[2], (GAP, row2_y))
+            collage.paste(thumbs[3], (GAP + THUMB_W + GAP, row2_y))
+            collage.paste(thumbs[4], ((total_w - THUMB_W)//2, row3_y))
+            draw = ImageDraw.Draw(collage)
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+            except:
+                font = ImageFont.load_default()
+            for idx, (px, py) in enumerate([
+                (GAP+8, row1_y+8), (GAP+THUMB_W+GAP+8, row1_y+8),
+                (GAP+8, row2_y+8), (GAP+THUMB_W+GAP+8, row2_y+8),
+                ((total_w-THUMB_W)//2+8, row3_y+8)
+            ]):
+                draw.text((px+2, py+2), str(idx+1), font=font, fill=(0,0,0))
+                draw.text((px, py), str(idx+1), font=font, fill=(255,255,255))
+            collage.save(collage_path, "PNG")
+        except Exception as _e:
+            logger.warning(f"Collage yaratishda xato: {_e}")
+    # Tugmalar: 2+2+1 formatida
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("1️⃣ Klassik",    callback_data="template_select_1"),
+            InlineKeyboardButton("2️⃣ Minimal",    callback_data="template_select_2"),
+        ],
+        [
+            InlineKeyboardButton("3️⃣ Qorong'i",   callback_data="template_select_3"),
+            InlineKeyboardButton("4️⃣ Zamonaviy",  callback_data="template_select_4"),
+        ],
+        [
+            InlineKeyboardButton("5️⃣ Silliq",     callback_data="template_select_5"),
+        ],
+    ])
+    if os.path.exists(collage_path):
+        with open(collage_path, "rb") as f:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=f,
+                caption="🎨 *Shablonni tanlang:*\n\nRasm ustidagi raqamga qarab tugmani bosing.",
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+    else:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🎨 *Shablonni tanlang:*",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
     return TEMPLATE_SELECT
 
 async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
