@@ -3038,11 +3038,11 @@ def generate_template_5_presentation(prs, topic, requested_slide_count, language
 # 6-SHABLON
 # ─────────────────────────────────────────────────────────────
 SLIDE_TYPE_NAMES_T6 = {
-    0: "one_column",    # 3-slayd: sarlavha + matn
-    1: "one_column",    # 4-slayd: sarlavha + tavsif
-    2: "three_steps",   # 5-slayd: 3 ta qadam
-    3: "two_columns",   # 6-slayd: 2 ustun
-    4: "one_column",    # 7-slayd: sarlavha + matn
+    0: "one_column",      # 3-slayd: sarlavha + matn
+    1: "one_column",      # 4-slayd: sarlavha + tavsif
+    2: "three_columns",   # 5-slayd: 3 ta ustun (col1, col2, col3)
+    3: "two_columns",     # 6-slayd: 2 ustun
+    4: "one_column",      # 7-slayd: sarlavha + matn
 }
 CONTENT_SLIDE_TEMPLATE_INDICES_6 = [2, 3, 4, 5, 6]
 
@@ -3128,13 +3128,14 @@ def fill_t6_slide_2_plan(slide, plan_data):
             p_elem = etree.fromstring(p_xml)
             txBody.append(p_elem)
 
-def fill_t6_slide_3_text(slide, content_data):
+def fill_t6_slide_3_text(slide, content_data, image_query=None):
     """
     6-Shablon Slayd 3.
-    Shape[3]: Matn
+    Shape[1], Shape[2]: Rasm placeholder (o'ng tomonda)
+    Shape[3]: Matn (chap tomonda)
     Shape[4]: Sarlavha
     """
-    from pptx.util import Pt
+    from pptx.util import Pt, Cm
     from pptx.enum.text import PP_ALIGN
     from pptx.dml.color import RGBColor
     title = content_data.get("title", "")
@@ -3163,6 +3164,22 @@ def fill_t6_slide_3_text(slide, content_data):
             run.text = item
             run.font.size = Pt(font_pt)
             run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+
+    # Mavzu bo'yicha rasm qo'shish (Shape[1] va Shape[2] o'rniga)
+    # Shape[1]: left=6.93", top=2.43", size=5.78"x4.17" => 17.60x10.59cm
+    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+    img_path = fetch_image(query)
+    if img_path:
+        try:
+            left = Cm(17.60)
+            top  = Cm(6.17)
+            width = Cm(14.69)
+            height = Cm(10.59)
+            slide.shapes.add_picture(img_path, left, top, width, height)
+            os.remove(img_path)
+            logging.info(f"[T6] Slayd 3 rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T6] Slayd 3 rasm xatolik: {e}")
 
 def fill_t6_slide_4_text(slide, content_data):
     """
@@ -3203,13 +3220,36 @@ def fill_t6_slide_4_text(slide, content_data):
 def fill_t6_slide_5_three_steps(slide, content_data):
     """
     6-Shablon Slayd 5.
-    Shape[1], [2], [3]: 3 ta qadam
+    Shape[1]: 1-ustun matn (left=1.98cm)
+    Shape[2]: 2-ustun matn (left=12.08cm)
+    Shape[3]: 3-ustun matn (left=22.97cm)
     Shape[4]: Sarlavha
     """
     from pptx.util import Pt
     from pptx.dml.color import RGBColor
     title = content_data.get("title", "")
-    items = content_data.get("content", [])
+    
+    # col1/col2/col3 formatini qo'llab-quvvatlash
+    col1 = content_data.get("col1", "")
+    col2 = content_data.get("col2", "")
+    col3 = content_data.get("col3", "")
+    
+    if col1 or col2 or col3:
+        # three_columns formatida kelgan
+        items = [col1, col2, col3]
+    else:
+        # content massivi formatida kelgan - 3 ta elementga to'ldirish
+        raw_items = content_data.get("content", [])
+        items = []
+        for idx in range(3):
+            if idx < len(raw_items):
+                items.append(raw_items[idx])
+            elif raw_items:
+                # Mavjud elementlarni takrorlash o'rniga bo'sh qoldirmaslik uchun
+                # oxirgi elementni ishlatamiz
+                items.append(raw_items[-1])
+            else:
+                items.append("")
     
     if len(slide.shapes) > 4 and slide.shapes[4].has_text_frame:
         tf = slide.shapes[4].text_frame
@@ -3238,19 +3278,32 @@ def fill_t6_slide_5_three_steps(slide, content_data):
 def fill_t6_slide_6_two_cols(slide, content_data):
     """
     6-Shablon Slayd 6.
-    Shape[1], [2]: 2 ta matn
+    Shape[1]: 1-ustun matn (left=2.25cm, chap tomonda)
+    Shape[2]: 2-ustun matn (left=18.52cm, o'ng tomonda)
     Shape[3]: Sarlavha
+    Ustunlar gorizontal joylashgan, chapga tekislangan.
     """
     from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
     from pptx.dml.color import RGBColor
     title = content_data.get("title", "")
-    col1 = content_data.get("col1", [])
-    col2 = content_data.get("col2", [])
-    if not col1 and not col2:
+    
+    # col1/col2 string yoki list bo'lishi mumkin
+    col1_raw = content_data.get("col1", "")
+    col2_raw = content_data.get("col2", "")
+    
+    if col1_raw or col2_raw:
+        # two_columns formatida kelgan
+        col1_text = col1_raw if isinstance(col1_raw, str) else "\n".join(col1_raw)
+        col2_text = col2_raw if isinstance(col2_raw, str) else "\n".join(col2_raw)
+    else:
+        # content massivi formatida kelgan - ikki qismga bo'lish
         items = content_data.get("content", [])
-        mid = len(items) // 2
-        col1 = items[:mid] if mid > 0 else items
-        col2 = items[mid:] if mid > 0 else []
+        mid = max(1, len(items) // 2)
+        col1_list = items[:mid]
+        col2_list = items[mid:]
+        col1_text = "\n".join(col1_list)
+        col2_text = "\n".join(col2_list)
         
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         tf = slide.shapes[3].text_frame
@@ -3262,27 +3315,32 @@ def fill_t6_slide_6_two_cols(slide, content_data):
         run.font.bold = True
         run.font.color.rgb = RGBColor(0x00, 0x50, 0x88)
         
-    for i, col_data in enumerate([col1, col2]):
-        shape_idx = i + 1
+    for shape_idx, col_text in [(1, col1_text), (2, col2_text)]:
         if len(slide.shapes) > shape_idx and slide.shapes[shape_idx].has_text_frame:
             tf = slide.shapes[shape_idx].text_frame
             tf.clear()
             tf.word_wrap = True
-            text = "\n".join(col_data)
-            font_pt = calc_body_font_pt(len(text), base_pt=14, min_pt=10, max_pt=18)
-            p = tf.paragraphs[0]
-            run = p.add_run()
-            run.text = text
-            run.font.size = Pt(font_pt)
-            run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+            font_pt = calc_body_font_pt(len(col_text), base_pt=14, min_pt=10, max_pt=18)
+            # Har bir satr uchun alohida paragraf - chapga tekislangan
+            lines = col_text.split("\n") if col_text else [""]
+            for j, line in enumerate(lines):
+                p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
+                p.alignment = PP_ALIGN.LEFT
+                run = p.add_run()
+                run.text = line
+                run.font.size = Pt(font_pt)
+                run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
 
-def fill_t6_slide_7_text(slide, content_data):
+def fill_t6_slide_7_text(slide, content_data, image_query=None):
     """
     6-Shablon Slayd 7.
-    Shape[1]: Sarlavha
-    Shape[3]: Matn
+    Shape[0]: Fon rasm (to'liq)
+    Shape[1]: Sarlavha (chap tomonda)
+    Shape[2]: Chiziq
+    Shape[3]: Matn (chap tomonda)
+    Shape[4]: Rasm placeholder (o'ng tomonda)
     """
-    from pptx.util import Pt
+    from pptx.util import Pt, Cm
     from pptx.enum.text import PP_ALIGN
     from pptx.dml.color import RGBColor
     title = content_data.get("title", "")
@@ -3312,13 +3370,29 @@ def fill_t6_slide_7_text(slide, content_data):
             run.font.size = Pt(font_pt)
             run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
 
+    # Mavzu bo'yicha rasm qo'shish (Shape[4] o'rniga - o'ng tomonda)
+    # Shape[4]: left=6.67", top=0.00", size=6.67"x7.50" => 16.93x19.05cm
+    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+    img_path = fetch_image(query)
+    if img_path:
+        try:
+            left = Cm(16.93)
+            top  = Cm(0.00)
+            width = Cm(16.93)
+            height = Cm(19.05)
+            slide.shapes.add_picture(img_path, left, top, width, height)
+            os.remove(img_path)
+            logging.info(f"[T6] Slayd 7 rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T6] Slayd 7 rasm xatolik: {e}")
+
 def fill_t6_slide_8_conclusion(slide, conclusion_data):
     """
     6-Shablon Slayd 8 — Xulosa.
-    Shape[1]: "XULOSA" (katta matn)
-    Shape[2]: Xulosa matni
+    Shape[1]: "XULOSA" (katta matn, pos=1.29cm, size=31.06x4.10cm)
+    Shape[2]: Xulosa matni (pos=13.12cm, size=7.62cm -> 24cm ga kengaytiriladi)
     """
-    from pptx.util import Pt
+    from pptx.util import Pt, Cm
     from pptx.enum.text import PP_ALIGN
     from pptx.dml.color import RGBColor
     items = conclusion_data.get("content", [])
@@ -3335,7 +3409,10 @@ def fill_t6_slide_8_conclusion(slide, conclusion_data):
         run.font.color.rgb = RGBColor(0xCD, 0xD6, 0xE2)
         
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
-        tf = slide.shapes[2].text_frame
+        # Asosiy matn blokini 24 sm eniga kengaytirish
+        shape2 = slide.shapes[2]
+        shape2.width = Cm(24)
+        tf = shape2.text_frame
         tf.clear()
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
