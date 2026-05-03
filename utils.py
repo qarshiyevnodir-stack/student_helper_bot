@@ -3409,9 +3409,11 @@ def fill_t6_slide_8_conclusion(slide, conclusion_data):
         run.font.color.rgb = RGBColor(0xCD, 0xD6, 0xE2)
         
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
-        # Asosiy matn blokini 24 sm eniga kengaytirish
+        # Asosiy matn blokini 24 sm eniga kengaytirish va markazga joylashtirish
         shape2 = slide.shapes[2]
         shape2.width = Cm(24)
+        # Slayd kengligi 33.87cm, markazda joylashish: left = (33.87 - 24) / 2 ≈ 4.94cm
+        shape2.left = Cm(4.94)
         tf = shape2.text_frame
         tf.clear()
         tf.word_wrap = True
@@ -3581,6 +3583,7 @@ def fill_t7_slide_2_plan(slide, plan_data):
         run.font.bold = True
 
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        import re
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
         total_chars = sum(len(t) for t in titles)
@@ -3591,7 +3594,9 @@ def fill_t7_slide_2_plan(slide, plan_data):
             txBody.remove(p_elem)
 
         for i, title in enumerate(titles):
-            safe_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # GPT allaqachon "1. Band" formatida qaytarishi mumkin - boshidagi raqamni olib tashlaymiz
+            clean_title = re.sub(r'^\d+[\.)\-]\s*', '', title.strip())
+            safe_title = clean_title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
                 f'<a:pPr algn="l"><a:buNone/></a:pPr>'
@@ -4021,12 +4026,11 @@ def generate_template_7_presentation(prs, topic, requested_slide_count, language
 
         logging.info(f"  [T7] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
-    # Xulosa slayd — plan_dict dan olamiz (ortiqcha GPT chaqiruvi yo'q)
+    # Xulosa slayd — GPT dan xulosa matni so'rash
     conclusion_slide = prs.slides[-1]
-    conclusion_data = {
-        "title": "Xulosa",
-        "content": plan_dict.get("content", ["Asosiy xulosalar", "Tavsiyalar"])
-    }
+    conclusion_data = generate_slide_content(topic, len(prs.slides), len(prs.slides), language, is_conclusion=True)
+    if not conclusion_data:
+        conclusion_data = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
     fill_t7_slide_8_conclusion(conclusion_slide, conclusion_data)
 
     buf = io.BytesIO()
@@ -4138,6 +4142,7 @@ def fill_t8_slide_2_plan(slide, plan_data):
 
     # Shape[1]: Reja bandlari
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        import re
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
         total_chars = sum(len(t) for t in titles)
@@ -4148,7 +4153,9 @@ def fill_t8_slide_2_plan(slide, plan_data):
             txBody.remove(p_elem)
 
         for i, title in enumerate(titles):
-            safe_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # GPT allaqachon "1. Band" formatida qaytarishi mumkin - boshidagi raqamni olib tashlaymiz
+            clean_title = re.sub(r'^\d+[\.)\-]\s*', '', title.strip())
+            safe_title = clean_title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
                 f'<a:pPr algn="l"><a:buNone/></a:pPr>'
@@ -4607,18 +4614,11 @@ def generate_template_8_presentation(prs, topic, requested_slide_count, language
 
         logging.info(f"  [T8] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
-    # Xulosa slayd — reja bandlarini raqamsiz xulosa sifatida ishlatish
+    # Xulosa slayd — GPT dan xulosa matni so'rash
     conclusion_slide = prs.slides[-1]
-    plan_items = plan_dict.get("content", [])
-    # Reja bandlarini xulosa jumlalariga aylantirish (raqamsiz)
-    conclusion_items = [f"{item.strip('.')}" for item in plan_items] if plan_items else [
-        "Ushbu taqdimotda asosiy mavzular ko'rib chiqildi.",
-        "Olingan bilimlar amaliyotda qo'llanilishi mumkin."
-    ]
-    conclusion_data = {
-        "title": "Xulosa",
-        "content": conclusion_items
-    }
+    conclusion_data = generate_slide_content(topic, len(prs.slides), len(prs.slides), language, is_conclusion=True)
+    if not conclusion_data:
+        conclusion_data = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
     fill_t8_slide_8_conclusion(conclusion_slide, conclusion_data)
 
     buf = io.BytesIO()
