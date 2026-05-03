@@ -4021,11 +4021,12 @@ def generate_template_7_presentation(prs, topic, requested_slide_count, language
 
         logging.info(f"  [T7] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
-    # Xulosa slayd
+    # Xulosa slayd — plan_dict dan olamiz (ortiqcha GPT chaqiruvi yo'q)
     conclusion_slide = prs.slides[-1]
-    conclusion_data = generate_slide_content(topic, requested_slide_count, requested_slide_count, language, is_conclusion=True)
-    if not conclusion_data:
-        conclusion_data = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
+    conclusion_data = {
+        "title": "Xulosa",
+        "content": plan_dict.get("content", ["Asosiy xulosalar", "Tavsiyalar"])
+    }
     fill_t7_slide_8_conclusion(conclusion_slide, conclusion_data)
 
     buf = io.BytesIO()
