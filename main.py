@@ -114,7 +114,8 @@ logger = logging.getLogger(__name__)
     NAME_SURNAME,        # 2 — ism-familiya
     SLIDE_COUNT,         # 3 — slayd soni
     PLAN_CONFIRMATION,   # 4 — reja tasdiqlash
-) = range(5)
+    TEMPLATE_SELECT,     # 5 — shablon tanlash
+) = range(6)
 
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Mustaqil ish
@@ -1293,19 +1294,56 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
+      # ── Shablon tanlash sahifasiga o'tish ──
     await query.edit_message_text(
-        text="✅ Reja tasdiqlandi!\n\n⏳ Kontent yaratilmoqda, biroz kuting...",
+        text="✅ Reja tasdiqlandi!\n\n🎨 Endi taqdimot shablonini tanlang:",
         parse_mode="Markdown"
     )
+    chat_id = query.message.chat_id
+    # Preview rasmlarni media group sifatida yuborish
+    previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
+    template_names = [
+        "1️⃣ Klassik (Krем rang)",
+        "2️⃣ Minimal (Oq-ko'k)",
+        "3️⃣ Qorong'i (Binafsha)",
+        "4️⃣ Zamonaviy (Ko'k gradient)",
+        "5️⃣ Silliq (Ko'k to'lqin)",
+    ]
+    # Har bir shablonni alohida rasm + tugma sifatida yuborish
+    for i in range(1, 6):
+        preview_path = os.path.join(previews_dir, f"{i}.png")
+        if os.path.exists(preview_path):
+            with open(preview_path, "rb") as f:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=f,
+                    caption=template_names[i-1],
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"✅ {template_names[i-1]} ni tanlash", callback_data=f"template_select_{i}")]
+                    ])
+                )
+    return TEMPLATE_SELECT
 
+async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Foydalanuvchi shablonni tanladi — taqdimot yaratiladi."""
+    query = update.callback_query
+    await query.answer()
+    template_num = int(query.data.split("_")[-1])
+    topic        = context.user_data.get("topic", "")
+    language     = context.user_data.get("language", "uz")
+    slide_count  = context.user_data.get("slide_count", 5)
+    name_surname = context.user_data.get("name_surname", "")
+    user_id      = query.from_user.id
+    price        = SERVICE_PRICES['slayd']
+    await query.edit_message_caption(
+        caption=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
+    )
     stage1 = context.user_data.get("stage1_result", {})
     plan_items   = stage1.get("plan", [])
     slide_titles = stage1.get("slide_titles", [])
     plan_dict = {"title": "Reja", "content": plan_items}
     chat_id = query.message.chat_id
-
-    # ── Tasodifiy shablon tanlash (1-5) ──
-    template_num = random.randint(1, 5)
+    logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
     template_slide_type_names = {
         1: SLIDE_TYPE_NAMES,
         2: SLIDE_TYPE_NAMES,
@@ -1320,7 +1358,7 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         4: generate_template_4_presentation,
         5: generate_template_5_presentation,
     }[template_num]
-    logger.info(f"Tasodifiy tanlangan shablon: {template_num}")
+    logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
     try:
         content_data_list = await asyncio.get_event_loop().run_in_executor(
@@ -6184,6 +6222,10 @@ def main() -> None:
             ],
             PLAN_CONFIRMATION: [
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            TEMPLATE_SELECT: [
+                CallbackQueryHandler(template_selected, pattern=r"^template_select_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Mustaqil ish holatlari ──

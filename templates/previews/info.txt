@@ -1,0 +1,6 @@
+Shablon preview rasmlari:
+1.png - Klassik (krем rang, naqshli chegara, vintage uslub)
+2.png - Minimal oq (ko'k chiziq burchakda, zamonaviy)
+3.png - Qorong'i (binafsha/qora, ilmiy uslub, DNA rasmi)
+4.png - Ko'k gradient (katta matn, zamonaviy biznes uslubi)
+5.png - Oq ko'k to'lqin (silliq gradient, zamonaviy)
