@@ -3963,9 +3963,13 @@ def fill_t7_slide_8_conclusion(slide, conclusion_data):
         run.font.size = Pt(48)
         run.font.bold = True
 
-    # Shape[1]: Qo'shimcha matn
+    # Shape[1]: Qo'shimcha matn - 2 sm yuqoriga ko'tarish
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
+        from pptx.util import Cm
+        shape1 = slide.shapes[1]
+        # top: 11.22cm -> 9.22cm (2 sm yuqoriga)
+        shape1.top = Cm(9.22)
+        tf = shape1.text_frame
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
         font_pt = calc_body_font_pt(total_chars, base_pt=18, min_pt=12, max_pt=22)
