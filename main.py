@@ -1316,32 +1316,32 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             THUMB_W, THUMB_H, GAP = 480, 270, 8
             BG_COLOR = (30, 30, 30)
             thumbs = []
-            for _i in range(1, 6):
+            for _i in range(1, 9):
                 _p = os.path.join(previews_dir, f"{_i}.png")
-                _img = Image.open(_p).convert("RGB").resize((THUMB_W, THUMB_H), Image.LANCZOS)
-                thumbs.append(_img)
+                if os.path.exists(_p):
+                    _img = Image.open(_p).convert("RGB").resize((THUMB_W, THUMB_H), Image.LANCZOS)
+                    thumbs.append(_img)
             cols = 2
+            rows = (len(thumbs) + 1) // 2
             total_w = cols * THUMB_W + (cols + 1) * GAP
-            row1_y = GAP; row2_y = GAP + THUMB_H + GAP; row3_y = GAP + 2*(THUMB_H+GAP)
-            total_h = row3_y + THUMB_H + GAP
+            total_h = rows * THUMB_H + (rows + 1) * GAP
             collage = Image.new("RGB", (total_w, total_h), BG_COLOR)
-            collage.paste(thumbs[0], (GAP, row1_y))
-            collage.paste(thumbs[1], (GAP + THUMB_W + GAP, row1_y))
-            collage.paste(thumbs[2], (GAP, row2_y))
-            collage.paste(thumbs[3], (GAP + THUMB_W + GAP, row2_y))
-            collage.paste(thumbs[4], ((total_w - THUMB_W)//2, row3_y))
+            positions = []
+            for _row in range(rows):
+                for _col in range(cols):
+                    _x = GAP + _col * (THUMB_W + GAP)
+                    _y = GAP + _row * (THUMB_H + GAP)
+                    positions.append((_x, _y))
+            for _idx, (_img, (_x, _y)) in enumerate(zip(thumbs, positions)):
+                collage.paste(_img, (_x, _y))
             draw = ImageDraw.Draw(collage)
             try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
             except:
                 font = ImageFont.load_default()
-            for idx, (px, py) in enumerate([
-                (GAP+8, row1_y+8), (GAP+THUMB_W+GAP+8, row1_y+8),
-                (GAP+8, row2_y+8), (GAP+THUMB_W+GAP+8, row2_y+8),
-                ((total_w-THUMB_W)//2+8, row3_y+8)
-            ]):
-                draw.text((px+2, py+2), str(idx+1), font=font, fill=(0,0,0))
-                draw.text((px, py), str(idx+1), font=font, fill=(255,255,255))
+            for _idx, (_x, _y) in enumerate(positions[:len(thumbs)]):
+                draw.text((_x+10, _y+10), str(_idx+1), font=font, fill=(0,0,0))
+                draw.text((_x+8, _y+8), str(_idx+1), font=font, fill=(255,255,255))
             collage.save(collage_path, "PNG")
         except Exception as _e:
             logger.warning(f"Collage yaratishda xato: {_e}")
