@@ -4050,37 +4050,29 @@ SLIDE_TYPE_NAMES_T8 = {
 CONTENT_SLIDE_TEMPLATE_INDICES_T8 = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
 
 
-def build_slide_structure_8(prs, requested_slide_count):
+def build_slide_structure_8(prs, requested_content_count):
     """
     8-shablon uchun slayd tuzilmasini yaratadi.
     Muqova(1) + Reja(1) + Kontent(N) + Xulosa(1) = jami
+    5 ta kontent shablon slayd bor (index 2-6), to'liq to'plamlar sifatida takrorlanadi.
     """
-    min_content = 1
-    max_content = 30
-    total_content_slides = max(min_content, min(requested_slide_count, max_content))
-
-    # Kontent slaydlari uchun shablon slaydlar indekslari (0-indexed: 2,3,4,5,6)
-    template_indices = CONTENT_SLIDE_TEMPLATE_INDICES_T8
-    n_templates = len(template_indices)
+    n_templates = len(CONTENT_SLIDE_TEMPLATE_INDICES_T8)  # 5
+    full_repeats = max(1, round(requested_content_count / n_templates))
+    total_content_slides = full_repeats * n_templates
+    logging.info(f"[T8] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
 
     conclusion_current_index = 7  # 0-indexed: slayd 8
 
-    # Kerakli kontent slaydlar soniga qarab nusxalash
-    if total_content_slides > n_templates:
-        extra = total_content_slides - n_templates
-        for i in range(extra):
-            src_idx = template_indices[i % n_templates]
-            src_slide = prs.slides[src_idx]
-            copy_slide(prs, src_slide)
-    elif total_content_slides < n_templates:
-        # Ortiqcha slaydlarni o'chirish (oxiridan)
-        to_remove = n_templates - total_content_slides
-        for _ in range(to_remove):
-            remove_slide(prs, template_indices[-1])
+    # Kerakli to'plamlar soniga qarab nusxalash
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_T8:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T8] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
 
     last_index = len(prs.slides) - 1
     move_slide(prs, conclusion_current_index, last_index)
-    logging.info(f"[T8] Kontent slaydlari: {total_content_slides} so'raldi")
     logging.info(f"[T8] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
     return total_content_slides
 
