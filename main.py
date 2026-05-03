@@ -1207,9 +1207,17 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         query = update.callback_query
         await query.answer()
         context.user_data["name_surname"] = ""
+        topic = context.user_data.get("topic", "")
+        edit_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
+            [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
+        ])
         await query.edit_message_text(
-            text="Nechta slayd kerak?",
-            reply_markup=get_slide_count_keyboard()
+            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\nNechta slayd kerak?",
+            reply_markup=InlineKeyboardMarkup(
+                get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
+            ),
+            parse_mode="Markdown"
         )
     else:
         name_surname = update.message.text.strip()
