@@ -11,11 +11,15 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_AUTO_SIZE
 
 from openai import OpenAI
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-client = OpenAI()
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+)
 
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
@@ -859,7 +863,8 @@ def generate_all_content(topic, slide_count, language, slide_titles, slide_type_
         logging.info(f"2-bosqich tayyor: {len(slides)} slayd kontent")
         return slides
     except Exception as e:
-        logging.error(f"generate_all_content xatolik: {e}")
+        logging.error(f"generate_all_content xatolik: {type(e).__name__}: {e}")
+        logging.error(traceback.format_exc())
         return None
 
 

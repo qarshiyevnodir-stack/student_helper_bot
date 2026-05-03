@@ -1466,8 +1466,17 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
         )
 
+        # Agar bo'sh qaytsa, bir marta qayta urinib ko'rish
         if not content_data_list:
-            raise ValueError("generate_all_content bo'sh qaytdi")
+            logger.warning("generate_all_content bo'sh qaytdi, qayta urinilmoqda...")
+            await asyncio.sleep(2)
+            content_data_list = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
+            )
+
+        if not content_data_list:
+            raise ValueError("generate_all_content bo'sh qaytdi (2 marta urinildi)")
 
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
         prs = Presentation(template_path)
