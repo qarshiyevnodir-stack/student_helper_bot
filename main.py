@@ -1163,7 +1163,6 @@ async def get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["topic"] = topic
 
     name_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
         [InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="skip_name_surname")]
     ])
     await update.message.reply_text(
