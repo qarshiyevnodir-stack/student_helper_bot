@@ -4308,8 +4308,9 @@ def fill_t8_slide_5_image_right2(slide, content_data, image_query=None):
     if isinstance(items, str):
         items = [items]
 
-    # Shape[0]: Sarlavha
+    # Shape[0]: Sarlavha — 1 sm yuqoriga ko'tarish (2.50 -> 1.50)
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        slide.shapes[0].top = Cm(1.50)
         tf = slide.shapes[0].text_frame
         tf.clear()
         tf.word_wrap = True
@@ -4320,8 +4321,9 @@ def fill_t8_slide_5_image_right2(slide, content_data, image_query=None):
         run.font.size = Pt(32)
         run.font.bold = True
 
-    # Shape[1]: Matn (chapda pastda)
+    # Shape[1]: Matn (chapda pastda) — 2 sm yuqoriga ko'tarish (10.63 -> 8.63)
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        slide.shapes[1].top = Cm(8.63)
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
@@ -4613,11 +4615,17 @@ def generate_template_8_presentation(prs, topic, requested_slide_count, language
 
         logging.info(f"  [T8] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
-    # Xulosa slayd — plan_dict dan olamiz (ortiqcha GPT chaqiruvi yo'q)
+    # Xulosa slayd — reja bandlarini raqamsiz xulosa sifatida ishlatish
     conclusion_slide = prs.slides[-1]
+    plan_items = plan_dict.get("content", [])
+    # Reja bandlarini xulosa jumlalariga aylantirish (raqamsiz)
+    conclusion_items = [f"{item.strip('.')}" for item in plan_items] if plan_items else [
+        "Ushbu taqdimotda asosiy mavzular ko'rib chiqildi.",
+        "Olingan bilimlar amaliyotda qo'llanilishi mumkin."
+    ]
     conclusion_data = {
         "title": "Xulosa",
-        "content": plan_dict.get("content", ["Asosiy xulosalar", "Tavsiyalar"])
+        "content": conclusion_items
     }
     fill_t8_slide_8_conclusion(conclusion_slide, conclusion_data)
 
