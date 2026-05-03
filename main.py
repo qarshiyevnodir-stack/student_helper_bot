@@ -1145,7 +1145,7 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
     await query.edit_message_text(
-        text=f"✅ Til: *{lang_name}*\n\nEndi taqdimot mavzusini kiriting:",
+        text=f"✅ Til: *{lang_name}*\n\nEndi taqdimot mavzusini kiriting:\nIltimos mavzuni aniq va tushunarli holda, ilmo xatolarsiz yozing:",
         parse_mode="Markdown"
     )
     return TOPIC
