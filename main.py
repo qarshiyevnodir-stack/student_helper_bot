@@ -347,7 +347,8 @@ def get_main_menu_keyboard():
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
         [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
         [KeyboardButton("📦 Ziplash/Arxivlash 🗜️"),  KeyboardButton("📄 PDF Konvertatsiya 🔄")],
-        [KeyboardButton("💰 Balans & Referral 🔗")],
+        [KeyboardButton("💰 Balans")],
+        [KeyboardButton("🔗 Referral")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -618,7 +619,7 @@ def get_subscription_keyboard():
 # Barcha menyu tugmalarini ushlovchi filter — conversation ichida menyu bosilganda state handlerlar ishlamasin
 MENU_REGEX = (
     r"^(🪄 Slayd yaratish ✨|📄 Mustaqil ish ✨|📚 Referat ✨|📁 Loyiha ishi ✨|"
-    r"📊 Infografika ✨|💰 Balans & Referral 🔗|🤖 AI yordamchi 💬|📰 Maqola ✨|"
+    r"📊 Infografika ✨|💰 Balans|🔗 Referral|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
     r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
     r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
@@ -702,7 +703,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         return LANGUAGE_SELECTION
     # Balans sahifasiga kirish uchun topup state ni tozalamaymiz
     # Faqat boshqa xizmatga o'tganda tozalaymiz
-    balans_tugmalari = {"💰 Balans & Referral 🔗", "💳 Balans to'ldirish", "⬅️ Orqaga"}
+    balans_tugmalari = {"💰 Balans", "🔗 Referral", "💳 Balans to'ldirish", "⬅️ Orqaga"}
     if text not in balans_tugmalari:
         _set_topup_state(context, user.id, None)
 
@@ -1063,7 +1064,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return PDF_RECEIVE
-    elif text == "💰 Balans & Referral 🔗":
+    elif text == "💰 Balans":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
         # Xizmat narxlari jadvali
@@ -1091,6 +1092,30 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text(
             msg,
             reply_markup=balans_keyboard,
+            parse_mode="Markdown"
+        )
+        return LANGUAGE_SELECTION
+    elif text == "🔗 Referral":
+        user_data = await asyncio.to_thread(db.get_user, user.id)
+        ref_code = user_data['referral_code'] if user_data else ''
+        bot_username = context.bot.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
+        msg = (
+            f"🔗 *Referral dasturi*\n\n"
+            f"Do'stlaringizni taklif qiling va har bir yangi foydalanuvchi uchun *2 000 so'm* bonus oling!\n\n"
+            f"📎 *Sizning referral havolangiz:*\n"
+            f"`{ref_link}`\n\n"
+            f"🎁 *Bonus:*\n"
+            f"• Siz: 2 000 so'm\n"
+            f"• Do'stingiz: 4 000 so'm xush kelibsiz bonusi\n\n"
+            f"Havolani do'stlaringizga yuboring va bonuslar yig'ing!"
+        )
+        referral_keyboard = ReplyKeyboardMarkup([
+            [KeyboardButton("⬅️ Orqaga")],
+        ], resize_keyboard=True)
+        await update.message.reply_text(
+            msg,
+            reply_markup=referral_keyboard,
             parse_mode="Markdown"
         )
         return LANGUAGE_SELECTION
@@ -4826,7 +4851,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
         "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
         "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
-        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "📄 PDF Konvertatsiya 🔄", "💰 Balans & Referral 🔗"
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "📄 PDF Konvertatsiya 🔄", "💰 Balans", "🔗 Referral"
     ]
     if text in main_menu_buttons:
         return await handle_main_menu_selection(update, context)
@@ -6278,7 +6303,8 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^💰 Balans$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🔗 Referral$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📰 Maqola ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
@@ -6306,9 +6332,10 @@ def main() -> None:
                 MessageHandler(filters.Regex(r"^📚 Referat ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📁 Loyiha ishi ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📊 Infografika ✨$"), handle_main_menu_selection),
-                MessageHandler(filters.Regex(r"^💰 Balans & Referral 🔗$"), handle_main_menu_selection),
-                MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
-                # Boshqa barcha tugmalar
+            MessageHandler(filters.Regex(r"^💰 Balans$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🔗 Referral$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^🤖 AI yordamchi 💬$"), handle_main_menu_selection),
+            # Boshqa barcha tugmalar
                 MessageHandler(filters.Regex(r"^🎓 Kurs ishi / BMI 📝$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^📜 Tezis ✨$"), handle_main_menu_selection),
                 MessageHandler(filters.Regex(r"^💡 Glossary ✨$"), handle_main_menu_selection),
@@ -6837,9 +6864,13 @@ def main() -> None:
     ), group=1)
     application.add_handler(CallbackQueryHandler(check_sub_callback,  pattern=r"^check_sub$"))
 
-    # Balans & Referral menyu handleri
+    # Balans va Referral menyu handlerlari
     application.add_handler(MessageHandler(
-        filters.Regex(r"^💰 Balans & Referral 🔗$"),
+        filters.Regex(r"^💰 Balans$"),
+        handle_main_menu_selection
+    ))
+    application.add_handler(MessageHandler(
+        filters.Regex(r"^🔗 Referral$"),
         handle_main_menu_selection
     ))
 
