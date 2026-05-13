@@ -390,11 +390,10 @@ def get_rf_language_keyboard():
 def get_rf_page_count_keyboard():
     """Referat uchun sahifa soni tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("10", callback_data="rf_pages_10"),
+        [InlineKeyboardButton("5",  callback_data="rf_pages_5"),
+         InlineKeyboardButton("10", callback_data="rf_pages_10"),
          InlineKeyboardButton("15", callback_data="rf_pages_15"),
          InlineKeyboardButton("20", callback_data="rf_pages_20")],
-        [InlineKeyboardButton("25", callback_data="rf_pages_25"),
-         InlineKeyboardButton("30", callback_data="rf_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -433,11 +432,10 @@ def get_slide_count_keyboard():
 def get_mi_page_count_keyboard():
     """Mustaqil ish uchun sahifa soni tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("10", callback_data="mi_pages_10"),
+        [InlineKeyboardButton("5",  callback_data="mi_pages_5"),
+         InlineKeyboardButton("10", callback_data="mi_pages_10"),
          InlineKeyboardButton("15", callback_data="mi_pages_15"),
          InlineKeyboardButton("20", callback_data="mi_pages_20")],
-        [InlineKeyboardButton("25", callback_data="mi_pages_25"),
-         InlineKeyboardButton("30", callback_data="mi_pages_30")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
