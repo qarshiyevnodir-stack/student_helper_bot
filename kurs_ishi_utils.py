@@ -464,16 +464,38 @@ def add_page_break(doc):
 # Muqova sahifasi
 # ─────────────────────────────────────────────
 
+def add_page_border(doc):
+    """Hujjatning 1-sahifasiga qora to'rtburchak ramka qo'shadi."""
+    for section in doc.sections:
+        sectPr = section._sectPr
+        for old in sectPr.findall(qn('w:pgBorders')):
+            sectPr.remove(old)
+        pgBorders = OxmlElement('w:pgBorders')
+        pgBorders.set(qn('w:offsetFrom'), 'page')
+        pgBorders.set(qn('w:display'), 'firstPage')
+        for edge in ('top', 'left', 'bottom', 'right'):
+            border_el = OxmlElement(f'w:{edge}')
+            border_el.set(qn('w:val'), 'single')
+            border_el.set(qn('w:sz'), '18')
+            border_el.set(qn('w:space'), '24')
+            border_el.set(qn('w:color'), '000000')
+            pgBorders.append(border_el)
+        sectPr.append(pgBorders)
+
+
 def build_title_page(doc, topic, work_type, name_surname, university, faculty, subject, teacher):
     """Rasmiy muqova sahifasi."""
     work_name = WORK_TYPE_NAMES.get(work_type, "KURS ISHI")
 
-    # Universitet
+    # 1-sahifaga qora ramka qo'shish
+    add_page_border(doc)
+
+    # Universitet (shrift 14 + 6 = 20 pt)
     if university:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run(university.upper())
-        set_font(run, size=14, bold=True)
+        set_font(run, size=20, bold=True)
         p.paragraph_format.space_after = Pt(4)
 
     # Fakultet
@@ -488,17 +510,28 @@ def build_title_page(doc, topic, work_type, name_surname, university, faculty, s
     if subject:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(f'"{subject}" fani bo\'yicha')
+        run = p.add_run(f'"{ subject}" fani bo\'yicha')
         set_font(run, size=13, italic=True)
-        p.paragraph_format.space_after = Pt(30)
+        p.paragraph_format.space_after = Pt(6)
 
-    # Ish turi
+    # 3 ta bo'sh qator (ish turi oldidan)
+    for _ in range(3):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(0)
+        p.paragraph_format.space_before = Pt(0)
+
+    # Ish turi (shrift 16 + 8 = 24 pt)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run(work_name)
-    set_font(run, size=16, bold=True, color=(26, 58, 107))
-    p.paragraph_format.space_before = Pt(20)
-    p.paragraph_format.space_after = Pt(12)
+    set_font(run, size=24, bold=True, color=(0, 0, 0))
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+
+    # 1 ta bo'sh qator (ish turi bilan mavzu orasida)
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.space_before = Pt(0)
 
     # Mavzu
     p = doc.add_paragraph()
@@ -528,35 +561,70 @@ def build_title_page(doc, topic, work_type, name_surname, university, faculty, s
 # ─────────────────────────────────────────────
 
 def build_mundarija(doc, content: dict):
-    """Mundarija sahifasi."""
+    """Mundarija sahifasi - 2-rasmdagi kabi to'liq kenglikda tab bilan."""
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement as _OxmlElement
+    from docx.shared import Twips
+
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run("MUNDARIJA")
     set_font(run, size=14, bold=True)
     p.paragraph_format.space_after = Pt(16)
 
+    # Sahifa kengligi: A4 (21cm) - chap chegara (3cm) - o'ng chegara (1.5cm) = 16.5cm = 9354 twips
+    # Tab stop o'ng tomonga: 16.5cm = 9354 twips
+    TAB_POS = Twips(9354)
+
+    def add_toc_line(text, pg, bold=False, indent_cm=0):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        if indent_cm > 0:
+            p.paragraph_format.left_indent = Cm(indent_cm)
+
+        # Tab stop sozlash (o'ng tomonga, nuqta to'ldiruvchi)
+        pPr = p._p.get_or_add_pPr()
+        tabs_el = _OxmlElement('w:tabs')
+        tab_el = _OxmlElement('w:tab')
+        tab_el.set(_qn('w:val'), 'right')
+        tab_el.set(_qn('w:leader'), 'dot')
+        tab_el.set(_qn('w:pos'), str(int(TAB_POS - Twips(indent_cm * 567))))
+        tabs_el.append(tab_el)
+        pPr.append(tabs_el)
+
+        # Matn qo'shish
+        run1 = p.add_run(text)
+        set_font(run1, size=13, bold=bold)
+
+        # Tab belgisi
+        run_tab = p.add_run()
+        tab_xml = _OxmlElement('w:tab')
+        run_tab._r.append(tab_xml)
+
+        # Sahifa raqami
+        run2 = p.add_run(pg)
+        set_font(run2, size=13, bold=bold)
+
+        p.paragraph_format.space_after = Pt(2)
+        return p
+
     items = [
-        ("KIRISH", "3"),
+        ("KIRISH", "3", True, 0),
     ]
     page_num = 4
     for i, bob in enumerate(content.get("boblar", []), 1):
         bob_nomi = bob.get("bob_nomi", f"BOB {i}")
-        items.append((bob_nomi, str(page_num)))
+        items.append((bob_nomi, str(page_num), True, 0))
         page_num += 2
         for para in bob.get("paragraflar", []):
-            items.append((f"    {para.get('sarlavha', '')}", str(page_num)))
+            items.append((para.get('sarlavha', ''), str(page_num), False, 1.0))
             page_num += 1
 
-    items.append(("XULOSA", str(page_num)))
-    items.append(("FOYDALANILGAN ADABIYOTLAR", str(page_num + 2)))
+    items.append(("XULOSA", str(page_num), True, 0))
+    items.append(("FOYDALANILGAN ADABIYOTLAR", str(page_num + 2), True, 0))
 
-    for text, pg in items:
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        run = p.add_run(f"{text}{'.' * max(3, 60 - len(text))}{pg}")
-        is_bold = not text.startswith("    ")
-        set_font(run, size=13, bold=is_bold)
-        p.paragraph_format.space_after = Pt(2)
+    for text, pg, bold, indent in items:
+        add_toc_line(text, pg, bold=bold, indent_cm=indent)
 
     add_page_break(doc)
 
