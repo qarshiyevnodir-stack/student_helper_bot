@@ -185,7 +185,7 @@ def create_cover_page(document, university_info, topic, name_surname, teacher_na
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(120)
-    r = p.add_run("Toshkent - 2026")
+    r = p.add_run("2026")
     r.font.name = 'Times New Roman'
     r.font.size = Pt(14)
     document.add_page_break()
