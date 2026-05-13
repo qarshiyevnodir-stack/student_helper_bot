@@ -392,7 +392,9 @@ def get_rf_page_count_keyboard():
     keyboard = [
         [InlineKeyboardButton("5",  callback_data="rf_pages_5"),
          InlineKeyboardButton("10", callback_data="rf_pages_10"),
-         InlineKeyboardButton("15", callback_data="rf_pages_15"),
+         InlineKeyboardButton("12", callback_data="rf_pages_12")],
+        [InlineKeyboardButton("15", callback_data="rf_pages_15"),
+         InlineKeyboardButton("18", callback_data="rf_pages_18"),
          InlineKeyboardButton("20", callback_data="rf_pages_20")],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -434,7 +436,9 @@ def get_mi_page_count_keyboard():
     keyboard = [
         [InlineKeyboardButton("5",  callback_data="mi_pages_5"),
          InlineKeyboardButton("10", callback_data="mi_pages_10"),
-         InlineKeyboardButton("15", callback_data="mi_pages_15"),
+         InlineKeyboardButton("12", callback_data="mi_pages_12")],
+        [InlineKeyboardButton("15", callback_data="mi_pages_15"),
+         InlineKeyboardButton("18", callback_data="mi_pages_18"),
          InlineKeyboardButton("20", callback_data="mi_pages_20")],
     ]
     return InlineKeyboardMarkup(keyboard)
