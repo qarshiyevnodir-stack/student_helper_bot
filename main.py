@@ -195,7 +195,8 @@ logger = logging.getLogger(__name__)
     KI_FACULTY,          # 76
     KI_TEACHER,          # 77
     KI_SUBJECT,          # 78
-) = range(70, 79)
+    KI_EDIT_TOPIC,       # 79
+) = range(70, 80)
 
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Tezis
@@ -2758,12 +2759,45 @@ async def ki_get_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text("Iltimos, mavzuni kiriting:")
         return KI_TOPIC
     context.user_data["ki_topic"] = topic
-
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_name")]
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_name")],
+        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="ki_edit_topic")],
     ])
     await update.message.reply_text(
         f"📌 *Mavzu:* {esc_md(topic)}\n\n"
+        f"Ism-familiyangizni kiriting:\n"
+        f"_(Ixtiyoriy — muqovada ko'rinadi)_",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return KI_NAME_SURNAME
+
+async def ki_edit_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: mavzuni qayta kiritish."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        text="✏️ Yangi mavzuni kiriting:",
+        parse_mode="Markdown"
+    )
+    return KI_EDIT_TOPIC
+
+async def ki_edit_topic_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Kurs ishi: tahrirlangan mavzuni saqlash."""
+    _tr = await topup_message_router(update, context)
+    if _tr is not None:
+        return _tr
+    topic = update.message.text.strip()
+    if not topic:
+        await update.message.reply_text("Iltimos, mavzuni kiriting:")
+        return KI_EDIT_TOPIC
+    context.user_data["ki_topic"] = topic
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭ Shart emas", callback_data="ki_skip_name")],
+        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="ki_edit_topic")],
+    ])
+    await update.message.reply_text(
+        f"✅ *Mavzu yangilandi:* {esc_md(topic)}\n\n"
         f"Ism-familiyangizni kiriting:\n"
         f"_(Ixtiyoriy — muqovada ko'rinadi)_",
         reply_markup=keyboard,
@@ -6533,8 +6567,13 @@ def main() -> None:
             ],
             KI_NAME_SURNAME: [
                 CallbackQueryHandler(ki_get_name_surname, pattern=r"^ki_skip_name$"),
+                CallbackQueryHandler(ki_edit_topic, pattern=r"^ki_edit_topic$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_get_name_surname),
+            ],
+            KI_EDIT_TOPIC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ki_edit_topic_save),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             KI_UNIVERSITY: [
                 CallbackQueryHandler(ki_get_university, pattern=r"^ki_skip_university$"),

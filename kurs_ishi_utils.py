@@ -502,16 +502,16 @@ def build_title_page(doc, topic, work_type, name_surname, university, faculty, s
     if faculty:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(faculty)
-        set_font(run, size=13)
+        run = p.add_run(faculty.upper())
+        set_font(run, size=13, bold=True)
         p.paragraph_format.space_after = Pt(4)
 
     # Kafedra / Fan
     if subject:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(f'"{ subject}" fani bo\'yicha')
-        set_font(run, size=13, italic=True)
+        run = p.add_run(f'"{subject.upper()}" FANI BO\'YICHA')
+        set_font(run, size=13, bold=True)
         p.paragraph_format.space_after = Pt(6)
 
     # 3 ta bo'sh qator (ish turi oldidan)
@@ -536,7 +536,7 @@ def build_title_page(doc, topic, work_type, name_surname, university, faculty, s
     # Mavzu
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run(f'Mavzu: "{topic}"')
+    run = p.add_run(f'MAVZU: "{topic.upper()}"')
     set_font(run, size=15, bold=True)
     p.paragraph_format.space_after = Pt(40)
 
