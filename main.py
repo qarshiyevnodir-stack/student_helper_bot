@@ -1173,7 +1173,7 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
     await query.edit_message_text(
-        text=f"✅ Til: *{lang_name}*\n\nEndi taqdimot mavzusini kiriting:\nIltimos mavzuni aniq va tushunarli holda, ilmo xatolarsiz yozing:",
+        text=f"✅ Til: *{lang_name}*\n\nEndi taqdimot mavzusini kiriting:\nIltimos mavzuni aniq va tushunarli holda, imlo xatolarsiz yozing:",
         parse_mode="Markdown"
     )
     return TOPIC
@@ -1205,7 +1205,7 @@ async def edit_topic_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
-        text="✏️ Yangi mavzuni kiriting:\nIltimos mavzuni aniq va tushunarli holda, ilmo xatolarsiz yozing:",
+        text="✏️ Yangi mavzuni kiriting:\nIltimos mavzuni aniq va tushunarli holda, imlo xatolarsiz yozing:",
         parse_mode="Markdown"
     )
     return TOPIC
