@@ -1547,11 +1547,27 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             chat_id=chat_id,
             text="⏳ Taqdimot tayyor! Rasmlar yuklanmoqda...",
         )
+        # Har bir shablon uchun rasm ishlatadigan slide_type lar
+        TEMPLATE_IMAGE_SLIDE_TYPES = {
+            1: [2, 4],
+            2: [4],
+            3: [3, 4],
+            4: [3],
+            5: [0, 3],
+            6: [],
+            7: [0, 4],
+            8: [0, 2],
+        }
+        image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
-        for item in content_data_list:
-            q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
-            if q:
-                image_queries.append(q)
+        if image_slide_types:
+            for i, item in enumerate(content_data_list):
+                stype = i % 5
+                if stype in image_slide_types:
+                    q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
+                    if q:
+                        image_queries.append(q)
+        logger.info(f"Shablon {template_num}: {len(image_queries)} ta rasm joyi aniqlandi")
 
         # Har bir slayd uchun 1 ta rasm URL olish
         preview_urls = []
