@@ -1730,7 +1730,7 @@ async def image_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # ─────────────────────────────────────────────
 # Handlerlar — Loyiha ishi
 # ─────────────────────────────────────────────
-async def li_get_languagee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def li_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     language_code = query.data.split("_", 2)[2]  # li_lang_uz -> uz
