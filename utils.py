@@ -217,6 +217,44 @@ def set_text_list_auto(shape, items, base_font_pt=18, min_font_pt=10):
         run.font.size = Pt(font_pt)
 
 
+def fetch_image_preview_urls(image_query, count=3):
+    """
+    Pixabay dan rasm URL larini qaytaradi (yuklab olmaydi).
+    Foydalanuvchiga ko'rsatish uchun ishlatiladi.
+    Qaytaradi: list of cdn_url yoki []
+    """
+    import re
+    if not PIXABAY_API_KEY:
+        return []
+    try:
+        url = (
+            f"https://pixabay.com/api/"
+            f"?key={PIXABAY_API_KEY}"
+            f"&q={requests.utils.quote(image_query)}"
+            f"&image_type=photo&orientation=horizontal"
+            f"&per_page={max(count + 2, 5)}&safesearch=true"
+        )
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        hits = resp.json().get("hits", [])
+        results = []
+        for hit in hits:
+            preview_url = hit.get("previewURL", "")
+            if not preview_url:
+                continue
+            if preview_url.lower().endswith(".jpg"):
+                cdn_url = re.sub(r'_\d+\.jpg$', '_640.jpg', preview_url)
+            else:
+                cdn_url = preview_url
+            results.append(cdn_url)
+            if len(results) >= count:
+                break
+        return results
+    except Exception as e:
+        logging.error(f"fetch_image_preview_urls xatolik ({image_query}): {e}")
+        return []
+
+
 def fetch_image(image_query):
     """
     Pixabay orqali rasm yuklab oladi.
