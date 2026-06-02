@@ -1515,38 +1515,6 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi (2 marta urinildi)")
 
-        # PPTX yaratish
-        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
-        prs = Presentation(template_path)
-        presentation_bytes = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: template_generate_func(
-                prs=prs,
-                topic=topic,
-                requested_slide_count=slide_count,
-                language=language,
-                name_surname=name_surname,
-                plan=plan_dict,
-                content_data_list=content_data_list,
-            )
-        )
-        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
-        filename = f"{safe_topic or 'taqdimot'}.pptx"
-
-        # Taqdimotni user_data ga saqlash (keyingi bosqich uchun)
-        context.user_data["pending_presentation"] = {
-            "bytes": presentation_bytes,
-            "filename": filename,
-            "content_data_list": content_data_list,
-            "template_num": template_num,
-            "template_generate_func_name": template_num,
-        }
-
-        # Rasmlarni content_data_list dan olish
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="⏳ Taqdimot tayyor! Rasmlar yuklanmoqda...",
-        )
         # Har bir shablon uchun rasm ishlatadigan slide_type lar
         TEMPLATE_IMAGE_SLIDE_TYPES = {
             1: [2, 4],
@@ -1569,14 +1537,56 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                         image_queries.append(q)
         logger.info(f"Shablon {template_num}: {len(image_queries)} ta rasm joyi aniqlandi")
 
-        # Har bir slayd uchun 1 ta rasm URL olish
-        preview_urls = []
-        for q in image_queries:
+        # PPTX yaratish va rasmlarni PARALLEL yuklash
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
+        prs = Presentation(template_path)
+
+        async def fetch_one_preview(q):
             urls = await asyncio.get_event_loop().run_in_executor(
                 None, lambda qq=q: fetch_image_preview_urls(qq, count=1)
             )
-            if urls:
-                preview_urls.append((q, urls[0]))
+            return (q, urls[0]) if urls else None
+
+        # PPTX yaratish va rasmlarni bir vaqtda parallel boshlash
+        pptx_task = asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: template_generate_func(
+                prs=prs,
+                topic=topic,
+                requested_slide_count=slide_count,
+                language=language,
+                name_surname=name_surname,
+                plan=plan_dict,
+                content_data_list=content_data_list,
+            )
+        )
+        image_tasks = [fetch_one_preview(q) for q in image_queries]
+
+        # Ikkalasini parallel kutish
+        results = await asyncio.gather(pptx_task, *image_tasks, return_exceptions=True)
+        presentation_bytes = results[0]
+        if isinstance(presentation_bytes, Exception):
+            raise presentation_bytes
+
+        preview_urls = [r for r in results[1:] if r is not None and not isinstance(r, Exception)]
+
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'taqdimot'}.pptx"
+
+        # Taqdimotni user_data ga saqlash (keyingi bosqich uchun)
+        context.user_data["pending_presentation"] = {
+            "bytes": presentation_bytes,
+            "filename": filename,
+            "content_data_list": content_data_list,
+            "template_num": template_num,
+            "template_generate_func_name": template_num,
+        }
+
+        # Rasmlarni content_data_list dan olish
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⏳ Taqdimot tayyor! Rasmlar yuklanmoqda...",
+        )
 
         context.user_data["pending_image_queries"] = image_queries
         context.user_data["pending_preview_urls"] = preview_urls
@@ -1695,16 +1705,20 @@ async def image_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
             return ConversationHandler.END
 
-        # Yangi rasmlar olish (har safar boshqacha natija uchun random offset)
-        preview_urls = []
-        for q in image_queries:
+        # Yangi rasmlar olish - PARALLEL (har safar boshqacha natija uchun random)
+        async def fetch_retry_preview(q):
             urls = await asyncio.get_event_loop().run_in_executor(
                 None, lambda qq=q: fetch_image_preview_urls(qq, count=4)
             )
             if urls:
-                # Random boshqa rasm tanlash
-                chosen = random.choice(urls)
-                preview_urls.append((q, chosen))
+                return (q, random.choice(urls))
+            return None
+
+        retry_results = await asyncio.gather(
+            *[fetch_retry_preview(q) for q in image_queries],
+            return_exceptions=True
+        )
+        preview_urls = [r for r in retry_results if r is not None and not isinstance(r, Exception)]
 
         context.user_data["pending_preview_urls"] = preview_urls
 
