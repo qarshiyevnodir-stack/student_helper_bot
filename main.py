@@ -5921,7 +5921,7 @@ async def admin_approve_topup(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     try:
         await query.edit_message_caption(
-            caption=f"✅ TASDIQLANDI — {tx['amount']:,} so'm qo'shildi"
+            caption=f"✅ TASDIQLANDI — {tx['amount']:,} so'm qo'shildi\n👤 Foydalanuvchi ID: {tx['user_id']}"
         )
     except Exception:
         pass
