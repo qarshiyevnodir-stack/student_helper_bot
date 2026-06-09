@@ -1021,10 +1021,10 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             f"📦 *Arxivlash xizmati*\n\n"
             f"💰 Narx: *{price:,} so'm*\n\n"
             f"📌 *Yo'riqnoma:*\n"
-            f"1️⃣ Fayllaringizni yuboring \\(PDF, DOCX, XLSX, JPG, PNG va boshqalar\\)\n"
-            f"2️⃣ Bir nechta fayl yuborishingiz mumkin \\(max 20 MB/fayl\\)\n"
+            f"1️⃣ Fayllaringizni yuboring (PDF, DOCX, XLSX, JPG, PNG va boshqalar)\n"
+            f"2️⃣ Bir nechta fayl yuborishingiz mumkin (max 20 MB/fayl)\n"
             f"3️⃣ Barcha fayllar yuborilgach *Arxivlash* tugmasini bosing\n"
-            f"4️⃣ Bot fayllaringizni *\.zip* arxivga yig'ib qaytaradi\n\n"
+            f"4️⃣ Bot fayllaringizni *.zip* arxivga yig'ib qaytaradi\n\n"
             f"⚠️ *Cheklovlar:*\n"
             f"• Har bir fayl maksimal *20 MB*\n"
             f"• Maksimal *20 ta fayl* bir arxivda\n"
@@ -1047,12 +1047,12 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         price = SERVICE_PRICES["pdf_convert"]
         yo_riqnoma = (
             f"📄 *PDF Konvertatsiya xizmati*\n\n"
-            f"💰 Narx: *{price:,} so'm* \(bitta fayl\)\n\n"
-            f"📌 *Qo'llab\-quvvatlanadigan formatlar:*\n"
-            f"• 📝 *Word* \(DOCX, DOC\)\n"
-            f"• 📊 *Excel* \(XLSX, XLS\)\n"
-            f"• 📊 *PowerPoint* \(PPTX, PPT\)\n"
-            f"• 🖼️ *Rasm* \(JPG, PNG, BMP, WEBP\)\n\n"
+            f"💰 Narx: *{price:,} so'm* (bitta fayl)\n\n"
+            f"📌 *Qo'llab-quvvatlanadigan formatlar:*\n"
+            f"• 📝 *Word* (DOCX, DOC)\n"
+            f"• 📊 *Excel* (XLSX, XLS)\n"
+            f"• 📊 *PowerPoint* (PPTX, PPT)\n"
+            f"• 🖼️ *Rasm* (JPG, PNG, BMP, WEBP)\n\n"
             f"📌 *Yo'riqnoma:*\n"
             f"1️⃣ Faylingizni yuboring\n"
             f"2️⃣ Bot uni PDF ga aylantirib qaytaradi\n"
@@ -1083,11 +1083,11 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             "• Maqola / Tezis: `2 000` so'm\n"
             "• Test / Krossvord: `1 000–3 000` so'm\n"
             "• Arxivlash: `1 000` so'm\n"
-            "• AI yordamchi: \(kuniga 3 ta bepul\)\n\n"
+            "• AI yordamchi: (kuniga 3 ta bepul)\n\n"
             f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
-            f"💡 Kerakli summani kartaga o'tkazing va /chekyubor buyrug'i orqali chek rasmini yuboring\."
+            f"💡 Kerakli summani kartaga o'tkazing va /chekyubor buyrug'i orqali chek rasmini yuboring."
         )
         # Balans sahifasi uchun alohida ReplyKeyboard
         balans_keyboard = ReplyKeyboardMarkup([
@@ -1135,7 +1135,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
             f"📝 *Kartaga qancha so'm o'tkazdingiz?*\n"
-            f"Faqat raqam kiriting \(masalan: `10000`\):\n\n"
+            f"Faqat raqam kiriting (masalan: `10000`):\n\n"
             f"_Bekor qilish uchun /start bosing_"
         )
         await update.message.reply_text(
@@ -4473,14 +4473,14 @@ async def an_get_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         logger.error(f"Annotatsiya xatolik: {e}", exc_info=True)
         await update.message.reply_text(
             f"❌ Annotatsiya yaratishda xatolik yuz berdi.\n{str(e)[:100]}\n\n"
-            f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
     return ConversationHandler.END
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAQRIZ HANDLER
+# TAQRIZ HANDLERR
 # ═══════════════════════════════════════════════════════════════════════════
 
 TQ_TYPE_KEYBOARD = InlineKeyboardMarkup([
@@ -4661,14 +4661,14 @@ async def tq_get_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"Taqriz xatolik: {e}", exc_info=True)
         await update.message.reply_text(
             f"❌ Taqriz yaratishda xatolik yuz berdi.\n{str(e)[:100]}\n\n"
-            f"Iltimos, qayta urinib ko\\'ring. Balans yechilmadi.",
+            f"Iltimos, qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
     return ConversationHandler.END
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ARXIVLASH HANDLER
+# ARXIVLASH HANDLERR
 # ═══════════════════════════════════════════════════════════════════════════
 async def arx_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Arxivlash — foydalanuvchi fayl yuboradi."""
@@ -4720,7 +4720,7 @@ async def arx_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     file_size = getattr(file_obj, 'file_size', 0) or 0
     if file_size > 20 * 1024 * 1024:
         await update.message.reply_text(
-            f"⚠️ *{esc_md(file_name)}* fayli juda katta \\({file_size // (1024*1024)} MB\\).\n"
+            f"⚠️ *{esc_md(file_name)}* fayli juda katta ({file_size // (1024*1024)} MB).\n"
             f"Maksimal fayl hajmi: *20 MB*",
             parse_mode="Markdown"
         )
@@ -4735,7 +4735,7 @@ async def arx_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="arx_cancel")],
     ])
     await update.message.reply_text(
-        f"✅ *{esc_md(file_name)}* qabul qilindi \\({count}/20\\)\n\n"
+        f"✅ *{esc_md(file_name)}* qabul qilindi ({count}/20)\n\n"
         f"Yana fayl yuborishingiz yoki *Arxivlash* tugmasini bosishingiz mumkin.",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -4763,7 +4763,7 @@ async def arx_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     balance = user_data["balance"] if user_data else 0
     if balance < price:
         await query.edit_message_text(
-            f"❌ *Balans yetarli emas\!*\n\n"
+            f"❌ *Balans yetarli emas!*\n\n"
             f"💰 Balansingiz: `{balance:,}` so'm\n"
             f"💳 Kerakli summa: `{price:,}` so'm\n\n"
             f"Balansni to'ldiring:",
@@ -4813,11 +4813,11 @@ async def arx_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             document=zip_buffer,
             filename=zip_name,
             caption=(
-                f"✅ *Arxiv tayyor\!*\n\n"
+                f"✅ *Arxiv tayyor!*\n\n"
                 f"📦 Fayllar soni: *{len(arxiv_files)} ta*\n"
                 f"📁 Arxiv hajmi: *{zip_size_kb:,} KB*\n"
                 f"💰 Yechildi: *{price:,} so'm*\n\n"
-                f"@slidego \| t\.me/slidego"
+                f"@slidego | t.me/slidego"
             ),
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
@@ -4891,7 +4891,7 @@ async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     ext = os.path.splitext(file_name)[1].lower()
     if ext not in PDF_ALL_SUPPORTED and not msg.photo:
         await update.message.reply_text(
-            f"⚠️ *{esc_md(file_name)}* formati qo'llab-quvvatlanmaydi\.\n\n"
+            f"⚠️ *{esc_md(file_name)}* formati qo'llab-quvvatlanmaydi.\n\n"
             f"Qo'llab-quvvatlanadigan formatlar:\n"
             f"DOCX, DOC, XLSX, XLS, PPTX, PPT, JPG, PNG, BMP, WEBP",
             parse_mode="Markdown"
@@ -4902,7 +4902,7 @@ async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     file_size = getattr(file_obj, 'file_size', 0) or 0
     if file_size > 20 * 1024 * 1024:
         await update.message.reply_text(
-            f"⚠️ Fayl juda katta \\({file_size // (1024*1024)} MB\\)\. Maksimal: *20 MB*",
+            f"⚠️ Fayl juda katta ({file_size // (1024*1024)} MB). Maksimal: *20 MB*",
             parse_mode="Markdown"
         )
         return PDF_RECEIVE
@@ -4913,7 +4913,7 @@ async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     balance = user_data["balance"] if user_data else 0
     if balance < price:
         await update.message.reply_text(
-            f"❌ *Balans yetarli emas\!*\n\n"
+            f"❌ *Balans yetarli emas!*\n\n"
             f"💰 Balansingiz: `{balance:,}` so'm\n"
             f"💳 Kerakli summa: `{price:,}` so'm\n\n"
             f"Balansni to'ldiring:",
@@ -4984,11 +4984,11 @@ async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             document=pdf_bytes,
             filename=pdf_name,
             caption=(
-                f"✅ *PDF tayyor\!*\n\n"
+                f"✅ *PDF tayyor!*\n\n"
                 f"📄 {esc_md(file_name)} → {esc_md(pdf_name)}\n"
                 f"📁 Hajmi: *{pdf_size_kb:,} KB*\n"
                 f"💰 Yechildi: *{price:,} so'm*\n\n"
-                f"@slidego \| t\.me/slidego"
+                f"@slidego | t.me/slidego"
             ),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Yana konvertatsiya", callback_data="pdf_again")],
@@ -5001,9 +5001,9 @@ async def pdf_receive_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception as e:
         logger.error(f"PDF konvertatsiya xatolik: {e}", exc_info=True)
         await update.message.reply_text(
-            f"❌ PDF yaratishda xatolik yuz berdi\.\n"
+            f"❌ PDF yaratishda xatolik yuz berdi.\n"
             f"`{esc_md(str(e)[:150])}`\n\n"
-            f"Balans yechilmadi\. Qayta urinib ko'ring.",
+            f"Balans yechilmadi. Qayta urinib ko'ring.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
@@ -5589,7 +5589,7 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
         amount = int(text)
     except ValueError:
         await update.message.reply_text(
-            "⚠️ Faqat raqam kiriting\!\n"
+            "⚠️ Faqat raqam kiriting!\n"
             "Masalan: `10000`",
             parse_mode="Markdown"
         )
@@ -5606,9 +5606,9 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
     _set_topup_amount(context, update.effective_user.id, amount)
     _set_topup_state(context, update.effective_user.id, 'screenshot')
     await update.message.reply_text(
-        f"✅ Kerakli summani kartaga o'tkazing\.\n\n"
+        f"✅ Kerakli summani kartaga o'tkazing.\n\n"
         f"💳 *{amount:,} so'm*\n\n"
-        f"Endi chekni /chekyubor buyrug'i orqali chek rasmi yoki PDF ni yuboring\.",
+        f"Endi chekni /chekyubor buyrug'i orqali chek rasmi yoki PDF ni yuboring.",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
@@ -5616,8 +5616,8 @@ async def topup_handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def topup_handle_screenshot_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """TOPUP_SCREENSHOT state da matn kelganda rasm so'raydi."""
     await update.message.reply_text(
-        "📸 *Chek rasmini yuboring\!*\n\n"
-        "Bank ilovasidan to'lov tasdig'i screenshotini yuboring\.",
+        "📸 *Chek rasmini yuboring!*\n\n"
+        "Bank ilovasidan to'lov tasdig'i screenshotini yuboring.",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
@@ -5630,7 +5630,7 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 Abramatova Madina\n\n"
         f"⚠️ Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
         f"📝 Qancha so'm to'lamoqchisiz?\n"
-        f"Faqat raqam kiriting \(masalan: `10000`\):"
+        f"Faqat raqam kiriting (masalan: `10000`):"
     )
     if update.callback_query:
         query = update.callback_query
@@ -5677,7 +5677,7 @@ async def topup_message_router(update: Update, context: ContextTypes.DEFAULT_TYP
             InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")
         ]])
         await update.message.reply_text(
-            "⚠️ Siz balans to'ldirish jarayonidasiz\!\n"
+            "⚠️ Siz balans to'ldirish jarayonidasiz!\n"
             "Davom etish uchun quyidagi tugmani bosing:",
             reply_markup=kb,
             parse_mode="Markdown"
@@ -5706,7 +5706,7 @@ async def _topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
         f"👤 Abramatova Madina\n\n"
         f"✅ Ushbu kartaga *{amount:,} so'm* o'tkazing\n"
-        f"📸 So'ng to'lov cheki \(screenshot\) rasmini shu yerga yuboring:",
+        f"📸 So'ng to'lov cheki (screenshot) rasmini shu yerga yuboring:",
         parse_mode="Markdown"
     )
     logger.info(f"_topup_get_amount: user {update.effective_user.id} miqdor={amount}")
@@ -5723,8 +5723,8 @@ async def chekyubor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.set_user_topup_state(user_id, 'screenshot', existing_amount)
     await update.message.reply_text(
         "💳 *To'lov chekini yuborish*\n\n"
-        "Chek rasmini yoki PDF faylini yuboring\.\n"
-        "_\(Bekor qilish uchun /start bosing\)_",
+        "Chek rasmini yoki PDF faylini yuboring.\n"
+        "_(Bekor qilish uchun /start bosing)_",
         parse_mode="Markdown"
     )
     return TOPUP_SCREENSHOT
@@ -5837,8 +5837,8 @@ async def topup_get_screenshot(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(
         f"✅ *Chekingiz qabul qilindi!*\n\n"
         f"{amount_text}"
-        f"⏳ Admin tekshirib, balansni *10–30 daqiqa* ichida to'ldiradi\.\n"
-        f"Balans to'ldirilgach, sizga bildirishnoma yuboriladi\.",
+        f"⏳ Admin tekshirib, balansni *10–30 daqiqa* ichida to'ldiradi.\n"
+        f"Balans to'ldirilgach, sizga bildirishnoma yuboriladi.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
@@ -6116,7 +6116,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "💰 *Balans boshqarish*\n\n"
             "➕ *Qo'shish* \u2014 mavjud balansga qo'shadi\n"
-            "⚙️ *O'rnatish* \u2014 balansi to'g'ridan\-to'g'ri o'rnatadi \(chek bilan farq bo'lganda\)",
+            "⚙️ *O'rnatish* \u2014 balansi to'g'ridan-to'g'ri o'rnatadi (chek bilan farq bo'lganda)",
             reply_markup=kb,
             parse_mode="Markdown"
         )
@@ -6126,7 +6126,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Foydalanuvchi ID va *qo'shish miqdorini* yuboring\:\n"
             "Format: `user_id miqdor`\n"
             "Masalan: `123456789 10000`\n\n"
-            "⚠️ Bu amal mavjud balansga *qo'shadi*\!",
+            "⚠️ Bu amal mavjud balansga *qo'shadi*!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
             parse_mode="Markdown"
         )
@@ -6137,7 +6137,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Foydalanuvchi ID va *yangi balans miqdorini* yuboring\:\n"
             "Format: `user_id yangi_miqdor`\n"
             "Masalan: `123456789 25000`\n\n"
-            "⚠️ Bu amal mavjud balansni *to'liq almashtiradi*\!",
+            "⚠️ Bu amal mavjud balansni *to'liq almashtiradi*!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_add_bal")]]),
             parse_mode="Markdown"
         )
@@ -6151,9 +6151,9 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_delete_user":
         await query.edit_message_text(
             "🗑️ *Foydalanuvchi o'chirish*\n\n"
-            "O'chirmoqchi bo'lgan foydalanuvchining *Telegram ID* sini yuboring\.\n\n"
+            "O'chirmoqchi bo'lgan foydalanuvchining *Telegram ID* sini yuboring.\n\n"
             "Masalan: `123456789`\n\n"
-            "⚠️ Bu amal *qaytarib bo'lmaydi* \u2014 foydalanuvchining barcha ma'lumotlari \(balans, tarix\) o'chiriladi\!",
+            "⚠️ Bu amal *qaytarib bo'lmaydi* \u2014 foydalanuvchining barcha ma'lumotlari (balans, tarix) o'chiriladi!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
             ]]),
@@ -6167,7 +6167,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = await asyncio.to_thread(db.get_user, target_id)
         if not target_user:
             await query.edit_message_text(
-                f"❌ Foydalanuvchi `{target_id}` topilmadi\.",
+                f"❌ Foydalanuvchi `{target_id}` topilmadi.",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
                 ]]),
@@ -6193,7 +6193,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = await asyncio.to_thread(db.get_user, target_id)
         if not target_user:
             await query.edit_message_text(
-                f"❌ Foydalanuvchi `{target_id}` topilmadi yoki allaqachon o'chirilgan\.",
+                f"❌ Foydalanuvchi `{target_id}` topilmadi yoki allaqachon o'chirilgan.",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
                 ]]),
@@ -6206,7 +6206,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Admin {update.effective_user.id} foydalanuvchi {target_id} ni o'chirdi")
             await query.edit_message_text(
                 f"✅ *O'chirildi!*\n\n"
-                f"👤 {name} \(`{target_id}`\) bazadan to'liq o'chirildi\.",
+                f"👤 {name} (`{target_id}`) bazadan to'liq o'chirildi.",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
                 ]]),
@@ -6214,7 +6214,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await query.edit_message_text(
-                f"❌ O'chirishda xatolik yuz berdi\.",
+                f"❌ O'chirishda xatolik yuz berdi.",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")
                 ]]),
@@ -6278,7 +6278,7 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             chat_id=target_id,
-            text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi \(admin tomonidan\).",
+            text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi (admin tomonidan).",
             parse_mode="Markdown"
         )
     except Exception:
@@ -6330,8 +6330,8 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
         new_balance = old_balance + amount
         logger.info(f"Admin {update.effective_user.id}: {target_id} ga {amount} so'm qo'shildi ({old_balance} -> {new_balance})")
         await update.message.reply_text(
-            f"✅ *Balans qo'shildi\!*\n\n"
-            f"👤 {name} \(`{target_id}`\)\n"
+            f"✅ *Balans qo'shildi!*\n\n"
+            f"👤 {name} (`{target_id}`)\n"
             f"💰 Eski balans: `{old_balance:,}` so'm\n"
             f"➕ Qo'shildi: `{amount:,}` so'm\n"
             f"💰 Yangi balans: `{new_balance:,}` so'm",
@@ -6340,7 +6340,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
         try:
             await context.bot.send_message(
                 chat_id=target_id,
-                text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi \(admin tomonidan\).",
+                text=f"✅ Balansingizga *{amount:,} so'm* qo'shildi (admin tomonidan).",
                 parse_mode="Markdown"
             )
         except Exception:
@@ -6384,7 +6384,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
             logger.info(f"Admin {update.effective_user.id}: {target_id} balansi {old_balance} -> {new_balance}")
             await update.message.reply_text(
                 f"✅ *Balans o'rnatildi!*\n\n"
-                f"👤 {name} \(`{target_id}`\)\n"
+                f"👤 {name} (`{target_id}`)\n"
                 f"💰 Eski balans: `{old_balance:,}` so'm\n"
                 f"💰 Yangi balans: `{new_balance:,}` so'm",
                 parse_mode="Markdown"
@@ -6392,7 +6392,7 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
             try:
                 await context.bot.send_message(
                     chat_id=target_id,
-                    text=f"💰 Balansingiz *{new_balance:,} so'm* ga o'rnatildi \(admin tomonidan\).",
+                    text=f"💰 Balansingiz *{new_balance:,} so'm* ga o'rnatildi (admin tomonidan).",
                     parse_mode="Markdown"
                 )
             except Exception:
