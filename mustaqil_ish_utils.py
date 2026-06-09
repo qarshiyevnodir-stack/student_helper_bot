@@ -64,17 +64,30 @@ def set_paragraph_font(paragraph, font_name='Times New Roman', font_size=14, bol
         run.font.bold = bold
         run.font.italic = italic
 
-def add_formatted_paragraph(document, text, font_size=14, bold=False, italic=False, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, space_after=Pt(6)):
-    """Adds a formatted paragraph to the document."""
-    p = document.add_paragraph()
-    p.alignment = alignment
-    p.paragraph_format.space_after = space_after
-    runner = p.add_run(text)
-    runner.font.name = 'Times New Roman'
-    runner.font.size = Pt(font_size)
-    runner.font.bold = bold
-    runner.font.italic = italic
-    return p
+def add_formatted_paragraph(document, text, font_size=14, bold=False, italic=False, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, space_after=Pt(6), first_line_indent=None):
+    """Adds a formatted paragraph to the document. If text contains \\n\\n, splits into multiple paragraphs."""
+    from docx.shared import Cm
+    # Avzaslarni bo'lish - \n\n bo'yicha
+    parts = [p.strip() for p in text.split('\n\n') if p.strip()]
+    if not parts:
+        parts = [text]
+    last_p = None
+    for part in parts:
+        p = document.add_paragraph()
+        p.alignment = alignment
+        p.paragraph_format.space_after = space_after
+        # Matn paragrafi uchun xat boshi chekinishi (bold bo'lmagan, justify bo'lgan)
+        if first_line_indent is not None:
+            p.paragraph_format.first_line_indent = first_line_indent
+        elif alignment == WD_ALIGN_PARAGRAPH.JUSTIFY and not bold:
+            p.paragraph_format.first_line_indent = Cm(1.25)
+        runner = p.add_run(part)
+        runner.font.name = 'Times New Roman'
+        runner.font.size = Pt(font_size)
+        runner.font.bold = bold
+        runner.font.italic = italic
+        last_p = p
+    return last_p
 
 def generate_content_from_gpt(prompt, language, system_message):
     """Generates content using GPT and returns it as a string."""
@@ -267,7 +280,7 @@ def create_main_content(document, topic, plan_items, page_count, language):
     system_msg = f"You are an academic assistant writing a research paper in {language}. Write a detailed, academic text of about {words_per_item} words."
     for item in main_plan_items:
         add_formatted_paragraph(document, item, font_size=14, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(12))
-        prompt = f"Mavzu: '{topic}'. Rejaning quyidagi bandi bo'yicha {words_per_item} so'z atrofida batafsil ilmiy matn yozib ber: \n{item}"
+        prompt = f"Mavzu: '{topic}'. Rejaning quyidagi bandi bo'yicha {words_per_item} so'z atrofida batafsil ilmiy matn yozib ber: \n{item}\n\nMuhim: Matn oxirida 'Xulosa', 'Hulosa', 'Conclusion' kabi bo'lim qo'shma. Faqat shu band bo'yicha asosiy matn yoz. Har bir yangi fikrni yangi avzasdan boshlash uchun \\n\\n ishlatib avzaslarni ajrat."
         item_content = generate_content_from_gpt(prompt, language, system_msg)
         add_formatted_paragraph(document, item_content)
         document.add_paragraph() # Add space
