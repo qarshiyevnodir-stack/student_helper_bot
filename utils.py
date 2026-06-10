@@ -12,6 +12,7 @@ from pptx.enum.text import MSO_AUTO_SIZE
 
 from openai import OpenAI
 import traceback
+from PIL import Image as PILImage
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -352,6 +353,30 @@ def place_image_in_placeholder(slide, ph_idx, img_path):
         logging.error(f"Rasm joylashtirish xatolik: {e}")
 
 
+def save_user_image_to_tmp(image_bytes):
+    """
+    Foydalanuvchi yuborgan rasm bytes ni /tmp ga saqlaydi.
+    Pillow bilan JPEG ga convert qiladi va sifatini saqlaydi.
+    Qaytaradi: lokal fayl yo'li yoki None.
+    """
+    if not image_bytes:
+        return None
+    try:
+        img_path = f"/tmp/user_slide_img_{random.randint(0, 999999)}.jpg"
+        img = PILImage.open(BytesIO(image_bytes))
+        # RGBA -> RGB (JPEG RGBA ni qo'llab-quvvatlamaydi)
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        img.save(img_path, 'JPEG', quality=92)
+        logging.info(f"Foydalanuvchi rasmi saqlandi: {img_path}")
+        return img_path
+    except Exception as e:
+        logging.error(f"Foydalanuvchi rasmini saqlashda xatolik: {e}")
+        return None
+
+
 # ═══════════════════════════════════════════════════════════════
 # GPT KONTENT YARATISH
 # ═══════════════════════════════════════════════════════════════
@@ -613,9 +638,13 @@ def fill_slide_5_image_left(slide, content_data, image_query):
             run.font.size = Pt(font_pt)
 
     # Rasm yuklab olish va joylashtirish
-    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
-    img_path = fetch_image(query)
-    place_image_in_placeholder(slide, 2, img_path)
+    # Agar image_query fayl yo'li bo'lsa (user_images), to'g'ridan-to'g'ri ishlatish
+    if image_query and os.path.isfile(image_query):
+        place_image_in_placeholder(slide, 2, image_query)
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+        img_path = fetch_image(query)
+        place_image_in_placeholder(slide, 2, img_path)
 
 
 def fill_slide_6_quote(slide, content_data):
@@ -716,9 +745,13 @@ def fill_slide_7_image_right(slide, content_data, image_query):
             run.font.size = Pt(font_pt)
 
     # Rasm yuklab olish va joylashtirish
-    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
-    img_path = fetch_image(query)
-    place_image_in_placeholder(slide, 2, img_path)
+    # Agar image_query fayl yo'li bo'lsa (user_images), to'g'ridan-to'g'ri ishlatish
+    if image_query and os.path.isfile(image_query):
+        place_image_in_placeholder(slide, 2, image_query)
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+        img_path = fetch_image(query)
+        place_image_in_placeholder(slide, 2, img_path)
 
 
 def fill_slide_8_conclusion(slide, conclusion_data):
@@ -912,7 +945,7 @@ def generate_all_content(topic, slide_count, language, slide_titles, slide_type_
 
 def generate_template_1_presentation(prs, topic, requested_slide_count, language,
                                        name_surname="", plan=None,
-                                       content_data_list=None):
+                                       content_data_list=None, user_images=None):
     """
     8 slaydli shablon asosida taqdimot yaratadi.
 
@@ -975,6 +1008,7 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
     fill_slide_2_plan(prs.slides[1], plan)
 
     # Slaydlar 3 dan (total_slides - 2) gacha: Kontent
+    user_img_idx = 0  # foydalanuvchi rasmlari indeksi
     for i in range(total_content_slides):
         slide_index = i + 2  # 0-indexed
         slide = prs.slides[slide_index]
@@ -988,11 +1022,23 @@ def generate_template_1_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 1:
             fill_slide_4_two_columns(slide, data)
         elif slide_type == 2:
-            fill_slide_5_image_left(slide, data, image_query)
+            # Foydalanuvchi rasmi bormi?
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_slide_5_image_left(slide, data, img_path if img_path else image_query)
+            else:
+                fill_slide_5_image_left(slide, data, image_query)
         elif slide_type == 3:
             fill_slide_6_quote(slide, data)
         elif slide_type == 4:
-            fill_slide_7_image_right(slide, data, image_query)
+            # Foydalanuvchi rasmi bormi?
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_slide_7_image_right(slide, data, img_path if img_path else image_query)
+            else:
+                fill_slide_7_image_right(slide, data, image_query)
 
         logging.info(f"  Slayd {slide_index + 1} to'ldirildi (tur {slide_type + 3}): {data.get('title', '')}")
 
@@ -1438,17 +1484,22 @@ def fill_t2_slide_7_image(slide, content_data, image_query):
 
     # Rasm: o'ng tomondagi katta GROUP shape o'rniga rasm qo'yish
     # GROUP shape koordinatalari: left=14.27sm, top=1.97sm, width=9.44sm, height=10.35sm
-    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
-    img_path = fetch_image(query)
-    if img_path:
+    from pptx.util import Cm
+    # Agar image_query fayl yo'li bo'lsa (user_images), to'g'ridan-to'g'ri ishlatish
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
-            from pptx.util import Cm
             left = Cm(14.27)
             top  = Cm(1.97)
             width = Cm(9.44)
             height = Cm(10.35)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T2] Rasm slayd 7 ga joylashtirildi.")
         except Exception as e:
             logging.error(f"[T2] Rasm joylashtirish xatolik: {e}")
@@ -1478,7 +1529,7 @@ def fill_t2_slide_8_conclusion(slide, conclusion_data):
 
 def generate_template_2_presentation(prs, topic, requested_slide_count, language,
                                       name_surname="", plan=None,
-                                      content_data_list=None):
+                                      content_data_list=None, user_images=None):
     """
     2-shablon (2.pptx) asosida taqdimot yaratadi.
     1-shablon bilan bir xil 2-bosqichli tizim bilan ishlaydi.
@@ -1536,6 +1587,7 @@ def generate_template_2_presentation(prs, topic, requested_slide_count, language
     # 3 → slayd 6: TEXT (sarlavha + katta matn)
     # 4 → slayd 7: IMAGE (rasm + matn)
 
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         slide = prs.slides[slide_index]
@@ -1552,7 +1604,12 @@ def generate_template_2_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 3:
             fill_t2_slide_6_text(slide, data)
         elif slide_type == 4:
-            fill_t2_slide_7_image(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t2_slide_7_image(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t2_slide_7_image(slide, data, image_query)
 
         logging.info(f"  [T2] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
@@ -1909,9 +1966,12 @@ def fill_t3_slide_6_image_left(slide, content_data, image_query):
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
     # Rasm placeholder (idx=2) ga rasm qo'yish
-    query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
-    img_path = fetch_image(query)
-    place_image_in_placeholder(slide, 2, img_path)
+    if image_query and os.path.isfile(image_query):
+        place_image_in_placeholder(slide, 2, image_query)
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "nature"))
+        img_path = fetch_image(query)
+        place_image_in_placeholder(slide, 2, img_path)
 
 
 def fill_t3_slide_7_quote(slide, content_data, image_query=None):
@@ -1959,10 +2019,13 @@ def fill_t3_slide_7_quote(slide, content_data, image_query=None):
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
     # O'ng tomonga rasm qo'yish (GROUP shape o'rniga)
-    query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
-    img_path = fetch_image(query)
-    if img_path:
-        from pptx.util import Inches, Emu
+    from pptx.util import Inches
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         # GROUP shape pozitsiyasi: left=4.46", top=1.24", width=4.39", height=2.93"
         left   = Inches(4.46)
         top    = Inches(1.24)
@@ -1974,7 +2037,9 @@ def fill_t3_slide_7_quote(slide, content_data, image_query=None):
                 sp = shape._element
                 sp.getparent().remove(sp)
                 break
-        slide.shapes.add_picture(img_path, left, top, width, height)
+        slide.shapes.add_picture(final_img_path, left, top, width, height)
+        if os.path.isfile(final_img_path):
+            os.remove(final_img_path)
 
 
 def fill_t3_slide_8_conclusion(slide, conclusion_data):
@@ -2027,7 +2092,7 @@ def fill_t3_slide_8_conclusion(slide, conclusion_data):
 
 def generate_template_3_presentation(prs, topic, requested_slide_count, language,
                                       name_surname="", plan=None,
-                                      content_data_list=None):
+                                      content_data_list=None, user_images=None):
     """
     3-shablon (3.pptx) asosida taqdimot yaratadi.
     1-shablon va 2-shablon bilan bir xil 2-bosqichli tizim.
@@ -2089,6 +2154,7 @@ def generate_template_3_presentation(prs, topic, requested_slide_count, language
     # 3 → slayd 6: IMAGE_LEFT (chapda rasm)
     # 4 → slayd 7: QUOTE (chapda matn, o'ngda dekorativ)
 
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         slide = prs.slides[slide_index]
@@ -2103,9 +2169,19 @@ def generate_template_3_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 2:
             fill_t3_slide_5_three_columns(slide, data)
         elif slide_type == 3:
-            fill_t3_slide_6_image_left(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t3_slide_6_image_left(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t3_slide_6_image_left(slide, data, image_query)
         elif slide_type == 4:
-            fill_t3_slide_7_quote(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t3_slide_7_quote(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t3_slide_7_quote(slide, data, image_query)
 
         logging.info(f"  [T3] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
@@ -2435,14 +2511,19 @@ def fill_t4_slide_6_image_left(slide, content_data, image_query):
         body_ph.text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
     # O'ngdagi gradient shape ustiga rasm qo'yish
-    query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "technology"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         left   = Inches(5.0)
         top    = Inches(1.53)
         width  = Inches(4.77)
         height = Inches(2.47)
-        slide.shapes.add_picture(img_path, left, top, width, height)
+        slide.shapes.add_picture(final_img_path, left, top, width, height)
+        if os.path.isfile(final_img_path):
+            os.remove(final_img_path)
 
 
 def fill_t4_slide_7_three_textboxes(slide, content_data):
@@ -2534,7 +2615,7 @@ def fill_t4_slide_8_conclusion(slide, conclusion_data):
 
 def generate_template_4_presentation(prs, topic, requested_slide_count, language,
                                       name_surname="", plan=None,
-                                      content_data_list=None):
+                                      content_data_list=None, user_images=None):
     """
     4-shablon (4.pptx) asosida taqdimot yaratadi.
     """
@@ -2577,6 +2658,7 @@ def generate_template_4_presentation(prs, topic, requested_slide_count, language
     fill_t4_slide_1_cover(prs.slides[0], topic, name_surname)
     fill_t4_slide_2_plan(prs.slides[1], plan)
 
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         slide = prs.slides[slide_index]
@@ -2591,7 +2673,12 @@ def generate_template_4_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 2:
             fill_t4_slide_5_two_columns(slide, data)
         elif slide_type == 3:
-            fill_t4_slide_6_image_left(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t4_slide_6_image_left(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t4_slide_6_image_left(slide, data, image_query)
         elif slide_type == 4:
             fill_t4_slide_7_three_textboxes(slide, data)
 
@@ -2759,9 +2846,12 @@ def fill_t5_slide_3_image_right(slide, content_data, image_query):
             tf.word_wrap = True
 
     # Rasm qo'yish (idx=1)
-    img_path = fetch_image(image_query)
-    if img_path:
-        place_image_in_placeholder(slide, 1, img_path)
+    if image_query and os.path.isfile(image_query):
+        place_image_in_placeholder(slide, 1, image_query)
+    else:
+        img_path = fetch_image(image_query)
+        if img_path:
+            place_image_in_placeholder(slide, 1, img_path)
 
 
 def fill_t5_slide_4_two_columns(slide, content_data):
@@ -2922,9 +3012,12 @@ def fill_t5_slide_6_image_right2(slide, content_data, image_query):
                 run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
 
     # Rasm qo'yish (idx=1)
-    img_path = fetch_image(image_query)
-    if img_path:
-        place_image_in_placeholder(slide, 1, img_path)
+    if image_query and os.path.isfile(image_query):
+        place_image_in_placeholder(slide, 1, image_query)
+    else:
+        img_path = fetch_image(image_query)
+        if img_path:
+            place_image_in_placeholder(slide, 1, img_path)
 
 
 def fill_t5_slide_7_two_blocks(slide, content_data):
@@ -3029,7 +3122,7 @@ def fill_t5_slide_8_conclusion(slide, conclusion_data):
 
 
 def generate_template_5_presentation(prs, topic, requested_slide_count, language,
-                                      name_surname, plan, content_data_list):
+                                      name_surname, plan, content_data_list, user_images=None):
     """
     5-shablon asosida to'liq prezentatsiya yaratadi.
     """
@@ -3044,6 +3137,7 @@ def generate_template_5_presentation(prs, topic, requested_slide_count, language
     fill_t5_slide_2_plan(prs.slides[1], plan_dict)
 
     # Kontent slaydlari (3-dan boshlab)
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         if slide_index >= len(prs.slides) - 1:
@@ -3054,13 +3148,23 @@ def generate_template_5_presentation(prs, topic, requested_slide_count, language
         slide_type = i % 5
 
         if slide_type == 0:
-            fill_t5_slide_3_image_right(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t5_slide_3_image_right(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t5_slide_3_image_right(slide, data, image_query)
         elif slide_type == 1:
             fill_t5_slide_4_two_columns(slide, data)
         elif slide_type == 2:
             fill_t5_slide_5_two_staggered(slide, data)
         elif slide_type == 3:
-            fill_t5_slide_6_image_right2(slide, data, image_query)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t5_slide_6_image_right2(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t5_slide_6_image_right2(slide, data, image_query)
         elif slide_type == 4:
             fill_t5_slide_7_two_blocks(slide, data)
         logging.info(f"  [T5] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
@@ -3210,16 +3314,20 @@ def fill_t6_slide_3_text(slide, content_data, image_query=None):
 
     # Mavzu bo'yicha rasm qo'shish (Shape[1] va Shape[2] o'rniga)
     # Shape[1]: left=6.93", top=2.43", size=5.78"x4.17" => 17.60x10.59cm
-    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(17.60)
             top  = Cm(6.17)
             width = Cm(14.69)
             height = Cm(10.59)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T6] Slayd 3 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T6] Slayd 3 rasm xatolik: {e}")
@@ -3415,16 +3523,20 @@ def fill_t6_slide_7_text(slide, content_data, image_query=None):
 
     # Mavzu bo'yicha rasm qo'shish (Shape[4] o'rniga - o'ng tomonda)
     # Shape[4]: left=6.67", top=0.00", size=6.67"x7.50" => 16.93x19.05cm
-    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(16.93)
             top  = Cm(0.00)
             width = Cm(16.93)
             height = Cm(19.05)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T6] Slayd 7 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T6] Slayd 7 rasm xatolik: {e}")
@@ -3471,7 +3583,7 @@ def fill_t6_slide_8_conclusion(slide, conclusion_data):
             run.font.color.rgb = RGBColor(0xCD, 0xD6, 0xE2)
 
 def generate_template_6_presentation(prs, topic, requested_slide_count, language,
-                                      name_surname, plan, content_data_list):
+                                      name_surname, plan, content_data_list, user_images=None):
     """
     6-shablon asosida to'liq prezentatsiya yaratadi.
     """
@@ -3487,6 +3599,7 @@ def generate_template_6_presentation(prs, topic, requested_slide_count, language
     fill_t6_slide_2_plan(prs.slides[1], plan_dict)
     
     # Kontent slaydlari (3-dan boshlab)
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         if slide_index >= len(prs.slides) - 1:
@@ -3494,10 +3607,16 @@ def generate_template_6_presentation(prs, topic, requested_slide_count, language
             
         slide = prs.slides[slide_index]
         data = content_data_list[i] if i < len(content_data_list) else {}
+        image_query = data.get("image_query", topic)
         
         slide_type = i % 5
         if slide_type == 0:
-            fill_t6_slide_3_text(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t6_slide_3_text(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t6_slide_3_text(slide, data)
         elif slide_type == 1:
             fill_t6_slide_4_text(slide, data)
         elif slide_type == 2:
@@ -3505,7 +3624,12 @@ def generate_template_6_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 3:
             fill_t6_slide_6_two_cols(slide, data)
         elif slide_type == 4:
-            fill_t6_slide_7_text(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t6_slide_7_text(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t6_slide_7_text(slide, data)
             
         logging.info(f"  [T6] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
         
@@ -3694,16 +3818,20 @@ def fill_t7_slide_3_image_left(slide, content_data, image_query=None):
 
     # Rasm: Shape[1] o'rniga (chap tomonda, to'liq balandlik)
     # Shape[1]: left=0.00cm, top=-0.03cm, size=16.09x19.11cm
-    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(0.00)
             top = Cm(0.00)
             width = Cm(16.09)
             height = Cm(19.05)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T7] Slayd 3 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T7] Slayd 3 rasm xatolik: {e}")
@@ -3964,16 +4092,20 @@ def fill_t7_slide_7_image_right(slide, content_data, image_query=None):
 
     # Rasm: Shape[2] o'rniga (o'ng tomonda, to'liq balandlik)
     # Shape[2]: left=16.93cm, top=0.00cm, size=17.00x19.05cm
-    query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", content_data.get("title", "presentation"))
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(16.93)
             top = Cm(0.00)
             width = Cm(17.00)
             height = Cm(19.05)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T7] Slayd 7 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T7] Slayd 7 rasm xatolik: {e}")
@@ -4035,7 +4167,7 @@ def fill_t7_slide_8_conclusion(slide, conclusion_data):
 
 
 def generate_template_7_presentation(prs, topic, requested_slide_count, language,
-                                      name_surname, plan, content_data_list):
+                                      name_surname, plan, content_data_list, user_images=None):
     """
     7-shablon asosida to'liq prezentatsiya yaratadi.
     """
@@ -4051,6 +4183,7 @@ def generate_template_7_presentation(prs, topic, requested_slide_count, language
     fill_t7_slide_2_plan(prs.slides[1], plan_dict)
 
     # Kontent slaydlari (3-dan boshlab)
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         if slide_index >= len(prs.slides) - 1:
@@ -4058,10 +4191,16 @@ def generate_template_7_presentation(prs, topic, requested_slide_count, language
 
         slide = prs.slides[slide_index]
         data = content_data_list[i] if i < len(content_data_list) else {}
+        image_query = data.get("image_query", topic)
 
         slide_type = i % 5
         if slide_type == 0:
-            fill_t7_slide_3_image_left(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t7_slide_3_image_left(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t7_slide_3_image_left(slide, data)
         elif slide_type == 1:
             fill_t7_slide_4_text(slide, data)
         elif slide_type == 2:
@@ -4069,7 +4208,12 @@ def generate_template_7_presentation(prs, topic, requested_slide_count, language
         elif slide_type == 3:
             fill_t7_slide_6_special(slide, data)
         elif slide_type == 4:
-            fill_t7_slide_7_image_right(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t7_slide_7_image_right(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t7_slide_7_image_right(slide, data)
 
         logging.info(f"  [T7] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
 
@@ -4267,16 +4411,20 @@ def fill_t8_slide_3_image_right(slide, content_data, image_query=None):
             txBody.append(p_elem)
 
     # Rasm: Shape[2] o'rniga (o'ng tomonda)
-    query = image_query or content_data.get("image_query", title)
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(18.0)
             top = Cm(2.56)
             width = Cm(15.87)
             height = Cm(13.97)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T8] Slayd 3 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T8] Slayd 3 rasm xatolik: {e}")
@@ -4392,16 +4540,20 @@ def fill_t8_slide_5_image_right2(slide, content_data, image_query=None):
             txBody.append(p_elem)
 
     # Rasm: Shape[2] o'rniga (o'ng tomonda)
-    query = image_query or content_data.get("image_query", title)
-    img_path = fetch_image(query)
-    if img_path:
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
         try:
             left = Cm(18.0)
             top = Cm(2.56)
             width = Cm(15.87)
             height = Cm(13.97)
-            slide.shapes.add_picture(img_path, left, top, width, height)
-            os.remove(img_path)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
             logging.info(f"[T8] Slayd 5 rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T8] Slayd 5 rasm xatolik: {e}")
@@ -4623,7 +4775,7 @@ def fill_t8_slide_8_conclusion(slide, conclusion_data):
 
 
 def generate_template_8_presentation(prs, topic, requested_slide_count, language,
-                                      name_surname, plan, content_data_list):
+                                      name_surname, plan, content_data_list, user_images=None):
     """
     8-shablon asosida to'liq prezentatsiya yaratadi.
     """
@@ -4639,6 +4791,7 @@ def generate_template_8_presentation(prs, topic, requested_slide_count, language
     fill_t8_slide_2_plan(prs.slides[1], plan_dict)
 
     # Kontent slaydlari (3-dan boshlab)
+    user_img_idx = 0
     for i in range(total_content_slides):
         slide_index = i + 2
         if slide_index >= len(prs.slides) - 1:
@@ -4646,14 +4799,25 @@ def generate_template_8_presentation(prs, topic, requested_slide_count, language
 
         slide = prs.slides[slide_index]
         data = content_data_list[i] if i < len(content_data_list) else {}
+        image_query = data.get("image_query", topic)
 
         slide_type = i % 5
         if slide_type == 0:
-            fill_t8_slide_3_image_right(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t8_slide_3_image_right(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t8_slide_3_image_right(slide, data)
         elif slide_type == 1:
             fill_t8_slide_4_title_left(slide, data)
         elif slide_type == 2:
-            fill_t8_slide_5_image_right2(slide, data)
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                fill_t8_slide_5_image_right2(slide, data, img_path if img_path else image_query)
+            else:
+                fill_t8_slide_5_image_right2(slide, data)
         elif slide_type == 3:
             fill_t8_slide_6_two_cols(slide, data)
         elif slide_type == 4:

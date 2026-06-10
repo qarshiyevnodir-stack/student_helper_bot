@@ -20,6 +20,7 @@ from utils import (
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
+    save_user_image_to_tmp,
     SLIDE_TYPE_NAMES,
     SLIDE_TYPE_NAMES_T3,
     SLIDE_TYPE_NAMES_T4,
@@ -115,15 +116,15 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Slayd yaratish
 # ─────────────────────────────────────────────
-(
-    LANGUAGE_SELECTION,  # 0 — til tanlash
+(    LANGUAGE_SELECTION,  # 0 — til tanlash
     TOPIC,               # 1 — mavzu kiritish
     NAME_SURNAME,        # 2 — ism-familiya
     SLIDE_COUNT,         # 3 — slayd soni
     PLAN_CONFIRMATION,   # 4 — reja tasdiqlash
     TEMPLATE_SELECT,     # 5 — shablon tanlash
-    IMAGE_CONFIRM,       # 6 — rasmlarni tasdiqlash
-) = range(7)
+    IMAGE_SOURCE_SELECT, # 6 — rasm manbai tanlash (o'z rasmlari yoki avtomatik)
+    USER_IMAGE_COLLECT,  # 7 — foydalanuvchi rasmlarini qabul qilish
+) = range(8)
 
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Mustaqil ish
@@ -1582,48 +1583,32 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "template_generate_func_name": template_num,
         }
 
-        # Rasmlarni content_data_list dan olish
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="⏳ Taqdimot tayyor! Rasmlar yuklanmoqda...",
-        )
-
         context.user_data["pending_image_queries"] = image_queries
         context.user_data["pending_preview_urls"] = preview_urls
+        context.user_data["collected_user_images"] = []  # foydalanuvchi rasmlari uchun
 
-        if not preview_urls:
-            # Rasmlar yo'q — to'g'ridan-to'g'ri yuborish
+        if not image_queries:
+            # Rasm joyi yo'q — to'g'ridan-to'g'ri yuborish
+            await context.bot.send_message(chat_id=chat_id, text="⏳ Taqdimot yuborilmoqda...")
             await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
             return ConversationHandler.END
 
-        # Rasmlarni foydalanuvchiga ko'rsatish
-        from telegram import InputMediaPhoto
-        media_group = []
-        for i, (q, url) in enumerate(preview_urls[:10]):
-            caption = f"🖼 Slayd {i+1}: {q}" if i == 0 else None
-            media_group.append(InputMediaPhoto(media=url, caption=caption))
-
-        try:
-            await context.bot.send_media_group(chat_id=chat_id, media=media_group)
-        except Exception as img_err:
-            logger.warning(f"Media group yuborishda xatolik: {img_err}")
-
-        confirm_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Rasmlar yoqdi — Taqdimotni yuborish", callback_data="img_confirm_yes")],
-            [InlineKeyboardButton("🔄 Rasmlarni qayta tanlash", callback_data="img_confirm_retry")],
+        # Foydalanuvchiga rasm manbai tanlash imkonini berish
+        source_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🖼 O'z rasmlarimdan foydalanish", callback_data="img_source_user")],
+            [InlineKeyboardButton("🤖 Rasmlarni avtomatik tanlash", callback_data="img_source_auto")],
         ])
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"🖼 *Sizning taqdimotingiz uchun rasmlar*\n\n"
-                f"📊 Jami: {len(preview_urls)} ta rasm\n"
-                f"Rasmlar taqdimotdagi slaydlarga mos ravishda tanlanadi.\n\n"
-                f"Rasmlar yoqdimi?"
+                f"🖼 *Taqdimot uchun rasmlar*\n\n"
+                f"📊 Bu shablonda *{len(image_queries)} ta rasm joyi* bor.\n\n"
+                f"Qanday rasm ishlatmoqchisiz?"
             ),
-            reply_markup=confirm_keyboard,
+            reply_markup=source_keyboard,
             parse_mode="Markdown"
         )
-        return IMAGE_CONFIRM
+        return IMAGE_SOURCE_SELECT
 
     except Exception as e:
         logger.error(f"Prezentatsiya yaratishda xatolik: {e}")
@@ -1675,13 +1660,13 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
     )
 
 
-async def image_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Foydalanuvchi rasmlarni tasdiqladi yoki qayta tanlash so'radi."""
+async def image_source_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Foydalanuvchi rasm manbai tanladi: o'z rasmlari yoki avtomatik."""
     query = update.callback_query
     await query.answer()
     chat_id = query.message.chat_id
     user_id = query.from_user.id
-    action = query.data  # img_confirm_yes yoki img_confirm_retry
+    action = query.data  # img_source_user yoki img_source_auto
 
     pending = context.user_data.get("pending_presentation", {})
     presentation_bytes = pending.get("bytes")
@@ -1689,71 +1674,149 @@ async def image_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TY
     topic = context.user_data.get("topic", "")
     slide_count = context.user_data.get("slide_count", 5)
     price = SERVICE_PRICES['slayd']
+    image_queries = context.user_data.get("pending_image_queries", [])
 
-    if action == "img_confirm_yes":
-        # Tasdiqlandi — taqdimotni yuborish
-        await query.edit_message_text("⏳ Taqdimot yuborilmoqda...")
+    if action == "img_source_auto":
+        # Avtomatik rasm tanlash — taqdimotni to'g'ridan-to'g'ri yuborish
+        await query.edit_message_text("⏳ Rasmlar avtomatik tanlanmoqda va taqdimot yuborilmoqda...")
         await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
         return ConversationHandler.END
 
-    elif action == "img_confirm_retry":
-        # Qayta rasm tanlash
-        await query.edit_message_text("🔄 Yangi rasmlar qidirilmoqda...")
-        image_queries = context.user_data.get("pending_image_queries", [])
-        if not image_queries:
-            await context.bot.send_message(chat_id=chat_id, text="❌ Rasmlar topilmadi. Taqdimot yuborilmoqda...")
-            await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
-            return ConversationHandler.END
-
-        # Yangi rasmlar olish - PARALLEL (har safar boshqacha natija uchun random)
-        async def fetch_retry_preview(q):
-            urls = await asyncio.get_event_loop().run_in_executor(
-                None, lambda qq=q: fetch_image_preview_urls(qq, count=4)
-            )
-            if urls:
-                return (q, random.choice(urls))
-            return None
-
-        retry_results = await asyncio.gather(
-            *[fetch_retry_preview(q) for q in image_queries],
-            return_exceptions=True
-        )
-        preview_urls = [r for r in retry_results if r is not None and not isinstance(r, Exception)]
-
-        context.user_data["pending_preview_urls"] = preview_urls
-
-        if not preview_urls:
-            await context.bot.send_message(chat_id=chat_id, text="❌ Yangi rasmlar topilmadi. Taqdimot yuborilmoqda...")
-            await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
-            return ConversationHandler.END
-
-        from telegram import InputMediaPhoto
-        media_group = []
-        for i, (q, url) in enumerate(preview_urls[:10]):
-            caption = f"🖼 Slayd {i+1}: {q}" if i == 0 else None
-            media_group.append(InputMediaPhoto(media=url, caption=caption))
-
-        try:
-            await context.bot.send_media_group(chat_id=chat_id, media=media_group)
-        except Exception as img_err:
-            logger.warning(f"Media group yuborishda xatolik: {img_err}")
-
-        confirm_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Rasmlar yoqdi — Taqdimotni yuborish", callback_data="img_confirm_yes")],
-            [InlineKeyboardButton("🔄 Rasmlarni qayta tanlash", callback_data="img_confirm_retry")],
-        ])
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=(
-                f"🖼 *Yangi rasmlar*\n\n"
-                f"📊 Jami: {len(preview_urls)} ta rasm\n"
-                f"Rasmlar yoqdimi?"
-            ),
-            reply_markup=confirm_keyboard,
+    elif action == "img_source_user":
+        # Foydalanuvchi o'z rasmlarini yuborishi kerak
+        context.user_data["collected_user_images"] = []
+        img_count = len(image_queries)
+        await query.edit_message_text(
+            f"🖼 *O'z rasmlaringizni yuboring*\n\n"
+            f"Bu shablonda *{img_count} ta rasm joyi* bor.\n"
+            f"Iltimos, *{img_count} ta rasm* yuboring (tartib bilan).\n\n"
+            f"Rasmlar yuborilgandan so'ng taqdimot avtomatik yaratiladi.\n"
+            f"Yoki /skip buyrug'i bilan avtomatik rasmlardan foydalaning.",
             parse_mode="Markdown"
         )
-        return IMAGE_CONFIRM
+        return USER_IMAGE_COLLECT
 
+    return ConversationHandler.END
+
+
+async def user_image_collect_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Foydalanuvchi rasmlarini qabul qiladi va to'plangan rasmlar soni yetarli bo'lsa taqdimot yaratadi."""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    pending = context.user_data.get("pending_presentation", {})
+    presentation_bytes = pending.get("bytes")
+    filename = pending.get("filename", "taqdimot.pptx")
+    topic = context.user_data.get("topic", "")
+    slide_count = context.user_data.get("slide_count", 5)
+    price = SERVICE_PRICES['slayd']
+    image_queries = context.user_data.get("pending_image_queries", [])
+    collected = context.user_data.get("collected_user_images", [])
+    img_count = len(image_queries)
+
+    # /skip buyrug'i — avtomatik rasmlardan foydalanish
+    if update.message and update.message.text and update.message.text.strip().lower() in ["/skip", "skip"]:
+        await update.message.reply_text("⏳ Avtomatik rasmlar bilan taqdimot yuborilmoqda...")
+        await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
+        return ConversationHandler.END
+
+    # Rasm qabul qilish
+    if update.message and update.message.photo:
+        photo = update.message.photo[-1]  # Eng yuqori sifatli rasm
+        file = await context.bot.get_file(photo.file_id)
+        file_bytes = await file.download_as_bytearray()
+        collected.append(bytes(file_bytes))
+        context.user_data["collected_user_images"] = collected
+
+        received = len(collected)
+        remaining = img_count - received
+
+        if received >= img_count:
+            # Yetarli rasm to'plandi — taqdimotni qayta yaratish va yuborish
+            await update.message.reply_text(
+                f"✅ {received} ta rasm qabul qilindi!\n⏳ Taqdimot rasmlar bilan yaratilmoqda..."
+            )
+            # Taqdimotni user_images bilan qayta yaratish
+            await _rebuild_and_send_presentation_with_user_images(update, context, chat_id, user_id, topic, slide_count, price, filename, collected)
+            return ConversationHandler.END
+        else:
+            await update.message.reply_text(
+                f"✅ {received}/{img_count} rasm qabul qilindi. Yana *{remaining} ta* rasm yuboring.",
+                parse_mode="Markdown"
+            )
+            return USER_IMAGE_COLLECT
+    else:
+        await update.message.reply_text(
+            f"❌ Iltimos, rasm yuboring (hozircha {len(collected)}/{img_count} ta qabul qilindi).\n"
+            f"Yoki /skip buyrug'i bilan avtomatik rasmlardan foydalaning."
+        )
+        return USER_IMAGE_COLLECT
+
+
+async def _rebuild_and_send_presentation_with_user_images(
+    update, context, chat_id, user_id, topic, slide_count, price, filename, user_images_bytes
+):
+    """Foydalanuvchi rasmlari bilan taqdimotni qayta yaratadi va yuboradi."""
+    pending = context.user_data.get("pending_presentation", {})
+    template_num = pending.get("template_num", 1)
+    content_data_list = pending.get("content_data_list", [])
+    name_surname = context.user_data.get("name_surname", "")
+    language = context.user_data.get("language", "uz")
+    stage1 = context.user_data.get("stage1_result", {})
+    plan_items = stage1.get("plan", [])
+    plan_dict = {"title": "Reja", "content": plan_items}
+
+    template_generate_func = {
+        1: generate_template_1_presentation,
+        2: generate_template_2_presentation,
+        3: generate_template_3_presentation,
+        4: generate_template_4_presentation,
+        5: generate_template_5_presentation,
+        6: generate_template_6_presentation,
+        7: generate_template_7_presentation,
+        8: generate_template_8_presentation,
+    }.get(template_num, generate_template_1_presentation)
+
+    try:
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
+        prs = Presentation(template_path)
+
+        presentation_bytes = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: template_generate_func(
+                prs=prs,
+                topic=topic,
+                requested_slide_count=slide_count,
+                language=language,
+                name_surname=name_surname,
+                plan=plan_dict,
+                content_data_list=content_data_list,
+                user_images=user_images_bytes,
+            )
+        )
+
+        if isinstance(presentation_bytes, Exception):
+            raise presentation_bytes
+
+        # BytesIO bo'lsa bytes ga aylantirish
+        if hasattr(presentation_bytes, 'read'):
+            presentation_bytes = presentation_bytes.read()
+
+        await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
+
+    except Exception as e:
+        logger.error(f"User images bilan taqdimot yaratishda xatolik: {e}")
+        # Fallback: eski taqdimotni yuborish
+        old_bytes = pending.get("bytes")
+        if old_bytes:
+            await update.effective_message.reply_text("⚠️ Rasmlar bilan xatolik yuz berdi. Avtomatik rasmlar bilan yuborilmoqda...")
+            await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, old_bytes, filename)
+        else:
+            await update.effective_message.reply_text(f"❌ Xatolik: {str(e)}")
+
+
+async def image_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Eski IMAGE_CONFIRM handler — endi ishlatilmaydi, lekin ConversationHandler uchun saqlanadi."""
     return ConversationHandler.END
 
 
@@ -6586,8 +6649,14 @@ def main() -> None:
                 CallbackQueryHandler(template_selected, pattern=r"^template_select_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
-            IMAGE_CONFIRM: [
-                CallbackQueryHandler(image_confirm_handler, pattern=r"^img_confirm_"),
+            IMAGE_SOURCE_SELECT: [
+                CallbackQueryHandler(image_source_handler, pattern=r"^img_source_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            USER_IMAGE_COLLECT: [
+                MessageHandler(filters.PHOTO, user_image_collect_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, user_image_collect_handler),
+                CommandHandler("skip", user_image_collect_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Mustaqil ish holatlari ──
