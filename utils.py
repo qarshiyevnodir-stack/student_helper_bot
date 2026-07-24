@@ -6149,7 +6149,7 @@ def fill_t11_slide_1_cover(slide, topic, name_surname):
         tf.clear()
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT
+        p.alignment = PP_ALIGN.RIGHT
         run = p.add_run()
         run.text = topic.upper() if topic else "TAQDIMOT"
         font_pt = calc_body_font_pt(len(topic), base_pt=32, min_pt=18, max_pt=40)
@@ -6159,12 +6159,10 @@ def fill_t11_slide_1_cover(slide, topic, name_surname):
         tf = slide.shapes[1].text_frame
         tf.clear()
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT
+        p.alignment = PP_ALIGN.RIGHT
         run = p.add_run()
         run.text = name_surname if name_surname else ""
         run.font.size = Pt(14)
-
-
 def fill_t11_slide_2_plan(slide, plan_data):
     """
     11-Shablon Slayd 2 — Reja.
@@ -6229,12 +6227,12 @@ def fill_t11_slide_3_two_text(slide, content_data, image_query=None):
         tf.clear()
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.RIGHT
+        p.alignment = PP_ALIGN.LEFT
         run = p.add_run()
         run.text = title
         run.font.size = Pt(24)
         run.font.bold = True
-    # Matn blok 1 (yuqori) va 2 (pastki) — ikkalasi ham o'ng tekislash
+    # Matn blok 1 (yuqori) va 2 (pastki) — ikkalasi ham chap tekislash
     half = max(1, len(items) // 2)
     items1 = items[:half]
     items2 = items[half:]
@@ -6253,7 +6251,7 @@ def fill_t11_slide_3_two_text(slide, content_data, image_query=None):
                 safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 p_xml = (
                     f'<a:p xmlns:a="{ns_a}">'
-                    f'<a:pPr algn="r" marL="0" indent="0"><a:buNone/></a:pPr>'
+                    f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                     f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                     f'<a:t>{safe_item}</a:t></a:r></a:p>'
                 )
@@ -6469,12 +6467,14 @@ def fill_t11_slide_6_title_body(slide, content_data, image_query=None):
 
 def fill_t11_slide_7_four_blocks(slide, content_data, image_query=None):
     """
-    11-Shablon Slayd 7 (CUSTOM_15) — Sarlavha + 4 ta matn bloki (infografika).
+    11-Shablon Slayd 7 (CUSTOM_15) — Sarlavha + 2 ta matn bloki (chap va o'ng).
+    Faqat 2 ta matn bloki ishlatiladi: chap va o'ng.
+    Bo'sh 2 ta blok (pastki) o'chiriladi, matn joylashgan 2 ta blok 3sm pastga siljiydi.
     Shape[0]: Sarlavha (TITLE idx=0): left=1.0372, top=1.4637, w=23.5797, h=1.5908
-    Shape[1]: Blok 1 chap yuqori (SUBTITLE idx=2): left=2.2733, top=4.5665, w=6.3651, h=3.1115
-    Shape[2]: Blok 2 chap pastki (SUBTITLE idx=3): left=2.2733, top=9.1185, w=6.3651, h=3.7053
-    Shape[3]: Blok 3 o'ng yuqori (SUBTITLE idx=5): left=17.0245, top=4.5665, w=6.3651, h=3.1115
-    Shape[4]: Blok 4 o'ng pastki (SUBTITLE idx=7): left=17.0245, top=9.1185, w=6.3651, h=3.7053
+    Shape[1]: Blok 1 chap (SUBTITLE idx=2): left=2.2733, top=4.5665 -> 7.5665, w=6.3651, h=3.1115
+    Shape[2]: Blok 2 chap pastki (SUBTITLE idx=3): O'CHIRILADI
+    Shape[3]: Blok 3 o'ng (SUBTITLE idx=5): left=17.0245, top=4.5665 -> 7.5665, w=6.3651, h=3.1115
+    Shape[4]: Blok 4 o'ng pastki (SUBTITLE idx=7): O'CHIRILADI
     """
     from pptx.util import Pt
     from pptx.enum.text import PP_ALIGN
@@ -6495,49 +6495,72 @@ def fill_t11_slide_7_four_blocks(slide, content_data, image_query=None):
         run.text = title
         run.font.size = Pt(26)
         run.font.bold = True
-    # 4 ta blokga matnni teng taqsimlash
-    # Agar items 4 ta yoki ko'p bo'lsa - har bir blokka 1 ta
-    # Agar 4 tadan kam bo'lsa - birinchi bloklarga yozish
-    block_items = [[], [], [], []]
-    if len(items) >= 4:
-        # Har bir blokka bitta element (qolganlarini birinchi blokka qo'shish)
-        block_items[0] = items[0:1]
-        block_items[1] = items[1:2]
-        block_items[2] = items[2:3]
-        block_items[3] = items[3:4]
-        # Agar 4 tadan ko'p bo'lsa, qolganlarni birinchi blokka qo'shish
-        if len(items) > 4:
-            block_items[0] = items[0:1]
-            block_items[1] = items[1:2]
-            block_items[2] = items[2:3]
-            block_items[3] = items[3:]
-    elif len(items) == 3:
-        block_items = [items[0:1], items[1:2], items[2:3], []]
-    elif len(items) == 2:
-        block_items = [items[0:1], [], items[1:2], []]
-    elif len(items) == 1:
-        block_items = [items[0:1], [], [], []]
-    # Blok indekslari: Shape[1], Shape[2], Shape[3], Shape[4]
-    for shape_idx, b_items in zip([1, 2, 3, 4], block_items):
-        if len(slide.shapes) > shape_idx and slide.shapes[shape_idx].has_text_frame:
-            tf = slide.shapes[shape_idx].text_frame
-            tf.word_wrap = True
-            total_chars = sum(len(s) for s in b_items) if b_items else 0
-            font_pt = calc_body_font_pt(total_chars, base_pt=13, min_pt=10, max_pt=16)
-            txBody = tf._txBody
-            for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-                lst.clear()
-            for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-                txBody.remove(p_elem)
-            for item in b_items:
-                safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                p_xml = (
-                    f'<a:p xmlns:a="{ns_a}">'
-                    f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
-                    f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
-                    f'<a:t>{safe_item}</a:t></a:r></a:p>'
-                )
-                txBody.append(etree.fromstring(p_xml))
+    from pptx.util import Cm, Emu
+    # Pastki 2 ta blokni (Shape[2] idx=3 va Shape[4] idx=7) o'chirish
+    # Placeholder idx=3 va idx=7 ni topib o'chirish
+    shapes_to_remove = []
+    for s in slide.shapes:
+        if s.is_placeholder and s.placeholder_format.idx in [3, 7]:
+            shapes_to_remove.append(s)
+    for s in shapes_to_remove:
+        sp = s._element
+        sp.getparent().remove(sp)
+    # Yuqori 2 ta blokni (idx=2 va idx=5) 3sm pastga siljitish
+    # va matn yozish
+    # Chap blok (idx=2) va o'ng blok (idx=5)
+    shift_emu = int(3.0 * 914400 / 2.54)  # 3sm EMU ga
+    left_items = items[:max(1, len(items)//2)] if items else []
+    right_items = items[max(1, len(items)//2):] if len(items) > 1 else []
+    for s in slide.shapes:
+        if not s.is_placeholder:
+            continue
+        ph_idx = s.placeholder_format.idx
+        if ph_idx == 2:  # Chap yuqori blok
+            # 3sm pastga siljitish
+            s.top = s.top + shift_emu
+            # Matn yozish
+            if s.has_text_frame:
+                tf = s.text_frame
+                tf.word_wrap = True
+                total_chars = sum(len(x) for x in left_items)
+                font_pt = calc_body_font_pt(total_chars, base_pt=13, min_pt=10, max_pt=16)
+                txBody = tf._txBody
+                for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+                    lst.clear()
+                for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+                    txBody.remove(p_elem)
+                for item in left_items:
+                    safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    p_xml = (
+                        f'<a:p xmlns:a="{ns_a}">'
+                        f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
+                        f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                        f'<a:t>{safe_item}</a:t></a:r></a:p>'
+                    )
+                    txBody.append(etree.fromstring(p_xml))
+        elif ph_idx == 5:  # O'ng yuqori blok
+            # 3sm pastga siljitish
+            s.top = s.top + shift_emu
+            # Matn yozish
+            if s.has_text_frame:
+                tf = s.text_frame
+                tf.word_wrap = True
+                total_chars = sum(len(x) for x in right_items)
+                font_pt = calc_body_font_pt(total_chars, base_pt=13, min_pt=10, max_pt=16)
+                txBody = tf._txBody
+                for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+                    lst.clear()
+                for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+                    txBody.remove(p_elem)
+                for item in right_items:
+                    safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    p_xml = (
+                        f'<a:p xmlns:a="{ns_a}">'
+                        f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
+                        f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                        f'<a:t>{safe_item}</a:t></a:r></a:p>'
+                    )
+                    txBody.append(etree.fromstring(p_xml))
 
 
 def fill_t11_slide_8_conclusion(slide, content_data):
