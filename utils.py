@@ -5694,10 +5694,10 @@ def fill_t10_slide_3_image_full_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(-0.67)
-            top = Cm(0.49)
-            width = Cm(14.50)
-            height = Cm(13.17)
+            left = Cm(-0.6659)
+            top = Cm(0.4943)
+            width = Cm(14.5020)
+            height = Cm(13.1703)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
@@ -5843,10 +5843,10 @@ def fill_t10_slide_5_image_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(1.27)
-            top = Cm(2.80)
-            width = Cm(10.30)
-            height = Cm(9.19)
+            left = Cm(3.2663)
+            top = Cm(2.7973)
+            width = Cm(6.9250)
+            height = Cm(9.1867)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
@@ -5921,10 +5921,10 @@ def fill_t10_slide_6_small_image_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(1.27)
-            top = Cm(3.34)
-            width = Cm(6.50)
-            height = Cm(9.28)
+            left = Cm(2.6635)
+            top = Cm(3.9813)
+            width = Cm(3.6117)
+            height = Cm(7.3583)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
@@ -5999,10 +5999,10 @@ def fill_t10_slide_7_image_right(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(1.79)
-            top = Cm(3.39)
-            width = Cm(9.88)
-            height = Cm(9.22)
+            left = Cm(1.7895)
+            top = Cm(3.9003)
+            width = Cm(8.7675)
+            height = Cm(5.4633)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
