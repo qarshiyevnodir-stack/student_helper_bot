@@ -5055,6 +5055,21 @@ def fill_t9_slide_3_three_cols(slide, content_data):
             )
             txBody.append(etree.fromstring(p_xml))
 
+    # Sarlavha TextBox qo'shish (yuqori qismga, 3 ustundan yuqorida)
+    if title:
+        from pptx.util import Cm, Pt as _Pt
+        from pptx.dml.color import RGBColor
+        txBox = slide.shapes.add_textbox(Cm(2.91), Cm(0.5), Cm(19.58), Cm(2.5))
+        tf_title = txBox.text_frame
+        tf_title.word_wrap = True
+        p_title = tf_title.paragraphs[0]
+        p_title.alignment = PP_ALIGN.LEFT
+        run_title = p_title.add_run()
+        run_title.text = title
+        run_title.font.size = _Pt(28)
+        run_title.font.bold = True
+        run_title.font.color.rgb = RGBColor(0xFF, 0xA5, 0x00)  # To'q sariq rang (shablon rangiga mos)
+
     # Shablon: Shape[2]=chap(idx=5), Shape[0]=o'rta(idx=1), Shape[1]=o'ng(idx=3)
     write_col(slide.shapes[2] if len(slide.shapes) > 2 else None, col1_items)
     write_col(slide.shapes[0] if len(slide.shapes) > 0 else None, col2_items)
