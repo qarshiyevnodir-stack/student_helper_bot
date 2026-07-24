@@ -1413,9 +1413,17 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     name_surname = context.user_data.get("name_surname", "")
     user_id      = query.from_user.id
     price        = SERVICE_PRICES['slayd']
-    await query.edit_message_caption(
-        caption=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
-    )
+    try:
+        await query.edit_message_caption(
+            caption=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
+        )
+    except Exception:
+        try:
+            await query.edit_message_text(
+                text=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
+            )
+        except Exception:
+            pass
     stage1 = context.user_data.get("stage1_result", {})
     plan_items   = stage1.get("plan", [])
     slide_titles = stage1.get("slide_titles", [])
