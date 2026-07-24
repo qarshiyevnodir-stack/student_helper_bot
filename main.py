@@ -17,6 +17,7 @@ from utils import (
     generate_template_6_presentation,
     generate_template_7_presentation,
     generate_template_8_presentation,
+    generate_template_9_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -28,6 +29,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T6,
     SLIDE_TYPE_NAMES_T7,
     SLIDE_TYPE_NAMES_T8,
+    SLIDE_TYPE_NAMES_T9,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1374,83 +1376,27 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
-      # ── Shablon tanlash sahifasiga o'tish ──
-    await query.edit_message_text(
-        text="✅ Reja tasdiqlandi!\n\n🎨 Endi taqdimot shablonini tanlang:",
-        parse_mode="Markdown"
-    )
+    # ── Faqat 9-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # Collage rasm + tugmalar yuborish
+    # 9-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    collage_path = os.path.join(previews_dir, "collage.png")
-    # Agar collage yo'q bo'lsa, yaratib olamiz
-    if not os.path.exists(collage_path):
-        try:
-            from PIL import Image, ImageDraw, ImageFont
-            THUMB_W, THUMB_H, GAP = 480, 270, 8
-            BG_COLOR = (30, 30, 30)
-            thumbs = []
-            for _i in range(1, 9):
-                _p = os.path.join(previews_dir, f"{_i}.png")
-                if os.path.exists(_p):
-                    _img = Image.open(_p).convert("RGB").resize((THUMB_W, THUMB_H), Image.LANCZOS)
-                    thumbs.append(_img)
-            cols = 2
-            rows = (len(thumbs) + 1) // 2
-            total_w = cols * THUMB_W + (cols + 1) * GAP
-            total_h = rows * THUMB_H + (rows + 1) * GAP
-            collage = Image.new("RGB", (total_w, total_h), BG_COLOR)
-            positions = []
-            for _row in range(rows):
-                for _col in range(cols):
-                    _x = GAP + _col * (THUMB_W + GAP)
-                    _y = GAP + _row * (THUMB_H + GAP)
-                    positions.append((_x, _y))
-            for _idx, (_img, (_x, _y)) in enumerate(zip(thumbs, positions)):
-                collage.paste(_img, (_x, _y))
-            draw = ImageDraw.Draw(collage)
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
-            except:
-                font = ImageFont.load_default()
-            for _idx, (_x, _y) in enumerate(positions[:len(thumbs)]):
-                draw.text((_x+10, _y+10), str(_idx+1), font=font, fill=(0,0,0))
-                draw.text((_x+8, _y+8), str(_idx+1), font=font, fill=(255,255,255))
-            collage.save(collage_path, "PNG")
-        except Exception as _e:
-            logger.warning(f"Collage yaratishda xato: {_e}")
-    # Tugmalar: 2+2+1 formatida
+    preview_9_path = os.path.join(previews_dir, "9.png")
     keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("1️⃣ Klassik",    callback_data="template_select_1"),
-            InlineKeyboardButton("2️⃣ Minimal",    callback_data="template_select_2"),
-        ],
-        [
-            InlineKeyboardButton("3️⃣ Qorong'i",   callback_data="template_select_3"),
-            InlineKeyboardButton("4️⃣ Zamonaviy",  callback_data="template_select_4"),
-        ],
-        [
-            InlineKeyboardButton("5️⃣ Silliq",     callback_data="template_select_5"),
-            InlineKeyboardButton("6️⃣ Elegant",    callback_data="template_select_6"),
-        ],
-        [
-            InlineKeyboardButton("7️⃣ Klassik 2",  callback_data="template_select_7"),
-            InlineKeyboardButton("8️⃣ Biznes",     callback_data="template_select_8"),
-        ],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_9")],
     ])
-    if os.path.exists(collage_path):
-        with open(collage_path, "rb") as f:
+    if os.path.exists(preview_9_path):
+        with open(preview_9_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🎨 *Shablonni tanlang:*\n\nRasm ustidagi raqamga qarab tugmani bosing.",
+                caption="🎨 *Futuristic shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🎨 *Shablonni tanlang:*",
+            text="🎨 *Futuristic shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1485,6 +1431,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         6: SLIDE_TYPE_NAMES_T6,
         7: SLIDE_TYPE_NAMES_T7,
         8: SLIDE_TYPE_NAMES_T8,
+        9: SLIDE_TYPE_NAMES_T9,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1495,6 +1442,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         6: generate_template_6_presentation,
         7: generate_template_7_presentation,
         8: generate_template_8_presentation,
+        9: generate_template_9_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1526,6 +1474,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             6: [],
             7: [0, 4],
             8: [0, 2],
+            9: [1, 2, 3, 4],  # T9: slayd 4,5,6,7 da rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
@@ -1775,7 +1724,8 @@ async def _rebuild_and_send_presentation_with_user_images(
         6: generate_template_6_presentation,
         7: generate_template_7_presentation,
         8: generate_template_8_presentation,
-    }.get(template_num, generate_template_1_presentation)
+        9: generate_template_9_presentation,
+    }.get(template_num, generate_template_9_presentation)
 
     try:
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
@@ -6186,7 +6136,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_bal_add":
         await query.edit_message_text(
             "➕ *Balans qo'shish*\n\n"
-            "Foydalanuvchi ID va *qo'shish miqdorini* yuboring\:\n"
+            "Foydalanuvchi ID va *qo'shish miqdorini* yuboring:\n"
             "Format: `user_id miqdor`\n"
             "Masalan: `123456789 10000`\n\n"
             "⚠️ Bu amal mavjud balansga *qo'shadi*!",
@@ -6197,7 +6147,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_bal_set":
         await query.edit_message_text(
             "⚙️ *Balans o'rnatish*\n\n"
-            "Foydalanuvchi ID va *yangi balans miqdorini* yuboring\:\n"
+            "Foydalanuvchi ID va *yangi balans miqdorini* yuboring:\n"
             "Format: `user_id yangi_miqdor`\n"
             "Masalan: `123456789 25000`\n\n"
             "⚠️ Bu amal mavjud balansni *to'liq almashtiradi*!",

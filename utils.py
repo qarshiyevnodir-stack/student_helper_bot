@@ -4836,3 +4836,563 @@ def generate_template_8_presentation(prs, topic, requested_slide_count, language
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ═══════════════════════════════════════════════════════════════
+# TEMPLATE 9 — FUTURISTIC
+# Tuzilma:
+#   Slayd 1: Muqova (TITLE + SUBTITLE)
+#   Slayd 2: Reja (TITLE + BODY)
+#   Slayd 3: 3 ustun (3x SUBTITLE placeholder)
+#   Slayd 4: Sarlavha + Rasm chap + Matn o'ng (TITLE + BODY + PICTURE)
+#   Slayd 5: Sarlavha + Matn o'ng + 2 rasm (TITLE + SUBTITLE + 2xPICTURE)
+#   Slayd 6: Sarlavha + Rasm o'ng + Matn chap (TITLE + SUBTITLE + PICTURE)
+#   Slayd 7: Sarlavha + Matn o'ng + Rasm chap (TITLE + SUBTITLE + PICTURE)
+#   Slayd 8: Xulosa (TEXT_BOX)
+# ═══════════════════════════════════════════════════════════════
+
+SLIDE_TYPE_NAMES_T9 = {
+    0: "three_columns",  # Slayd 3: 3 ustun matn
+    1: "image_left",     # Slayd 4: sarlavha + rasm chap + matn o'ng
+    2: "two_images",     # Slayd 5: sarlavha + matn o'ng + 2 rasm
+    3: "image_right",    # Slayd 6: sarlavha + rasm o'ng + matn chap
+    4: "image_left2",    # Slayd 7: sarlavha + matn o'ng + rasm chap
+}
+
+CONTENT_SLIDE_TEMPLATE_INDICES_T9 = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
+
+
+def build_slide_structure_9(prs, requested_content_count):
+    """
+    9-shablon uchun slayd tuzilmasini yaratadi.
+    Muqova(1) + Reja(1) + Kontent(N) + Xulosa(1) = jami
+    5 ta kontent shablon slayd bor (index 2-6), to'liq to'plamlar sifatida takrorlanadi.
+    """
+    n_templates = len(CONTENT_SLIDE_TEMPLATE_INDICES_T9)  # 5
+    full_repeats = max(1, round(requested_content_count / n_templates))
+    total_content_slides = full_repeats * n_templates
+    logging.info(f"[T9] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
+
+    conclusion_current_index = 7  # 0-indexed: slayd 8
+
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_T9:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T9] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
+
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logging.info(f"[T9] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
+
+
+def fill_t9_slide_1_cover(slide, topic, name_surname):
+    """
+    9-Shablon Slayd 1 — Muqova.
+    Shape[0]: Sarlavha (CENTER_TITLE idx=0)
+    Shape[1]: Ism-familiya / Subtitle (SUBTITLE idx=1)
+    """
+    from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
+
+    # Shape[0]: Sarlavha (CENTER_TITLE)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = topic.upper() if topic else "TAQDIMOT"
+        font_pt = calc_body_font_pt(len(topic), base_pt=32, min_pt=18, max_pt=40)
+        run.font.size = Pt(font_pt)
+        run.font.bold = True
+
+    # Shape[1]: Ism-familiya (SUBTITLE)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = name_surname if name_surname else "Taqdimot"
+        run.font.size = Pt(16)
+
+
+def fill_t9_slide_2_plan(slide, plan_data):
+    """
+    9-Shablon Slayd 2 — Reja.
+    Shape[0]: Sarlavha (TITLE idx=0)
+    Shape[1]: Reja matni (BODY idx=1)
+    """
+    from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = plan_data.get("title", "Reja") if isinstance(plan_data, dict) else "Reja"
+    items = plan_data.get("content", []) if isinstance(plan_data, dict) else []
+
+    # Shape[0]: Sarlavha
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = title.upper()
+        run.font.size = Pt(28)
+        run.font.bold = True
+
+    # Shape[1]: Reja ro'yxati
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(str(s)) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=18, min_pt=12, max_pt=22)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        for idx, item in enumerate(items):
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"/>'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
+                f'<a:t>{idx+1}. {safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+
+def fill_t9_slide_3_three_cols(slide, content_data):
+    """
+    9-Shablon Slayd 3 — 3 ustun.
+    Shape[0]: O'rta ustun (SUBTITLE idx=1)
+    Shape[1]: O'ng ustun (SUBTITLE idx=3)
+    Shape[2]: Chap ustun (SUBTITLE idx=5)
+    """
+    from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = content_data.get("title", "")
+    items = content_data.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+
+    # 3 ustun uchun matnni bo'lish
+    n = len(items)
+    if n == 0:
+        items = [title, "", ""]
+    third = max(1, n // 3)
+    col1_items = items[:third]
+    col2_items = items[third:2*third]
+    col3_items = items[2*third:]
+
+    def write_col(shape, col_items, header=""):
+        if shape is None or not shape.has_text_frame:
+            return
+        tf = shape.text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(s) for s in col_items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        if header:
+            safe_h = header.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100+200)}" b="1" dirty="0"/>'
+                f'<a:t>{safe_h}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+        for item in col_items:
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+    # Shape[2] = chap (idx=5), Shape[0] = o'rta (idx=1), Shape[1] = o'ng (idx=3)
+    write_col(slide.shapes[2] if len(slide.shapes) > 2 else None, col1_items)
+    write_col(slide.shapes[0] if len(slide.shapes) > 0 else None, col2_items)
+    write_col(slide.shapes[1] if len(slide.shapes) > 1 else None, col3_items)
+
+
+def fill_t9_slide_4_image_left(slide, content_data, image_query=None):
+    """
+    9-Shablon Slayd 4 — Sarlavha + Rasm chap + Matn o'ng.
+    Shape[0]: Sarlavha (TITLE idx=0) — yuqori chap
+    Shape[1]: Matn (BODY idx=4294967295) — o'ng
+    Shape[2]: Rasm (PICTURE) — chap
+    """
+    from pptx.util import Pt, Cm
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = content_data.get("title", "")
+    items = content_data.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+
+    # Shape[0]: Sarlavha
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = title
+        run.font.size = Pt(28)
+        run.font.bold = True
+
+    # Shape[1]: Matn (o'ng)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(s) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        for item in items:
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+    # Shape[2]: Rasm (chap tomonda)
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
+        try:
+            left = Cm(2.48)
+            top = Cm(4.60)
+            width = Cm(13.32)
+            height = Cm(8.24)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
+            logging.info(f"[T9] Slayd 4 rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T9] Slayd 4 rasm xatolik: {e}")
+
+
+def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
+    """
+    9-Shablon Slayd 5 — Sarlavha + Matn o'ng + 2 rasm.
+    Shape[0]: Sarlavha (TITLE idx=0)
+    Shape[1]: Matn (SUBTITLE idx=1) — o'ng
+    Shape[2]: Katta rasm (PICTURE) — o'rta
+    Shape[3]: Kichik rasm (PICTURE) — chap past
+    """
+    from pptx.util import Pt, Cm
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = content_data.get("title", "")
+    items = content_data.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+
+    # Shape[0]: Sarlavha
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = title
+        run.font.size = Pt(28)
+        run.font.bold = True
+
+    # Shape[1]: Matn (o'ng)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(s) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        for item in items:
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+    # Rasm (katta, o'rta)
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
+        try:
+            left = Cm(7.91)
+            top = Cm(3.41)
+            width = Cm(5.88)
+            height = Cm(9.73)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
+            logging.info(f"[T9] Slayd 5 katta rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T9] Slayd 5 katta rasm xatolik: {e}")
+
+
+def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
+    """
+    9-Shablon Slayd 6 — Sarlavha + Rasm o'ng + Matn chap.
+    Shape[0]: Rasm (PICTURE) — o'ng
+    Shape[1]: Sarlavha (TITLE idx=0)
+    Shape[2]: Matn (SUBTITLE idx=1) — chap
+    """
+    from pptx.util import Pt, Cm
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = content_data.get("title", "")
+    items = content_data.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+
+    # Shape[1]: Sarlavha
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = title
+        run.font.size = Pt(28)
+        run.font.bold = True
+
+    # Shape[2]: Matn (chap)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        tf = slide.shapes[2].text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(s) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        for item in items:
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+    # Shape[0]: Rasm (o'ng tomonda)
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
+        try:
+            left = Cm(14.01)
+            top = Cm(3.68)
+            width = Cm(5.48)
+            height = Cm(7.22)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
+            logging.info(f"[T9] Slayd 6 rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T9] Slayd 6 rasm xatolik: {e}")
+
+
+def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
+    """
+    9-Shablon Slayd 7 — Sarlavha + Matn o'ng + Rasm chap.
+    Shape[0]: Matn (SUBTITLE idx=1) — o'ng
+    Shape[1]: Sarlavha (TITLE idx=0)
+    Shape[2]: Rasm (PICTURE) — chap
+    """
+    from pptx.util import Pt, Cm
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    title = content_data.get("title", "")
+    items = content_data.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+
+    # Shape[1]: Sarlavha
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        tf = slide.shapes[1].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = title
+        run.font.size = Pt(28)
+        run.font.bold = True
+
+    # Shape[0]: Matn (o'ng)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.word_wrap = True
+        total_chars = sum(len(s) for s in items)
+        font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
+
+        txBody = tf._txBody
+        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+            txBody.remove(p_elem)
+
+        for item in items:
+            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            p_xml = (
+                f'<a:p xmlns:a="{ns_a}">'
+                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
+                f'<a:t>{safe_item}</a:t></a:r></a:p>'
+            )
+            txBody.append(etree.fromstring(p_xml))
+
+    # Shape[2]: Rasm (chap)
+    if image_query and os.path.isfile(image_query):
+        final_img_path = image_query
+    else:
+        query = image_query or content_data.get("image_query", title)
+        final_img_path = fetch_image(query)
+    if final_img_path:
+        try:
+            left = Cm(3.39)
+            top = Cm(4.69)
+            width = Cm(9.22)
+            height = Cm(5.59)
+            slide.shapes.add_picture(final_img_path, left, top, width, height)
+            if os.path.isfile(final_img_path):
+                os.remove(final_img_path)
+            logging.info(f"[T9] Slayd 7 rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T9] Slayd 7 rasm xatolik: {e}")
+
+
+def fill_t9_slide_8_conclusion(slide, content_data):
+    """
+    9-Shablon Slayd 8 — Xulosa.
+    Shape[0]: TEXT_BOX — xulosa matni
+    """
+    from pptx.util import Pt
+    from pptx.enum.text import PP_ALIGN
+
+    text = content_data.get("title", "E'TIBORINGIZ UCHUN RAHMAT!")
+    if not text:
+        text = "E'TIBORINGIZ UCHUN RAHMAT!"
+
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        tf = slide.shapes[0].text_frame
+        tf.clear()
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        run = p.add_run()
+        run.text = text.upper()
+        font_pt = calc_body_font_pt(len(text), base_pt=28, min_pt=18, max_pt=36)
+        run.font.size = Pt(font_pt)
+        run.font.bold = True
+
+
+def generate_template_9_presentation(prs, topic, requested_slide_count, language,
+                                      name_surname, plan, content_data_list, user_images=None):
+    """
+    9-shablon asosida to'liq prezentatsiya yaratadi.
+    """
+    import io
+
+    total_content_slides = build_slide_structure_9(prs, requested_slide_count)
+    plan_dict = plan if isinstance(plan, dict) else {}
+
+    # Slayd 1 — Muqova
+    fill_t9_slide_1_cover(prs.slides[0], topic, name_surname)
+
+    # Slayd 2 — Reja
+    fill_t9_slide_2_plan(prs.slides[1], plan_dict)
+
+    # Kontent slaydlari (3-dan boshlab)
+    user_img_idx = 0
+    for i in range(total_content_slides):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+
+        slide = prs.slides[slide_index]
+        data = content_data_list[i] if i < len(content_data_list) else {}
+        image_query = data.get("image_query", topic)
+
+        slide_type = i % 5
+        has_image = slide_type in [1, 2, 3, 4]  # Rasm ishlatadigan slayd turlari
+
+        if has_image:
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                img_arg = img_path if img_path else image_query
+            else:
+                img_arg = image_query
+        else:
+            img_arg = None
+
+        if slide_type == 0:
+            fill_t9_slide_3_three_cols(slide, data)
+        elif slide_type == 1:
+            fill_t9_slide_4_image_left(slide, data, img_arg)
+        elif slide_type == 2:
+            fill_t9_slide_5_two_images(slide, data, img_arg)
+        elif slide_type == 3:
+            fill_t9_slide_6_image_right(slide, data, img_arg)
+        elif slide_type == 4:
+            fill_t9_slide_7_image_left2(slide, data, img_arg)
+
+        logging.info(f"  [T9] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+
+    # Xulosa slayd
+    conclusion_slide = prs.slides[-1]
+    conclusion_data = generate_slide_content(topic, len(prs.slides), len(prs.slides), language, is_conclusion=True)
+    if not conclusion_data:
+        conclusion_data = {"title": "Xulosa", "content": ["Asosiy xulosalar", "Tavsiyalar"]}
+    fill_t9_slide_8_conclusion(conclusion_slide, conclusion_data)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
