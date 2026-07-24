@@ -5694,9 +5694,9 @@ def fill_t10_slide_3_image_full_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            # Rasm o'ng chegarasi = matn chap chegarasi (9.8002 cm) bilan bir chiziqda
-            # left = 9.8002 - 8.0 = 1.8002 cm
-            left = Cm(1.8002)
+            # Rasm o'ng chegarasi = matn chap chegarasi bilan bir chiziqda, 1 sm chapga surilgan
+            # left = 1.8002 - 1.0 = 0.8002 cm
+            left = Cm(0.8002)
             top = Cm(0.4943)
             width = Cm(8.0)
             height = Cm(13.17)
