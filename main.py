@@ -1585,41 +1585,64 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename):
     """Taqdimotni foydalanuvchiga yuboradi, balansdan yechadi, arxivga saqlaydi."""
-    sent_msg = await context.bot.send_document(
-        chat_id=chat_id,
-        document=presentation_bytes,
-        filename=filename,
-        caption=(
-            f"✅ *{esc_md(topic)}* — taqdimot tayyor!\n"
-            f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
-            f"📚 Biz bilan ishingiz oson!\n"
-            f"🤖 @slidego\n"
-            f"📢 t.me/slidego"
-        ),
-        parse_mode="Markdown"
-    )
-    _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
-    _lang_name = context.user_data.get('language_name', context.user_data.get('language', 'uz'))
-    await archive_send_document(
-        bot=context.bot,
-        user=update.effective_user,
-        service_name="🪄 Slayd yaratish",
-        topic=topic,
-        language=_lang_name,
-        page_count=f"{slide_count} slayd",
-        price=price,
-        document_bytes=presentation_bytes,
-        filename=filename,
-    )
-    await asyncio.to_thread(db.deduct_balance, user_id, price)
-    await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price, _file_id, filename)
-    new_balance = await asyncio.to_thread(db.get_balance, user_id)
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
-        reply_markup=get_main_menu_keyboard(),
-        parse_mode="Markdown"
-    )
+    try:
+        if presentation_bytes is None:
+            raise ValueError("Taqdimot ma'lumotlari topilmadi (None). Iltimos, qayta urinib ko'ring.")
+        # bytes bo'lsa BytesIO ga aylantirish
+        if isinstance(presentation_bytes, (bytes, bytearray)):
+            doc_to_send = BytesIO(presentation_bytes)
+            doc_to_send.name = filename
+        elif hasattr(presentation_bytes, 'seek'):
+            presentation_bytes.seek(0)
+            doc_to_send = presentation_bytes
+        else:
+            doc_to_send = presentation_bytes
+        sent_msg = await context.bot.send_document(
+            chat_id=chat_id,
+            document=doc_to_send,
+            filename=filename,
+            caption=(
+                f"✅ *{esc_md(topic)}* — taqdimot tayyor!\n"
+                f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
+                f"📚 Biz bilan ishingiz oson!\n"
+                f"🤖 @slidego\n"
+                f"📢 t.me/slidego"
+            ),
+            parse_mode="Markdown"
+        )
+        _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
+        _lang_name = context.user_data.get('language_name', context.user_data.get('language', 'uz'))
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="🪄 Slayd yaratish",
+            topic=topic,
+            language=_lang_name,
+            page_count=f"{slide_count} slayd",
+            price=price,
+            document_bytes=presentation_bytes,
+            filename=filename,
+        )
+        await asyncio.to_thread(db.deduct_balance, user_id, price)
+        await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price, _file_id, filename)
+        new_balance = await asyncio.to_thread(db.get_balance, user_id)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"💰 Balans: *{new_balance:,} so'm*\n\nYana biror narsa kerakmi?",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"_send_final_presentation xatolik: {type(e).__name__}: {e}", exc_info=True)
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Taqdimot yuborishda xatolik yuz berdi:\n`{str(e)[:200]}`\n\nIltimos, qayta urinib ko'ring.",
+                reply_markup=get_main_menu_keyboard(),
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
 
 
 async def image_source_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1640,8 +1663,27 @@ async def image_source_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if action == "img_source_auto":
         # Avtomatik rasm tanlash — taqdimotni to'g'ridan-to'g'ri yuborish
-        await query.edit_message_text("⏳ Rasmlar avtomatik tanlanmoqda va taqdimot yuborilmoqda...")
-        await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
+        try:
+            await query.edit_message_text("⏳ Rasmlar avtomatik tanlanmoqda va taqdimot yuborilmoqda...")
+            if presentation_bytes is None:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="❌ Taqdimot ma'lumotlari topilmadi. Iltimos, qaytadan taqdimot yarating.",
+                    reply_markup=get_main_menu_keyboard()
+                )
+                return ConversationHandler.END
+            await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
+        except Exception as e:
+            logger.error(f"img_source_auto xatolik: {type(e).__name__}: {e}", exc_info=True)
+            try:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"❌ Xatolik yuz berdi:\n`{str(e)[:200]}`\n\nIltimos, qayta urinib ko'ring.",
+                    reply_markup=get_main_menu_keyboard(),
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
         return ConversationHandler.END
 
     elif action == "img_source_user":
