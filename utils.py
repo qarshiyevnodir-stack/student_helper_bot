@@ -4958,10 +4958,13 @@ def fill_t9_slide_2_plan(slide, plan_data):
             txBody.remove(p_elem)
 
         for idx, item in enumerate(items):
-            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # Agar item allaqachon "1. ..." yoki "1.1 ..." formatida bo'lsa, raqamni olib tashlaymiz
+            import re as _re
+            clean_item = _re.sub(r'^\d+\.\s*\d*\.?\s*', '', str(item)).strip()
+            safe_item = clean_item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"/>'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
                 f'<a:t>{idx+1}. {safe_item}</a:t></a:r></a:p>'
             )
@@ -4985,21 +4988,25 @@ def fill_t9_slide_3_three_cols(slide, content_data):
     if isinstance(items, str):
         items = [items]
 
-    # 3 ustun uchun matnni bo'lish
+    # 3 ustun uchun matnni teng bo'lish
     n = len(items)
     if n == 0:
-        items = [title, "", ""]
-    third = max(1, n // 3)
-    col1_items = items[:third]
-    col2_items = items[third:2*third]
-    col3_items = items[2*third:]
+        items = [title]
+    # Teng 3 ga bo'lish: qolgan elementlar oxirgi ustunlarga qo'shiladi
+    base = n // 3
+    rem = n % 3
+    sizes = [base + (1 if i < rem else 0) for i in range(3)]
+    col1_items = items[:sizes[0]]
+    col2_items = items[sizes[0]:sizes[0]+sizes[1]]
+    col3_items = items[sizes[0]+sizes[1]:]
 
     def write_col(shape, col_items, header=""):
         if shape is None or not shape.has_text_frame:
             return
         tf = shape.text_frame
         tf.word_wrap = True
-        total_chars = sum(len(s) for s in col_items)
+        all_items = ([header] if header else []) + list(col_items)
+        total_chars = sum(len(s) for s in all_items) if all_items else 10
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
@@ -5010,6 +5017,7 @@ def fill_t9_slide_3_three_cols(slide, content_data):
             safe_h = header.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100+200)}" b="1" dirty="0"/>'
                 f'<a:t>{safe_h}</a:t></a:r></a:p>'
             )
@@ -5019,12 +5027,13 @@ def fill_t9_slide_3_three_cols(slide, content_data):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
             txBody.append(etree.fromstring(p_xml))
 
-    # Shape[2] = chap (idx=5), Shape[0] = o'rta (idx=1), Shape[1] = o'ng (idx=3)
+    # Shablon: Shape[2]=chap(idx=5), Shape[0]=o'rta(idx=1), Shape[1]=o'ng(idx=3)
     write_col(slide.shapes[2] if len(slide.shapes) > 2 else None, col1_items)
     write_col(slide.shapes[0] if len(slide.shapes) > 0 else None, col2_items)
     write_col(slide.shapes[1] if len(slide.shapes) > 1 else None, col3_items)
@@ -5074,6 +5083,7 @@ def fill_t9_slide_4_image_left(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5144,12 +5154,13 @@ def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
             txBody.append(etree.fromstring(p_xml))
 
-    # Rasm (katta, o'rta)
+    # Rasm 1 (katta, o'rta — Shape[2])
     if image_query and os.path.isfile(image_query):
         final_img_path = image_query
     else:
@@ -5167,6 +5178,21 @@ def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
             logging.info(f"[T9] Slayd 5 katta rasm joylashtirildi.")
         except Exception as e:
             logging.error(f"[T9] Slayd 5 katta rasm xatolik: {e}")
+
+    # Rasm 2 (kichik, chap past — Shape[3])
+    img2_path = fetch_image(query if 'query' in dir() else title)
+    if img2_path:
+        try:
+            left2 = Cm(3.40)
+            top2 = Cm(6.87)
+            width2 = Cm(3.07)
+            height2 = Cm(5.47)
+            slide.shapes.add_picture(img2_path, left2, top2, width2, height2)
+            if os.path.isfile(img2_path):
+                os.remove(img2_path)
+            logging.info(f"[T9] Slayd 5 kichik rasm joylashtirildi.")
+        except Exception as e:
+            logging.error(f"[T9] Slayd 5 kichik rasm xatolik: {e}")
 
 
 def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
@@ -5198,8 +5224,12 @@ def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[2]: Matn (chap)
+    # Shape[2]: Matn (chap) - sarlavhadan pastga tushiriladi
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        from pptx.util import Cm as _Cm
+        # Matn blokini sarlavhadan pastga tushirish (aralashmasligi uchun)
+        slide.shapes[2].top = _Cm(4.0)
+        slide.shapes[2].height = _Cm(8.5)
         tf = slide.shapes[2].text_frame
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
@@ -5213,6 +5243,7 @@ def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5267,7 +5298,7 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[0]: Matn (o'ng)
+    # Shape[0]: Matn (o'ng) - chapga tekislangan
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         tf = slide.shapes[0].text_frame
         tf.word_wrap = True
@@ -5282,6 +5313,7 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
+                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5309,26 +5341,24 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
 
 def fill_t9_slide_8_conclusion(slide, content_data):
     """
-    9-Shablon Slayd 8 — Xulosa.
+    9-Shablon Oxirgi slayd — har doim "E'TIBORINGIZ UCHUN RAHMAT!" bilan tugaydi.
     Shape[0]: TEXT_BOX — xulosa matni
     """
     from pptx.util import Pt
     from pptx.enum.text import PP_ALIGN
 
-    text = content_data.get("title", "E'TIBORINGIZ UCHUN RAHMAT!")
-    if not text:
-        text = "E'TIBORINGIZ UCHUN RAHMAT!"
+    # Oxirgi slayd har doim shu matn bilan tugaydi
+    text = "E'TIBORINGIZ UCHUN RAHMAT!"
 
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         tf = slide.shapes[0].text_frame
         tf.clear()
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT
+        p.alignment = PP_ALIGN.CENTER
         run = p.add_run()
-        run.text = text.upper()
-        font_pt = calc_body_font_pt(len(text), base_pt=28, min_pt=18, max_pt=36)
-        run.font.size = Pt(font_pt)
+        run.text = text
+        run.font.size = Pt(32)
         run.font.bold = True
 
 
