@@ -4991,8 +4991,30 @@ def fill_t9_slide_3_three_cols(slide, content_data):
     # 3 ustun uchun matnni teng bo'lish
     n = len(items)
     if n == 0:
-        items = [title]
-    # Teng 3 ga bo'lish: qolgan elementlar oxirgi ustunlarga qo'shiladi
+        # Matn yo'q bo'lsa, sarlavhani 3 ga bo'lib yozamiz
+        words = title.split() if title else ["—"]
+        third = max(1, len(words) // 3)
+        items = [
+            " ".join(words[:third]),
+            " ".join(words[third:2*third]),
+            " ".join(words[2*third:]) or "—",
+        ]
+        n = 3
+    elif n == 1:
+        # Bitta element bo'lsa, uni 3 ga bo'lamiz
+        words = str(items[0]).split()
+        third = max(1, len(words) // 3)
+        items = [
+            " ".join(words[:third]),
+            " ".join(words[third:2*third]),
+            " ".join(words[2*third:]) or "—",
+        ]
+        n = 3
+    elif n == 2:
+        # Ikki element bo'lsa, uchinchi ustun uchun birinchidan qisqa matn olamiz
+        items = [items[0], items[1], items[0][:len(items[0])//2] + "..."]
+        n = 3
+    # Teng 3 ga bo'lish
     base = n // 3
     rem = n % 3
     sizes = [base + (1 if i < rem else 0) for i in range(3)]
@@ -5068,7 +5090,7 @@ def fill_t9_slide_4_image_left(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[1]: Matn (o'ng)
+    # Shape[1]: Matn (o'ng) - indent=0, marL=0 bilan tekis
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
@@ -5076,6 +5098,9 @@ def fill_t9_slide_4_image_left(slide, content_data, image_query=None):
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
+        # lstStyle ni ham tozalash (shablon indent ni olib tashlash)
+        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+            lst.clear()
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
 
@@ -5083,7 +5108,7 @@ def fill_t9_slide_4_image_left(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5139,7 +5164,7 @@ def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[1]: Matn (o'ng)
+    # Shape[1]: Matn (o'ng) - indent=0, marL=0 bilan tekis
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
@@ -5147,6 +5172,8 @@ def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
+        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+            lst.clear()
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
 
@@ -5154,7 +5181,7 @@ def fill_t9_slide_5_two_images(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5224,10 +5251,9 @@ def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[2]: Matn (chap) - sarlavhadan pastga tushiriladi
+    # Shape[2]: Matn (chap) - sarlavhadan pastga tushiriladi, indent=0
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         from pptx.util import Cm as _Cm
-        # Matn blokini sarlavhadan pastga tushirish (aralashmasligi uchun)
         slide.shapes[2].top = _Cm(4.0)
         slide.shapes[2].height = _Cm(8.5)
         tf = slide.shapes[2].text_frame
@@ -5236,6 +5262,8 @@ def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
+        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+            lst.clear()
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
 
@@ -5243,7 +5271,7 @@ def fill_t9_slide_6_image_right(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
@@ -5298,7 +5326,7 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
         run.font.size = Pt(28)
         run.font.bold = True
 
-    # Shape[0]: Matn (o'ng) - chapga tekislangan
+    # Shape[0]: Matn (o'ng) - chapga tekislangan, indent=0
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         tf = slide.shapes[0].text_frame
         tf.word_wrap = True
@@ -5306,6 +5334,8 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
+        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+            lst.clear()
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
 
@@ -5313,7 +5343,7 @@ def fill_t9_slide_7_image_left2(slide, content_data, image_query=None):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
