@@ -6194,8 +6194,13 @@ def fill_t11_slide_2_plan(slide, plan_data):
         txBody = tf._txBody
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
+        import re as _re
         for idx, item in enumerate(items, 1):
-            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # item ichida allaqachon raqam bor bo'lsa (masalan "1.1. ...") — tozalash
+            item_str = str(item).strip()
+            # "1.1." yoki "1." kabi boshlanishni olib tashlash
+            item_str = _re.sub(r'^\d+[\d\.]*\.?\s*', '', item_str).strip()
+            safe_item = item_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
                 f'<a:pPr algn="l" marL="342900" indent="-342900"><a:buNone/></a:pPr>'
@@ -6203,11 +6208,9 @@ def fill_t11_slide_2_plan(slide, plan_data):
                 f'<a:t>{idx}. {safe_item}</a:t></a:r></a:p>'
             )
             txBody.append(etree.fromstring(p_xml))
-
-
 def fill_t11_slide_3_two_text(slide, content_data, image_query=None):
     """
-    11-Shablon Slayd 3 (CUSTOM) — Sarlavha + 2 ta matn bloki.
+    11-Shablon Slayd 3 (CUSTOM) — Sarlavha + 2 ta matn bloki (o'ng tekislash).
     Shape[0]: Sarlavha (TITLE idx=0): left=1.0583, top=0.8667, w=23.0928, h=1.6000
     Shape[1]: Matn blok 1 (SUBTITLE idx=2): left=4.6228, top=2.1464, w=9.8944, h=4.0725
     Shape[2]: Matn blok 2 (SUBTITLE idx=8): left=2.1476, top=7.8317, w=9.7393, h=4.7411
@@ -6226,12 +6229,12 @@ def fill_t11_slide_3_two_text(slide, content_data, image_query=None):
         tf.clear()
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT
+        p.alignment = PP_ALIGN.RIGHT
         run = p.add_run()
         run.text = title
         run.font.size = Pt(24)
         run.font.bold = True
-    # Matn blok 1 (yuqori)
+    # Matn blok 1 (yuqori) va 2 (pastki) — ikkalasi ham o'ng tekislash
     half = max(1, len(items) // 2)
     items1 = items[:half]
     items2 = items[half:]
@@ -6250,7 +6253,7 @@ def fill_t11_slide_3_two_text(slide, content_data, image_query=None):
                 safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 p_xml = (
                     f'<a:p xmlns:a="{ns_a}">'
-                    f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
+                    f'<a:pPr algn="r" marL="0" indent="0"><a:buNone/></a:pPr>'
                     f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                     f'<a:t>{safe_item}</a:t></a:r></a:p>'
                 )
@@ -6364,9 +6367,17 @@ def fill_t11_slide_5_quote_image(slide, content_data, image_query=None):
         run.text = title
         run.font.size = Pt(22)
         run.font.bold = True
-    # Matn/Quote (Shape[1])
-    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
+    # Matn/Quote (Shape[1]) - placeholder idx=1
+    # Barcha placeholder larni ko'rib chiqib, idx=1 ni topish
+    target_shape = None
+    for s in slide.shapes:
+        if s.is_placeholder and s.placeholder_format.idx == 1 and s.has_text_frame:
+            target_shape = s
+            break
+    if target_shape is None and len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        target_shape = slide.shapes[1]
+    if target_shape is not None:
+        tf = target_shape.text_frame
         tf.word_wrap = True
         total_chars = sum(len(s) for s in items)
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
@@ -6484,19 +6495,28 @@ def fill_t11_slide_7_four_blocks(slide, content_data, image_query=None):
         run.text = title
         run.font.size = Pt(26)
         run.font.bold = True
-    # 4 ta blokga matnni taqsimlash
-    block_items = []
+    # 4 ta blokga matnni teng taqsimlash
+    # Agar items 4 ta yoki ko'p bo'lsa - har bir blokka 1 ta
+    # Agar 4 tadan kam bo'lsa - birinchi bloklarga yozish
+    block_items = [[], [], [], []]
     if len(items) >= 4:
-        # Har bir blokka bitta element
-        block_items = [items[0:1], items[1:2], items[2:3], items[3:4]]
+        # Har bir blokka bitta element (qolganlarini birinchi blokka qo'shish)
+        block_items[0] = items[0:1]
+        block_items[1] = items[1:2]
+        block_items[2] = items[2:3]
+        block_items[3] = items[3:4]
+        # Agar 4 tadan ko'p bo'lsa, qolganlarni birinchi blokka qo'shish
+        if len(items) > 4:
+            block_items[0] = items[0:1]
+            block_items[1] = items[1:2]
+            block_items[2] = items[2:3]
+            block_items[3] = items[3:]
     elif len(items) == 3:
-        block_items = [items[0:1], items[1:2], items[2:3], [""]]
+        block_items = [items[0:1], items[1:2], items[2:3], []]
     elif len(items) == 2:
         block_items = [items[0:1], [], items[1:2], []]
     elif len(items) == 1:
         block_items = [items[0:1], [], [], []]
-    else:
-        block_items = [[], [], [], []]
     # Blok indekslari: Shape[1], Shape[2], Shape[3], Shape[4]
     for shape_idx, b_items in zip([1, 2, 3, 4], block_items):
         if len(slide.shapes) > shape_idx and slide.shapes[shape_idx].has_text_frame:
