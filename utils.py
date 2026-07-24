@@ -5049,6 +5049,9 @@ def fill_t9_slide_3_three_cols(slide, content_data):
         font_pt = calc_body_font_pt(total_chars, base_pt=14, min_pt=10, max_pt=18)
 
         txBody = tf._txBody
+        # lstStyle tozalash (shablon indent ni olib tashlash)
+        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
+            lst.clear()
         for p_elem in txBody.findall(f'{{{ns_a}}}p'):
             txBody.remove(p_elem)
 
@@ -5056,7 +5059,7 @@ def fill_t9_slide_3_three_cols(slide, content_data):
             safe_h = header.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100+200)}" b="1" dirty="0"/>'
                 f'<a:t>{safe_h}</a:t></a:r></a:p>'
             )
@@ -5066,7 +5069,7 @@ def fill_t9_slide_3_three_cols(slide, content_data):
             safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             p_xml = (
                 f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l"><a:buNone/></a:pPr>'
+                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
                 f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" dirty="0"/>'
                 f'<a:t>{safe_item}</a:t></a:r></a:p>'
             )
