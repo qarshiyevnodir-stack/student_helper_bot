@@ -5694,10 +5694,12 @@ def fill_t10_slide_3_image_full_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(-0.6659)
+            # Rasm o'ng chegarasi = matn chap chegarasi (9.8002 cm) bilan bir chiziqda
+            # left = 9.8002 - 14.50 = -4.70 cm
+            left = Cm(-4.6998)
             top = Cm(0.4943)
-            width = Cm(14.5020)
-            height = Cm(13.1703)
+            width = Cm(14.50)
+            height = Cm(13.17)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
