@@ -5681,6 +5681,12 @@ def fill_t10_slide_3_image_full_left(slide, content_data, image_query=None):
             txBody.append(etree.fromstring(p_xml))
 
     # Shape[2]: Rasm (chap, to'liq balandlik: left=-0.67cm, top=0.49cm, w=14.50cm, h=13.17cm)
+    # Eski PICTURE shape larni o'chirish
+    from pptx.enum.shapes import MSO_SHAPE_TYPE as _MSO
+    pic_shapes = [s for s in slide.shapes if s.shape_type == _MSO.PICTURE]
+    for ps in pic_shapes:
+        sp = ps._element
+        sp.getparent().remove(sp)
     if image_query and os.path.isfile(image_query):
         final_img_path = image_query
     else:
@@ -5688,9 +5694,9 @@ def fill_t10_slide_3_image_full_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(0.0)
+            left = Cm(-0.67)
             top = Cm(0.49)
-            width = Cm(8.50)
+            width = Cm(14.50)
             height = Cm(13.17)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
@@ -5823,7 +5829,13 @@ def fill_t10_slide_5_image_left(slide, content_data, image_query=None):
             )
             txBody.append(etree.fromstring(p_xml))
 
-    # Shape[0]: Rasm (chap: left=3.27cm, top=2.80cm, w=6.92cm, h=9.19cm)
+    # Shape[0]: Rasm (chap: left=1.27cm, top=2.80cm, w=10.30cm, h=9.19cm - landscape)
+    # Eski PICTURE shape larni o'chirish
+    from pptx.enum.shapes import MSO_SHAPE_TYPE as _MSO
+    pic_shapes = [s for s in slide.shapes if s.shape_type == _MSO.PICTURE]
+    for ps in pic_shapes:
+        sp = ps._element
+        sp.getparent().remove(sp)
     if image_query and os.path.isfile(image_query):
         final_img_path = image_query
     else:
@@ -5831,9 +5843,9 @@ def fill_t10_slide_5_image_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(3.27)
+            left = Cm(1.27)
             top = Cm(2.80)
-            width = Cm(6.92)
+            width = Cm(10.30)
             height = Cm(9.19)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
@@ -5895,7 +5907,13 @@ def fill_t10_slide_6_small_image_left(slide, content_data, image_query=None):
             )
             txBody.append(etree.fromstring(p_xml))
 
-    # Shape[1]: Kichik rasm (chap: left=2.66cm, top=3.98cm, w=3.61cm, h=7.36cm)
+    # Shape[1]: Rasm (chap: left=1.27cm, top=3.34cm, w=6.50cm, h=9.28cm - landscape uchun kengaytirilgan)
+    # Eski PICTURE shape larni o'chirish
+    from pptx.enum.shapes import MSO_SHAPE_TYPE as _MSO
+    pic_shapes = [s for s in slide.shapes if s.shape_type == _MSO.PICTURE]
+    for ps in pic_shapes:
+        sp = ps._element
+        sp.getparent().remove(sp)
     if image_query and os.path.isfile(image_query):
         final_img_path = image_query
     else:
@@ -5903,10 +5921,10 @@ def fill_t10_slide_6_small_image_left(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(2.66)
-            top = Cm(3.98)
-            width = Cm(3.61)
-            height = Cm(7.36)
+            left = Cm(1.27)
+            top = Cm(3.34)
+            width = Cm(6.50)
+            height = Cm(9.28)
             slide.shapes.add_picture(final_img_path, left, top, width, height)
             if os.path.isfile(final_img_path):
                 os.remove(final_img_path)
@@ -5917,10 +5935,10 @@ def fill_t10_slide_6_small_image_left(slide, content_data, image_query=None):
 
 def fill_t10_slide_7_image_right(slide, content_data, image_query=None):
     """
-    10-Shablon Slayd 7 (CUSTOM_19) — Sarlavha + Matn (chap) + Rasm (o'ng).
+    10-Shablon Slayd 7 (CUSTOM_19) — Sarlavha + Matn (o'ng) + Rasm (chap).
     Shape[0]: Sarlavha (CENTER_TITLE idx=0) — yuqori
-    Shape[1]: Matn (TEXT_BOX) — chap: left=1.79cm, top=3.90cm, w=8.77cm, h=5.46cm
-    Shape[2]: Rasm (PICTURE) — o'ng: left=12.70cm, top=3.39cm, w=9.88cm, h=9.22cm
+    Shape[1]: Matn (TEXT_BOX) — o'ng: left=12.70cm, top=3.39cm, w=9.88cm, h=9.22cm
+    Shape[2]: Rasm (PICTURE) — chap: left=1.79cm, top=3.90cm, w=8.77cm, h=5.46cm
     """
     from pptx.util import Pt, Cm
     from pptx.enum.text import PP_ALIGN
@@ -5944,7 +5962,7 @@ def fill_t10_slide_7_image_right(slide, content_data, image_query=None):
         run.font.size = Pt(26)
         run.font.bold = True
 
-    # Shape[1]: Matn (chap)
+    # Shape[1]: Matn (o'ng tomonda - shablonda left=12.70)
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         tf = slide.shapes[1].text_frame
         tf.word_wrap = True
@@ -5967,7 +5985,13 @@ def fill_t10_slide_7_image_right(slide, content_data, image_query=None):
             )
             txBody.append(etree.fromstring(p_xml))
 
-    # Shape[2]: Rasm (o'ng: left=12.70cm, top=3.39cm, w=9.88cm, h=9.22cm)
+    # Shape[2]: Rasm (chap tomonda: left=1.79cm, top=3.39cm, w=9.88cm, h=9.22cm)
+    # Eski PICTURE shape larni o'chirish
+    from pptx.enum.shapes import MSO_SHAPE_TYPE as _MSO
+    pic_shapes = [s for s in slide.shapes if s.shape_type == _MSO.PICTURE]
+    for ps in pic_shapes:
+        sp = ps._element
+        sp.getparent().remove(sp)
     if image_query and os.path.isfile(image_query):
         final_img_path = image_query
     else:
@@ -5975,7 +5999,7 @@ def fill_t10_slide_7_image_right(slide, content_data, image_query=None):
         final_img_path = fetch_image(query)
     if final_img_path:
         try:
-            left = Cm(12.70)
+            left = Cm(1.79)
             top = Cm(3.39)
             width = Cm(9.88)
             height = Cm(9.22)
