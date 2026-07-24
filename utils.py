@@ -4984,43 +4984,60 @@ def fill_t9_slide_3_three_cols(slide, content_data):
 
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     title = content_data.get("title", "")
-    items = content_data.get("content", [])
-    if isinstance(items, str):
-        items = [items]
 
-    # 3 ustun uchun matnni teng bo'lish
-    n = len(items)
-    if n == 0:
-        # Matn yo'q bo'lsa, sarlavhani 3 ga bo'lib yozamiz
-        words = title.split() if title else ["—"]
-        third = max(1, len(words) // 3)
-        items = [
-            " ".join(words[:third]),
-            " ".join(words[third:2*third]),
-            " ".join(words[2*third:]) or "—",
-        ]
-        n = 3
-    elif n == 1:
-        # Bitta element bo'lsa, uni 3 ga bo'lamiz
-        words = str(items[0]).split()
-        third = max(1, len(words) // 3)
-        items = [
-            " ".join(words[:third]),
-            " ".join(words[third:2*third]),
-            " ".join(words[2*third:]) or "—",
-        ]
-        n = 3
-    elif n == 2:
-        # Ikki element bo'lsa, uchinchi ustun uchun birinchidan qisqa matn olamiz
-        items = [items[0], items[1], items[0][:len(items[0])//2] + "..."]
-        n = 3
-    # Teng 3 ga bo'lish
-    base = n // 3
-    rem = n % 3
-    sizes = [base + (1 if i < rem else 0) for i in range(3)]
-    col1_items = items[:sizes[0]]
-    col2_items = items[sizes[0]:sizes[0]+sizes[1]]
-    col3_items = items[sizes[0]+sizes[1]:]
+    # GPT col1/col2/col3 formatida qaytarsa — to'g'ridan-to'g'ri ishlatamiz
+    col1_raw = content_data.get("col1", "")
+    col2_raw = content_data.get("col2", "")
+    col3_raw = content_data.get("col3", "")
+
+    if col1_raw or col2_raw or col3_raw:
+        # col1/col2/col3 mavjud — ularni list sifatida ishlatamiz
+        def split_to_sentences(text):
+            """Matnni jumlalarga bo'lish"""
+            import re
+            if not text:
+                return []
+            # Jumlalarga bo'lish
+            sentences = re.split(r'(?<=[.!?])\s+', str(text).strip())
+            return [s.strip() for s in sentences if s.strip()]
+
+        col1_items = split_to_sentences(col1_raw) or [str(col1_raw)]
+        col2_items = split_to_sentences(col2_raw) or [str(col2_raw)]
+        col3_items = split_to_sentences(col3_raw) or [str(col3_raw)]
+    else:
+        # content list formatida — teng 3 ga bo'lamiz
+        items = content_data.get("content", [])
+        if isinstance(items, str):
+            items = [items]
+        n = len(items)
+        if n == 0:
+            # Matn yo'q — sarlavhani 3 ga bo'lib yozamiz
+            words = title.split() if title else ["—"]
+            third = max(1, len(words) // 3)
+            items = [
+                " ".join(words[:third]) or "—",
+                " ".join(words[third:2*third]) or "—",
+                " ".join(words[2*third:]) or "—",
+            ]
+            n = 3
+        elif n == 1:
+            words = str(items[0]).split()
+            third = max(1, len(words) // 3)
+            items = [
+                " ".join(words[:third]) or str(items[0]),
+                " ".join(words[third:2*third]) or str(items[0]),
+                " ".join(words[2*third:]) or str(items[0]),
+            ]
+            n = 3
+        elif n == 2:
+            items = [items[0], items[1], items[0]]
+            n = 3
+        base = n // 3
+        rem = n % 3
+        sizes = [base + (1 if i < rem else 0) for i in range(3)]
+        col1_items = items[:sizes[0]]
+        col2_items = items[sizes[0]:sizes[0]+sizes[1]]
+        col3_items = items[sizes[0]+sizes[1]:]
 
     def write_col(shape, col_items, header=""):
         if shape is None or not shape.has_text_frame:
