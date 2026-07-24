@@ -6354,6 +6354,12 @@ def fill_t11_slide_5_quote_image(slide, content_data, image_query=None):
     items = content_data.get("content", [])
     if isinstance(items, str):
         items = [items]
+    # col1/col2 formatidan ham matn olish (two_columns formatida kelsa)
+    if not items:
+        col1 = content_data.get("col1", "")
+        col2 = content_data.get("col2", "")
+        if col1 or col2:
+            items = [x for x in [col1, col2] if x]
     # Sarlavha (Shape[0])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         tf = slide.shapes[0].text_frame
@@ -6432,6 +6438,12 @@ def fill_t11_slide_6_title_body(slide, content_data, image_query=None):
     items = content_data.get("content", [])
     if isinstance(items, str):
         items = [items]
+    # col1/col2 formatidan ham matn olish (two_columns formatida kelsa)
+    if not items:
+        col1 = content_data.get("col1", "")
+        col2 = content_data.get("col2", "")
+        if col1 or col2:
+            items = [x for x in [col1, col2] if x]
     # Sarlavha (Shape[0])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         tf = slide.shapes[0].text_frame
