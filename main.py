@@ -21,6 +21,7 @@ from utils import (
     generate_template_10_presentation,
     generate_template_11_presentation,
     generate_template_12_presentation,
+    generate_template_13_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -36,6 +37,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T10,
     SLIDE_TYPE_NAMES_T11,
     SLIDE_TYPE_NAMES_T12,
+    SLIDE_TYPE_NAMES_T13,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1382,27 +1384,27 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
-    # ── Faqat 12-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
+    # ── Faqat 13-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 12-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 13-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_12_path = os.path.join(previews_dir, "12.png")
+    preview_13_path = os.path.join(previews_dir, "13.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_12")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_13")],
     ])
-    if os.path.exists(preview_12_path):
-        with open(preview_12_path, "rb") as f:
+    if os.path.exists(preview_13_path):
+        with open(preview_13_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🌿 *Aesthetic Botanical shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🌿 *Pastel Botanical shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🌿 *Aesthetic Botanical shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🌿 *Pastel Botanical shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1449,6 +1451,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         10: SLIDE_TYPE_NAMES_T10,
         11: SLIDE_TYPE_NAMES_T11,
         12: SLIDE_TYPE_NAMES_T12,
+        13: SLIDE_TYPE_NAMES_T13,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1463,6 +1466,8 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         10: generate_template_10_presentation,
         11: generate_template_11_presentation,
         12: generate_template_12_presentation,
+        13: generate_template_13_presentation,
+        13: generate_template_13_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1497,7 +1502,8 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             9: [1, 2, 3, 4],  # T9: slayd 4,5,6,7 da rasm bor
             10: [0, 1, 2, 3, 4],  # T10: barcha kontent slaydlarda rasm bor
             11: [1, 2],            # T11: slayd4 (image_left) va slayd5 (quote+image)
-            12: [1, 4],            # T12: slayd4 (image_left) va slayd7 (image_right)
+            12: [1, 4],
+            13: [0, 1, 3, 4],            # T12: slayd4 (image_left) va slayd7 (image_right)
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
