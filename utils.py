@@ -9821,3 +9821,264 @@ def generate_template_21_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+# ============================================================
+# 22-SHABLON (Informative Presentation - terakota C15943)
+# ============================================================
+
+SLIDE_TYPE_NAMES_T22 = {
+    "cover": "Muqova",
+    "plan": "Reja",
+    "two_text_columns_center_title": "Ikki ustun matn, sarlavha markazda",
+    "title_left_two_text_rows": "Sarlavha chap, ikki qator matn",
+    "title_left_text_left_freeform": "Sarlavha chap, matn chap, dekor",
+    "title_left_text_left_freeform2": "Sarlavha chap, matn chap, dekor (2)",
+    "two_text_columns_left_title": "Ikki ustun matn, sarlavha chap",
+    "conclusion": "Xulosa",
+}
+
+def _t22_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2800)
+            b = run.get('b', 0)
+            color = run.get('color', 'C15943')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t22_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t22_slide_1_cover(slide, topic, name_surname):
+    # shapes[0] = sarlavha (48pt, terakota C15943, bold, left)
+    # shapes[1] = ism (24pt, terakota C15943, left)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'C15943', 'text': topic.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'C15943', 'text': f"Presented by {name_surname}"}]}
+        ])
+
+def fill_t22_slide_2_plan(slide, plan_dict):
+    import re
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    plan_title = plan_dict.get("title", "Reja")
+    plan_content = plan_dict.get("content", [])
+    if isinstance(plan_content, list):
+        items = plan_content
+    else:
+        items = [str(plan_content)]
+    clean_items = []
+    for item in items:
+        item_str = str(item).strip()
+        item_str = re.sub(r'^\d+[\.\)]\s*', '', item_str)
+        clean_items.append(item_str)
+    # shapes[0] = matn (28pt, terakota C15943, left)
+    # shapes[1] = sarlavha (79pt, terakota C15943, bold, left)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 7900, 'b': 1, 'color': 'C15943', 'text': plan_title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        paras = []
+        for idx, item in enumerate(clean_items[:7], 1):
+            paras.append({
+                'algn': 'l',
+                'marL': 342900,
+                'indent': -342900,
+                'spcPts': 150,
+                'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': f"{idx}. {item}"}]
+            })
+        if paras:
+            _t22_clear_and_write(slide.shapes[0].text_frame._txBody, paras)
+
+def fill_t22_slide_3_two_text_columns_center_title(slide, data, img_arg=None):
+    # shapes[0] = matn 1 (26pt, terakota C15943, left) - chap ustun
+    # shapes[1] = sarlavha (44pt, terakota C15943, bold, center)
+    # shapes[2] = matn 2 (26pt, terakota C15943, left) - o'ng ustun
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t22_get_body_text(data)
+    words = body_text.split()
+    mid = max(1, len(words) // 2)
+    text1 = " ".join(words[:mid])
+    text2 = " ".join(words[mid:])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 1, 'color': 'C15943', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2600, 'b': 0, 'color': 'C15943', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2600, 'b': 0, 'color': 'C15943', 'text': text2}]}
+        ])
+
+def fill_t22_slide_4_title_left_two_text_rows(slide, data, img_arg=None):
+    # shapes[0] = matn 1 (28pt, terakota C15943, left) - yuqori
+    # shapes[1] = sarlavha (44pt, terakota C15943, bold, left)
+    # shapes[2] = matn 2 (28pt, terakota C15943, left) - pastki
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t22_get_body_text(data)
+    words = body_text.split()
+    mid = max(1, len(words) // 2)
+    text1 = " ".join(words[:mid])
+    text2 = " ".join(words[mid:])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': 'C15943', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text2}]}
+        ])
+
+def fill_t22_slide_5_title_left_text_left_freeform(slide, data, img_arg=None):
+    # shapes[0] = Freeform (dekor, solid fill)
+    # shapes[1] = matn (28pt, terakota C15943, left)
+    # shapes[2] = sarlavha (40pt, terakota C15943, bold, left)
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t22_get_body_text(data)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4000, 'b': 1, 'color': 'C15943', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': body_text}]}
+        ])
+
+def fill_t22_slide_6_title_left_text_left_freeform2(slide, data, img_arg=None):
+    # shapes[0] = Freeform (dekor, solid fill)
+    # shapes[1] = matn (28pt, terakota C15943, left)
+    # shapes[2] = sarlavha (40pt, terakota C15943, bold, left)
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t22_get_body_text(data)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4000, 'b': 1, 'color': 'C15943', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': body_text}]}
+        ])
+
+def fill_t22_slide_7_two_text_columns_left_title(slide, data, img_arg=None):
+    # shapes[0] = matn 1 (28pt, terakota C15943, left) - chap
+    # shapes[1] = sarlavha (44pt, terakota C15943, bold, left)
+    # shapes[2] = matn 2 (28pt, terakota C15943, left) - o'ng
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t22_get_body_text(data)
+    words = body_text.split()
+    mid = max(1, len(words) // 2)
+    text1 = " ".join(words[:mid])
+    text2 = " ".join(words[mid:])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': 'C15943', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text2}]}
+        ])
+
+def fill_t22_slide_8_conclusion(slide, data):
+    pass
+
+def generate_template_22_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None, content_data_list=None,
+                                       user_images=None):
+    import io
+    slides = prs.slides
+    if len(slides) < 2:
+        logging.error("[T22] Shablon slaydlari yetarli emas")
+        return None
+    fill_t22_slide_1_cover(slides[0], topic, name_surname)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    fill_t22_slide_2_plan(slides[1], plan_dict)
+    content_slide_funcs = [
+        fill_t22_slide_3_two_text_columns_center_title,
+        fill_t22_slide_4_title_left_two_text_rows,
+        fill_t22_slide_5_title_left_text_left_freeform,
+        fill_t22_slide_6_title_left_text_left_freeform2,
+        fill_t22_slide_7_two_text_columns_left_title,
+    ]
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        slide_type = i % len(content_slide_funcs)
+        content_slide_funcs[slide_type](slide, data, None)
+        logging.info(f"  [T22] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t22_slide_8_conclusion(slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
