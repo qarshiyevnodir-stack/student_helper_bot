@@ -8260,7 +8260,7 @@ def generate_template_16_presentation(prs, topic, requested_slide_count, languag
         logging.error("[T16] Shablon slaydlari yetarli emas")
         return None
     fill_t16_slide_1_cover(slides[0], topic, name_surname)
-    plan_dict = plan_data if isinstance(plan_data, dict) else {}
+    plan_dict = plan if isinstance(plan, dict) else {}
     if not plan_dict and content_data_list:
         titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
         plan_dict = {"title": "Reja", "content": titles}
