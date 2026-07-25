@@ -7703,3 +7703,268 @@ def generate_template_14_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ============================================================
+# 15-SHABLON (Green Forest / Nature)
+# ============================================================
+SLIDE_TYPE_NAMES_T15 = {
+    0: "image_left_text_right",
+    1: "text_left_image_right",
+    2: "title_text_image_right",
+    3: "title_text_image_right2",
+    4: "image_left_text_right2",
+}
+CONTENT_SLIDE_TEMPLATE_INDICES_T15 = [2, 3, 4, 5, 6]
+
+def build_slide_structure_15(prs, requested_content_count):
+    n_templates = len(CONTENT_SLIDE_TEMPLATE_INDICES_T15)
+    full_repeats = max(1, round(requested_content_count / n_templates))
+    total_content_slides = full_repeats * n_templates
+    logging.info(f"[T15] Kontent slaydlari: {requested_content_count} so'raldi, {full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
+    conclusion_current_index = 7
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_T15:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T15] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logging.info(f"[T15] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
+
+def _t15_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2000)
+            b = run.get('b', 0)
+            color = run.get('color', '000000')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t15_replace_blip(slide, shape_idx, img_arg):
+    try:
+        import os
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        shape = slide.shapes[shape_idx]
+        el = shape._element
+        if isinstance(img_arg, str) and os.path.exists(img_arg):
+            img_path = img_arg
+        else:
+            img_path = fetch_image(img_arg)
+        if not img_path or not os.path.exists(img_path):
+            return
+        blip = el.find('.//a:blip', {'a': ns_a})
+        if blip is not None:
+            part = slide.part
+            _, img_rId = part.get_or_add_image_part(img_path)
+            blip.set(f'{{{ns_r}}}embed', img_rId)
+    except Exception as e:
+        logging.warning(f"[T15] Rasm almashtirish xatoligi: {e}")
+
+def _t15_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t15_slide_1_cover(slide, topic, name_surname):
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t15_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 1, 'color': 'FFFFFF', 'text': topic}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 1, 'color': '000000', 'text': name_surname}]}
+        ])
+
+def fill_t15_slide_2_plan(slide, plan_dict):
+    import re
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t15_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 8741, 'b': 1, 'color': 'FFFFFF', 'text': 'Reja'}]}
+        ])
+    items = []
+    if isinstance(plan_dict, dict):
+        raw = plan_dict.get("content", plan_dict.get("items", []))
+        if isinstance(raw, list):
+            items = raw
+        elif isinstance(raw, str):
+            items = [raw]
+    if not items:
+        items = ["Kirish", "Asosiy qism", "Xulosa"]
+    paragraphs = []
+    for idx, item in enumerate(items):
+        clean = re.sub(r'^\d+[\.\)]\s*', '', str(item)).strip()
+        paragraphs.append({
+            'algn': 'l',
+            'runs': [{'sz': 3047, 'b': 1, 'color': 'FFFFFF', 'text': f"{idx+1}. {clean}"}]
+        })
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, paragraphs)
+
+def fill_t15_slide_3_image_left_text_right(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t15_get_body_text(data)
+    if img_arg:
+        _t15_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'r', 'runs': [{'sz': 5400, 'b': 1, 'color': '749835', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t15_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1813, 'b': 0, 'color': '14190D', 'text': body_text}]}
+        ])
+
+def fill_t15_slide_4_text_left_image_right(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t15_get_body_text(data)
+    if img_arg:
+        _t15_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t15_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '749835', 'text': title}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t15_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1813, 'b': 0, 'color': '14190D', 'text': body_text}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1813, 'b': 0, 'color': '14190D', 'text': ''}]}
+        ])
+
+def fill_t15_slide_5_title_text_image_right(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t15_get_body_text(data)
+    if img_arg:
+        _t15_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'FFFFFF', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t15_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2924, 'b': 0, 'color': 'FFFFFF', 'text': body_text}]}
+        ])
+
+def fill_t15_slide_6_title_text_image_right2(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t15_get_body_text(data)
+    if img_arg:
+        _t15_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 6000, 'b': 1, 'color': '749835', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t15_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2924, 'b': 0, 'color': 'FFFFFF', 'text': body_text}]}
+        ])
+
+def fill_t15_slide_7_image_left_text_right2(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t15_get_body_text(data)
+    if img_arg:
+        _t15_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t15_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 1, 'color': '749835', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t15_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2132, 'b': 0, 'color': '14190D', 'text': body_text}]}
+        ])
+
+def fill_t15_slide_8_conclusion(slide, data):
+    pass
+
+def generate_template_15_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname, plan, content_data_list, user_images=None):
+    import io
+    total_content_slides = build_slide_structure_15(prs, requested_slide_count)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    fill_t15_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_t15_slide_2_plan(prs.slides[1], plan_dict)
+    user_img_idx = 0
+    IMAGE_SLIDE_TYPES = [0, 1, 2, 3, 4]
+    for i in range(total_content_slides):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+        slide = prs.slides[slide_index]
+        data = content_data_list[i] if i < len(content_data_list) else {}
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        image_query = data.get("image_query", topic)
+        slide_type = i % 5
+        if user_images and user_img_idx < len(user_images):
+            img_path = save_user_image_to_tmp(user_images[user_img_idx])
+            user_img_idx += 1
+            img_arg = img_path if img_path else image_query
+        else:
+            img_arg = image_query
+        if slide_type == 0:
+            fill_t15_slide_3_image_left_text_right(slide, data, img_arg)
+        elif slide_type == 1:
+            fill_t15_slide_4_text_left_image_right(slide, data, img_arg)
+        elif slide_type == 2:
+            fill_t15_slide_5_title_text_image_right(slide, data, img_arg)
+        elif slide_type == 3:
+            fill_t15_slide_6_title_text_image_right2(slide, data, img_arg)
+        elif slide_type == 4:
+            fill_t15_slide_7_image_left_text_right2(slide, data, img_arg)
+        logging.info(f"  [T15] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t15_slide_8_conclusion(prs.slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
