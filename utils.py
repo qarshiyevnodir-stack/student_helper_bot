@@ -9960,9 +9960,9 @@ def fill_t22_slide_3_two_text_columns_center_title(slide, data, img_arg=None):
         ])
 
 def fill_t22_slide_4_title_left_two_text_rows(slide, data, img_arg=None):
-    # shapes[0] = matn 1 (28pt, terakota C15943, left) - yuqori
+    # shapes[0] = matn 1 (24pt, terakota C15943, left) - yuqori
     # shapes[1] = sarlavha (44pt, terakota C15943, bold, left)
-    # shapes[2] = matn 2 (28pt, terakota C15943, left) - pastki
+    # shapes[2] = matn 2 (24pt, terakota C15943, left) - pastki
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -9977,17 +9977,19 @@ def fill_t22_slide_4_title_left_two_text_rows(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'C15943', 'text': text1}]}
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'C15943', 'text': text2}]}
         ])
 
 def fill_t22_slide_5_title_left_text_left_freeform(slide, data, img_arg=None):
-    # shapes[0] = Freeform (dekor, solid fill)
+    # shapes[0] = Freeform (rasm joyi - solid fill o'rniga rasm)
     # shapes[1] = matn (28pt, terakota C15943, left)
     # shapes[2] = sarlavha (40pt, terakota C15943, bold, left)
+    import os
+    from pptx.util import Emu
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -10000,11 +10002,29 @@ def fill_t22_slide_5_title_left_text_left_freeform(slide, data, img_arg=None):
         _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': body_text}]}
         ])
+    # Freeform (shapes[0]) o'rniga rasm qo'shish
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            freeform = slide.shapes[0]
+            left = freeform.left
+            top = freeform.top
+            width = freeform.width
+            height = freeform.height
+            if isinstance(img_arg, str) and os.path.exists(img_arg):
+                img_path = img_arg
+            else:
+                img_path = fetch_image(img_arg)
+            if img_path and os.path.exists(img_path):
+                slide.shapes.add_picture(img_path, left, top, width, height)
+        except Exception as e:
+            logging.warning(f"[T22] Slayd5 rasm qo'shish xatoligi: {e}")
 
 def fill_t22_slide_6_title_left_text_left_freeform2(slide, data, img_arg=None):
-    # shapes[0] = Freeform (dekor, solid fill)
+    # shapes[0] = Freeform (rasm joyi - solid fill o'rniga rasm)
     # shapes[1] = matn (28pt, terakota C15943, left)
     # shapes[2] = sarlavha (40pt, terakota C15943, bold, left)
+    import os
+    from pptx.util import Emu
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -10017,6 +10037,22 @@ def fill_t22_slide_6_title_left_text_left_freeform2(slide, data, img_arg=None):
         _t22_clear_and_write(slide.shapes[1].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': body_text}]}
         ])
+    # Freeform (shapes[0]) o'rniga rasm qo'shish
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            freeform = slide.shapes[0]
+            left = freeform.left
+            top = freeform.top
+            width = freeform.width
+            height = freeform.height
+            if isinstance(img_arg, str) and os.path.exists(img_arg):
+                img_path = img_arg
+            else:
+                img_path = fetch_image(img_arg)
+            if img_path and os.path.exists(img_path):
+                slide.shapes.add_picture(img_path, left, top, width, height)
+        except Exception as e:
+            logging.warning(f"[T22] Slayd6 rasm qo'shish xatoligi: {e}")
 
 def fill_t22_slide_7_two_text_columns_left_title(slide, data, img_arg=None):
     # shapes[0] = matn 1 (28pt, terakota C15943, left) - chap

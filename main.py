@@ -1547,7 +1547,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             19: [0, 1, 2, 3, 4],  # T19: barcha kontent slaydlarda rasm bor
             20: [3, 4],  # T20: slayd6 (Picture), slayd7 (3 doira) da rasm bor
             21: [],  # T21: rasm yo'q, faqat matn
-            22: [],  # T22: rasm yo'q, faqat matn
+            22: [2, 3],  # T22: slayd5 (idx 2), slayd6 (idx 3) da rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
