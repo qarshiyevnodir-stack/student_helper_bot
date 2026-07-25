@@ -9589,3 +9589,235 @@ def generate_template_20_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+# ============================================================
+# 21-SHABLON (Elements of Poetry - to'q ko'k/oq, rasm yo'q)
+# ============================================================
+
+SLIDE_TYPE_NAMES_T21 = {
+    "cover": "Muqova",
+    "plan": "Reja",
+    "title_right_text_right": "Sarlavha o'ng, matn o'ng pastda",
+    "title_left_text_left": "Sarlavha chap, matn chap pastda",
+    "title_right_text_right_2": "Sarlavha o'ng, matn o'ng (2)",
+    "title_left_text_left_2": "Sarlavha chap, matn chap (2)",
+    "title_right_text_right_3": "Sarlavha o'ng, matn o'ng (3)",
+    "conclusion": "Xulosa",
+}
+
+def _t21_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2800)
+            b = run.get('b', 0)
+            color = run.get('color', '1C2143')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t21_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t21_slide_1_cover(slide, topic, name_surname):
+    # shapes[0] = sarlavha (48pt, to'q ko'k 1C2143, left)
+    # shapes[1] = ism/tavsif (20pt, to'q ko'k 1C2143)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '1C2143', 'text': topic}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '1C2143', 'text': name_surname}]}
+        ])
+
+def fill_t21_slide_2_plan(slide, plan_dict):
+    import re
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    plan_title = plan_dict.get("title", "Reja")
+    plan_content = plan_dict.get("content", [])
+    if isinstance(plan_content, list):
+        items = plan_content
+    else:
+        items = [str(plan_content)]
+    clean_items = []
+    for item in items:
+        item_str = str(item).strip()
+        item_str = re.sub(r'^\d+[\.\)]\s*', '', item_str)
+        clean_items.append(item_str)
+    # shapes[0] = sarlavha (70pt, to'q ko'k 1C2143, center)
+    # shapes[1] = reja matn (28pt, to'q ko'k 1C2143, left)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 7000, 'b': 1, 'color': '1C2143', 'text': plan_title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        paras = []
+        for idx, item in enumerate(clean_items[:7], 1):
+            paras.append({
+                'algn': 'l',
+                'marL': 342900,
+                'indent': -342900,
+                'spcPts': 150,
+                'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': f"{idx}. {item}"}]
+            })
+        if paras:
+            _t21_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
+
+def fill_t21_slide_3_title_right_text_right(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (44pt, to'q ko'k 1C2143, right)
+    # shapes[1] = matn (28pt, to'q ko'k 1C2143, left) - o'ng pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t21_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'r', 'runs': [{'sz': 4400, 'b': 1, 'color': '1C2143', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': body_text}]}
+        ])
+
+def fill_t21_slide_4_title_left_text_left(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (44pt, to'q ko'k 1C2143, left)
+    # shapes[1] = matn (28pt, to'q ko'k 1C2143, left) - chap pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t21_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': '1C2143', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': body_text}]}
+        ])
+
+def fill_t21_slide_5_title_right_text_right_2(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (44pt, to'q ko'k 1C2143, right)
+    # shapes[1] = matn (28pt, to'q ko'k 1C2143, left) - o'ng pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t21_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'r', 'runs': [{'sz': 4400, 'b': 1, 'color': '1C2143', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': body_text}]}
+        ])
+
+def fill_t21_slide_6_title_left_text_left_2(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (48pt, to'q ko'k 1C2143, left)
+    # shapes[1] = matn (28pt, to'q ko'k 1C2143, left) - chap pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t21_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '1C2143', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': body_text}]}
+        ])
+
+def fill_t21_slide_7_title_right_text_right_3(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (44pt, to'q ko'k 1C2143, left)
+    # shapes[1] = matn (28pt, to'q ko'k 1C2143, left) - o'ng pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t21_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t21_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': '1C2143', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t21_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1C2143', 'text': body_text}]}
+        ])
+
+def fill_t21_slide_8_conclusion(slide, data):
+    pass
+
+def generate_template_21_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None, content_data_list=None,
+                                       user_images=None):
+    import io
+    slides = prs.slides
+    if len(slides) < 2:
+        logging.error("[T21] Shablon slaydlari yetarli emas")
+        return None
+    fill_t21_slide_1_cover(slides[0], topic, name_surname)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    fill_t21_slide_2_plan(slides[1], plan_dict)
+    content_slide_funcs = [
+        fill_t21_slide_3_title_right_text_right,
+        fill_t21_slide_4_title_left_text_left,
+        fill_t21_slide_5_title_right_text_right_2,
+        fill_t21_slide_6_title_left_text_left_2,
+        fill_t21_slide_7_title_right_text_right_3,
+    ]
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        slide_type = i % len(content_slide_funcs)
+        content_slide_funcs[slide_type](slide, data, None)
+        logging.info(f"  [T21] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t21_slide_8_conclusion(slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
