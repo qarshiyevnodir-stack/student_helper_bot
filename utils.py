@@ -8496,13 +8496,18 @@ def fill_t17_slide_4_image_left_two_texts(slide, data, img_arg=None):
         data = {}
     title = data.get("title", "")
     body_text = _t17_get_body_text(data)
+    # Matn yetarli bo'lishi uchun 3 marta takrorlash
+    if len(body_text.split()) < 40:
+        body_text = (body_text + " " + body_text + " " + body_text).strip()
     words = body_text.split()
     mid = max(1, len(words) // 2)
     text1 = " ".join(words[:mid])
     text2 = " ".join(words[mid:])
     if img_arg:
+        # Ikkala rasm uchun har xil query ishlatish
+        img_arg2 = data.get("image_query2", "") or (img_arg + " medical treatment" if isinstance(img_arg, str) and not os.path.exists(img_arg) else img_arg)
         _t17_replace_group_blip(slide, 0, img_arg)
-        _t17_replace_group_blip(slide, 1, img_arg)
+        _t17_replace_group_blip(slide, 1, img_arg2)
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t17_clear_and_write(slide.shapes[2].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '222223', 'text': text1}]}
@@ -8539,6 +8544,9 @@ def fill_t17_slide_6_text_left_image_right_quote(slide, data, img_arg=None):
         data = {}
     title = data.get("title", "")
     body_text = _t17_get_body_text(data)
+    # Matn yetarli bo'lishi uchun 3 marta takrorlash
+    if len(body_text.split()) < 50:
+        body_text = (body_text + " " + body_text + " " + body_text).strip()
     words = body_text.split()
     mid = max(1, len(words) // 2)
     text1 = " ".join(words[:mid])
@@ -8562,15 +8570,20 @@ def fill_t17_slide_7_image_left_colored_text(slide, data, img_arg=None):
     title = data.get("title", "")
     body_text = _t17_get_body_text(data)
     if img_arg:
+        # Ikkala rasm uchun har xil query ishlatish
+        img_arg2 = data.get("image_query2", "") or (img_arg + " healthcare facility" if isinstance(img_arg, str) and not os.path.exists(img_arg) else img_arg)
         _t17_replace_blip(slide, 0, img_arg)
-        _t17_replace_group_blip(slide, 1, img_arg)
+        _t17_replace_group_blip(slide, 1, img_arg2)
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t17_clear_and_write(slide.shapes[2].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '23374D', 'text': body_text}]}
         ])
+    # 2-matn bloki (shapes[3]) - sarlavha emas, oddiy matn bilan to'ldirish
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        words = body_text.split()
+        extra_text = " ".join(words[len(words)//2:]) if len(words) > 10 else body_text
         _t17_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 1, 'color': '0F4C3A', 'text': title}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '222223', 'text': extra_text}]}
         ])
     if len(slide.shapes) > 4 and slide.shapes[4].has_text_frame:
         _t17_clear_and_write(slide.shapes[4].text_frame._txBody, [
