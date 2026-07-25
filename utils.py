@@ -10118,3 +10118,333 @@ def generate_template_22_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+# ============================================================
+# 23-SHABLON (World of Sports - oq fon, to'q 202020 matn, har slaydda Freeform rasm)
+# ============================================================
+
+SLIDE_TYPE_NAMES_T23 = {
+    "cover": "Muqova",
+    "plan": "Reja (rasm chap, matn o'ng)",
+    "title_bottom_text_right_img_top": "Rasm yuqori, sarlavha va matn pastda",
+    "title_top_text_right_img_bottom": "Rasm pastda, sarlavha va matn yuqorida",
+    "title_left_text_left_img_right": "Rasm o'ng, sarlavha va matn chap",
+    "title_bottom_text_right_img_topleft": "Rasm chap yuqori, sarlavha va matn pastda",
+    "title_right_text_right_img_left": "Rasm chap, sarlavha va matn o'ng",
+    "conclusion": "Xulosa",
+}
+
+def _t23_replace_blip(shape, img_path):
+    """Freeform ichidagi blip (rasm) ni yangi rasm bilan almashtirish"""
+    from lxml import etree
+    import base64
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    from pptx.opc.part import Part
+    import mimetypes
+    try:
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        blips = shape._element.findall('.//a:blip', {'a': ns_a})
+        if not blips:
+            return False
+        blip = blips[0]
+        rId = blip.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+        if not rId:
+            return False
+        slide_part = shape.part
+        with open(img_path, 'rb') as f:
+            img_data = f.read()
+        ext = img_path.rsplit('.', 1)[-1].lower()
+        mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'bmp': 'image/bmp'}
+        content_type = mime_map.get(ext, 'image/jpeg')
+        part_name_str = f'/ppt/media/t23_img_{id(shape)}.{ext}'
+        from pptx.opc.packuri import PackURI
+        new_part = Part(PackURI(part_name_str), content_type, img_data)
+        slide_part.relate_to(new_part, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image')
+        new_rels = [r for r in slide_part.rels.values() if r._target is new_part]
+        if new_rels:
+            new_rId = new_rels[-1].rId
+            blip.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed', new_rId)
+            return True
+    except Exception as e:
+        logging.warning(f"[T23] blip almashtirish xatoligi: {e}")
+    return False
+
+def _t23_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2400)
+            b = run.get('b', 0)
+            color = run.get('color', '202020')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t23_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t23_slide_1_cover(slide, topic, name_surname):
+    # shapes[0] = Freeform (rasm, o'ng tomonida)
+    # shapes[1] = sarlavha (54pt, 202020, left)
+    # shapes[2] = tagline (26pt, 919191, left)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 5400, 'b': 0, 'color': '202020', 'text': topic.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2600, 'b': 0, 'color': '919191', 'text': name_surname}]}
+        ])
+
+def fill_t23_slide_2_plan(slide, plan_dict, img_arg=None):
+    import re
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    plan_title = plan_dict.get("title", "Reja")
+    plan_content = plan_dict.get("content", [])
+    if isinstance(plan_content, list):
+        items = plan_content
+    else:
+        items = [str(plan_content)]
+    clean_items = []
+    for item in items:
+        item_str = str(item).strip()
+        item_str = re.sub(r'^\d+[\.\)]\s*', '', item_str)
+        clean_items.append(item_str)
+    # shapes[0] = Freeform (rasm, chap pastda)
+    # shapes[1] = sarlavha (98pt, 202020, center)
+    # shapes[2] = reja matn (24pt, 202020, justify)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 9800, 'b': 0, 'color': '202020', 'text': plan_title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        paras = []
+        for idx, item in enumerate(clean_items[:7], 1):
+            paras.append({
+                'algn': 'l',
+                'marL': 342900,
+                'indent': -342900,
+                'spcPts': 150,
+                'runs': [{'sz': 2400, 'b': 0, 'color': '202020', 'text': f"{idx}. {item}"}]
+            })
+        if paras:
+            _t23_clear_and_write(slide.shapes[2].text_frame._txBody, paras)
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd2 rasm: {e}")
+
+def fill_t23_slide_3_img_top_title_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform (rasm, yuqori to'la kenglik)
+    # shapes[1] = sarlavha (54pt, 202020, left) - pastda
+    # shapes[2] = matn (19pt, 202020, justify) - o'ng pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t23_get_body_text(data)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 5400, 'b': 0, 'color': '202020', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1900, 'b': 0, 'color': '202020', 'text': body_text}]}
+        ])
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd3 rasm: {e}")
+
+def fill_t23_slide_4_img_bottom_title_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform (rasm, pastda to'la kenglik)
+    # shapes[1] = sarlavha (48pt, 202020, left) - yuqorida
+    # shapes[2] = matn (19pt, 202020, justify) - o'ng yuqorida
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t23_get_body_text(data)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'color': '202020', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1900, 'b': 0, 'color': '202020', 'text': body_text}]}
+        ])
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd4 rasm: {e}")
+
+def fill_t23_slide_5_img_right_title_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform (rasm, o'ng tomonida)
+    # shapes[1] = sarlavha (44pt, 919191, left) - chap yuqori
+    # shapes[2] = matn (19pt, 202020, justify) - chap pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t23_get_body_text(data)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 0, 'color': '919191', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1900, 'b': 0, 'color': '202020', 'text': body_text}]}
+        ])
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd5 rasm: {e}")
+
+def fill_t23_slide_6_img_topleft_title_bottom(slide, data, img_arg=None):
+    # shapes[0] = Freeform (rasm, chap yuqori)
+    # shapes[1] = sarlavha (48pt, 202020, left) - pastda
+    # shapes[2] = matn (19pt, 202020, justify) - o'ng
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t23_get_body_text(data)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'color': '202020', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1900, 'b': 0, 'color': '202020', 'text': body_text}]}
+        ])
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd6 rasm: {e}")
+
+def fill_t23_slide_7_img_left_title_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform (rasm, chap tomonida)
+    # shapes[1] = sarlavha (44pt, 919191, left) - o'ng yuqori
+    # shapes[2] = matn (19pt, 202020, justify) - o'ng pastda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t23_get_body_text(data)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t23_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 0, 'color': '919191', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t23_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 1900, 'b': 0, 'color': '202020', 'text': body_text}]}
+        ])
+    if img_arg and len(slide.shapes) > 0:
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and __import__('os').path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t23_replace_blip(slide.shapes[0], img_path)
+        except Exception as e:
+            logging.warning(f"[T23] Slayd7 rasm: {e}")
+
+def fill_t23_slide_8_conclusion(slide, data):
+    pass
+
+def generate_template_23_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None, content_data_list=None,
+                                       user_images=None):
+    import io
+    slides = prs.slides
+    if len(slides) < 2:
+        logging.error("[T23] Shablon slaydlari yetarli emas")
+        return None
+    fill_t23_slide_1_cover(slides[0], topic, name_surname)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    content_slide_funcs = [
+        fill_t23_slide_3_img_top_title_text,
+        fill_t23_slide_4_img_bottom_title_text,
+        fill_t23_slide_5_img_right_title_text,
+        fill_t23_slide_6_img_topleft_title_bottom,
+        fill_t23_slide_7_img_left_title_text,
+    ]
+    # Reja slaydiga rasm
+    plan_img = None
+    if user_images and len(user_images) > 0:
+        plan_img = user_images[0]
+    elif content_data_list and len(content_data_list) > 0:
+        q = content_data_list[0].get("title", topic) if isinstance(content_data_list[0], dict) else topic
+        plan_img = fetch_image(q + " sport")
+    fill_t23_slide_2_plan(slides[1], plan_dict, plan_img)
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        slide_type = i % len(content_slide_funcs)
+        # Rasm
+        img_arg = None
+        if user_images and i < len(user_images):
+            img_arg = user_images[i]
+        else:
+            img_query = data.get("title", topic) if isinstance(data, dict) else topic
+            img_arg = fetch_image(img_query + " sport")
+        content_slide_funcs[slide_type](slide, data, img_arg)
+        logging.info(f"  [T23] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t23_slide_8_conclusion(slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
