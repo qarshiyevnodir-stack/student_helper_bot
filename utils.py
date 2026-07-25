@@ -8746,6 +8746,8 @@ def _t18_get_body_text(data):
 
 def fill_t18_slide_1_cover(slide, topic, name_surname):
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        # Sarlavha matn blokini 4sm pastga tushirish (4sm = 4/2.54*914400 = 1440000 EMU)
+        slide.shapes[0].top = slide.shapes[0].top + 1440000
         _t18_clear_and_write(slide.shapes[0].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 6000, 'b': 1, 'color': '000000', 'text': topic}]}
         ])
@@ -8833,13 +8835,28 @@ def fill_t18_slide_4_text_center_two_texts(slide, data, img_arg=None):
         ])
 
 def fill_t18_slide_5_image_right_text_left(slide, data, img_arg=None):
+    import os
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
     body_text = _t18_get_body_text(data)
     if img_arg:
-        # shapes[0] = Freeform (blip bor) - rasm almashtirish
-        _t18_replace_blip(slide, 0, img_arg)
+        # shapes[0] = Freeform (ikonka rasm) - mavzuga doir haqiqiy rasm bilan almashtirish
+        # Freeform o'lchamida add_picture qo'shamiz
+        try:
+            freeform_sh = slide.shapes[0]
+            left = freeform_sh.left
+            top = freeform_sh.top
+            width = freeform_sh.width
+            height = freeform_sh.height
+            if isinstance(img_arg, str) and os.path.exists(img_arg):
+                img_path = img_arg
+            else:
+                img_path = fetch_image(img_arg)
+            if img_path and os.path.exists(img_path):
+                slide.shapes.add_picture(img_path, left, top, width, height)
+        except Exception as e:
+            logging.warning(f"[T18] Slayd5 rasm qo'shish xatoligi: {e}")
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         _t18_clear_and_write(slide.shapes[1].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': '101010', 'text': title}]}
