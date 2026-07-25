@@ -8838,6 +8838,7 @@ def fill_t18_slide_5_image_right_text_left(slide, data, img_arg=None):
     title = data.get("title", "")
     body_text = _t18_get_body_text(data)
     if img_arg:
+        # shapes[0] = Freeform (blip bor) - rasm almashtirish
         _t18_replace_blip(slide, 0, img_arg)
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         _t18_clear_and_write(slide.shapes[1].text_frame._txBody, [
@@ -8849,6 +8850,7 @@ def fill_t18_slide_5_image_right_text_left(slide, data, img_arg=None):
         ])
 
 def fill_t18_slide_6_text_center_two_texts_shape(slide, data, img_arg=None):
+    import os
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -8869,6 +8871,22 @@ def fill_t18_slide_6_text_center_two_texts_shape(slide, data, img_arg=None):
         _t18_clear_and_write(slide.shapes[2].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '101010', 'text': text2}]}
         ])
+    # shapes[3] = Freeform (solid fill) - rasm qo'shish (add_picture o'sha joydagi o'lchamda)
+    if img_arg and len(slide.shapes) > 3:
+        try:
+            freeform_sh = slide.shapes[3]
+            left = freeform_sh.left
+            top = freeform_sh.top
+            width = freeform_sh.width
+            height = freeform_sh.height
+            if isinstance(img_arg, str) and os.path.exists(img_arg):
+                img_path = img_arg
+            else:
+                img_path = fetch_image(img_arg)
+            if img_path and os.path.exists(img_path):
+                slide.shapes.add_picture(img_path, left, top, width, height)
+        except Exception as e:
+            logging.warning(f"[T18] Slayd6 rasm qo'shish xatoligi: {e}")
 
 def fill_t18_slide_7_image_right_text_left_colored(slide, data, img_arg=None):
     if not isinstance(data, dict):
@@ -8876,7 +8894,11 @@ def fill_t18_slide_7_image_right_text_left_colored(slide, data, img_arg=None):
     title = data.get("title", "")
     body_text = _t18_get_body_text(data)
     if img_arg:
+        # shapes[0] = Picture - rasm almashtirish va 2sm o'ngga siljitish
         _t18_replace_blip(slide, 0, img_arg)
+        # Picture ni 2sm o'ngga siljitish (2sm = 2/2.54*914400 = 720000 EMU)
+        if len(slide.shapes) > 0:
+            slide.shapes[0].left = slide.shapes[0].left + 720000
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         _t18_clear_and_write(slide.shapes[1].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 4000, 'b': 1, 'color': 'F4F6FC', 'text': title}]}
