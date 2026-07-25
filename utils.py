@@ -8137,7 +8137,7 @@ def fill_t16_slide_2_plan(slide, plan_dict):
                 'marL': 342900,
                 'indent': -342900,
                 'spcPts': 150,
-                'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': f"{idx}. {item}"}]
+                'runs': [{'sz': 3200, 'b': 0, 'color': '19437A', 'text': f"{idx}. {item}"}]
             })
         if paras:
             _t16_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
@@ -8155,7 +8155,7 @@ def fill_t16_slide_3_text_left_image_right(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': body_text}]}
         ])
 
 def fill_t16_slide_4_image_left_two_texts(slide, data, img_arg=None):
@@ -8169,13 +8169,13 @@ def fill_t16_slide_4_image_left_two_texts(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': body_text}]}
         ])
     if img_arg:
         _t16_replace_group_blip(slide, 2, img_arg)
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': body_text}]}
         ])
 
 def fill_t16_slide_5_image_left_text_right_two(slide, data, img_arg=None):
@@ -8195,11 +8195,11 @@ def fill_t16_slide_5_image_left_text_right_two(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': text1}]}
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': text2}]}
         ])
 
 def fill_t16_slide_6_text_left_image_right_quote(slide, data, img_arg=None):
@@ -8215,13 +8215,13 @@ def fill_t16_slide_6_text_left_image_right_quote(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': body_text}]}
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         words = body_text.split()
         quote_text = " ".join(words[-15:]) if len(words) > 15 else body_text
         _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'r', 'runs': [{'sz': 1500, 'b': 1, 'color': '19437A', 'text': quote_text}]}
+            {'algn': 'r', 'runs': [{'sz': 2400, 'b': 1, 'color': '19437A', 'text': quote_text}]}
         ])
 
 def fill_t16_slide_7_image_left_colored_text(slide, data, img_arg=None):
@@ -8241,11 +8241,11 @@ def fill_t16_slide_7_image_left_colored_text(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': text2}]}
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': 'FFFFFF', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'FFFFFF', 'text': text1}]}
         ])
 
 def fill_t16_slide_8_conclusion(slide, data):
