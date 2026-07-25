@@ -24,6 +24,7 @@ from utils import (
     generate_template_13_presentation,
     generate_template_14_presentation,
     generate_template_15_presentation,
+    generate_template_16_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -42,6 +43,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T13,
     SLIDE_TYPE_NAMES_T14,
     SLIDE_TYPE_NAMES_T15,
+    SLIDE_TYPE_NAMES_T16,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1390,18 +1392,18 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 15-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 16-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_15_path = os.path.join(previews_dir, "15.png")
+    preview_16_path = os.path.join(previews_dir, "16.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_15")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_16")],
     ])
-    if os.path.exists(preview_15_path):
-        with open(preview_15_path, "rb") as f:
+    if os.path.exists(preview_16_path):
+        with open(preview_16_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🌿 *Green Forest shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🔵 *Medical Blue shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
@@ -1458,6 +1460,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         13: SLIDE_TYPE_NAMES_T13,
         14: SLIDE_TYPE_NAMES_T14,
         15: SLIDE_TYPE_NAMES_T15,
+        16: SLIDE_TYPE_NAMES_T16,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1513,6 +1516,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             13: [0, 1, 3, 4],            # T13: slayd3,4,6,7 da rasm bor
             14: [0, 1, 2, 3, 4],           # T14: barcha kontent slaydlarda rasm bor
             15: [0, 1, 2, 3, 4],  # T15: barcha kontent slaydlarda rasm bor
+            16: [0, 1, 2, 3, 4],  # T16: barcha kontent slaydlarda rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []

@@ -7968,3 +7968,330 @@ def generate_template_15_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ============================================================
+# 16-SHABLON (Medical Blue) funksiyalari
+# ============================================================
+
+SLIDE_TYPE_NAMES_T16 = {
+    "cover": "Muqova",
+    "plan": "Reja",
+    "text_left_image_right": "Matn chap, rasm o'ng",
+    "image_left_two_texts": "Sarlavha, matn chap, rasm o'ng",
+    "image_left_text_right_two": "Rasm chap, ikki matn o'ng",
+    "text_left_image_right_quote": "Matn chap, rasm o'ng, quote",
+    "image_left_colored_text": "Rasm chap, rangli matn o'ng",
+    "conclusion": "Xulosa",
+}
+
+def build_slide_structure_16(prs, requested_content_count):
+    content_slide_types = [
+        "text_left_image_right",
+        "image_left_two_texts",
+        "image_left_text_right_two",
+        "text_left_image_right_quote",
+        "image_left_colored_text",
+    ]
+    structure = ["cover", "plan"]
+    for i in range(requested_content_count):
+        structure.append(content_slide_types[i % len(content_slide_types)])
+    structure.append("conclusion")
+    return structure
+
+def _t16_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 1500)
+            b = run.get('b', 0)
+            color = run.get('color', '19437A')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t16_replace_blip(slide, shape_idx, img_arg):
+    try:
+        import os
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        shape = slide.shapes[shape_idx]
+        el = shape._element
+        if isinstance(img_arg, str) and os.path.exists(img_arg):
+            img_path = img_arg
+        else:
+            img_path = fetch_image(img_arg)
+        if not img_path or not os.path.exists(img_path):
+            return
+        blip = el.find('.//a:blip', {'a': ns_a})
+        if blip is not None:
+            part = slide.part
+            _, img_rId = part.get_or_add_image_part(img_path)
+            blip.set(f'{{{ns_r}}}embed', img_rId)
+        else:
+            for child in el.iter():
+                if child.tag == f'{{{ns_a}}}blip':
+                    part = slide.part
+                    _, img_rId = part.get_or_add_image_part(img_path)
+                    child.set(f'{{{ns_r}}}embed', img_rId)
+                    break
+    except Exception as e:
+        logging.warning(f"[T16] Rasm almashtirish xatoligi: {e}")
+
+def _t16_replace_group_blip(slide, group_shape_idx, img_arg):
+    try:
+        import os
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        shape = slide.shapes[group_shape_idx]
+        el = shape._element
+        if isinstance(img_arg, str) and os.path.exists(img_arg):
+            img_path = img_arg
+        else:
+            img_path = fetch_image(img_arg)
+        if not img_path or not os.path.exists(img_path):
+            return
+        for child in el.iter():
+            if child.tag == f'{{{ns_a}}}blip':
+                part = slide.part
+                _, img_rId = part.get_or_add_image_part(img_path)
+                child.set(f'{{{ns_r}}}embed', img_rId)
+                break
+    except Exception as e:
+        logging.warning(f"[T16] Group rasm almashtirish xatoligi: {e}")
+
+def _t16_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t16_slide_1_cover(slide, topic, name_surname):
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t16_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 7200, 'b': 0, 'color': '19437A', 'text': topic}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': name_surname}]}
+        ])
+
+def fill_t16_slide_2_plan(slide, plan_dict):
+    import re
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    plan_title = plan_dict.get("title", "Reja")
+    plan_content = plan_dict.get("content", [])
+    if isinstance(plan_content, list):
+        items = plan_content
+    else:
+        items = [str(plan_content)]
+    clean_items = []
+    for item in items:
+        item_str = str(item).strip()
+        item_str = re.sub(r'^\d+[\.\)]\s*', '', item_str)
+        clean_items.append(item_str)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t16_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 5499, 'b': 0, 'color': '19437A', 'text': plan_title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        paras = []
+        for idx, item in enumerate(clean_items[:7], 1):
+            paras.append({
+                'algn': 'l',
+                'marL': 342900,
+                'indent': -342900,
+                'spcPts': 150,
+                'runs': [{'sz': 2400, 'b': 0, 'color': '19437A', 'text': f"{idx}. {item}"}]
+            })
+        if paras:
+            _t16_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
+
+def fill_t16_slide_3_text_left_image_right(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t16_get_body_text(data)
+    if img_arg:
+        _t16_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 5499, 'b': 0, 'color': '19437A', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+        ])
+
+def fill_t16_slide_4_image_left_two_texts(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t16_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t16_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 5000, 'b': 0, 'color': '19437A', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+        ])
+    if img_arg:
+        _t16_replace_group_blip(slide, 2, img_arg)
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+        ])
+
+def fill_t16_slide_5_image_left_text_right_two(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t16_get_body_text(data)
+    words = body_text.split()
+    mid = max(1, len(words) // 2)
+    text1 = " ".join(words[:mid])
+    text2 = " ".join(words[mid:])
+    if img_arg:
+        _t16_replace_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 5499, 'b': 0, 'color': '19437A', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text2}]}
+        ])
+
+def fill_t16_slide_6_text_left_image_right_quote(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t16_get_body_text(data)
+    if img_arg:
+        _t16_replace_group_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'color': '19437A', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': body_text}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        words = body_text.split()
+        quote_text = " ".join(words[-15:]) if len(words) > 15 else body_text
+        _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'r', 'runs': [{'sz': 1500, 'b': 1, 'color': '19437A', 'text': quote_text}]}
+        ])
+
+def fill_t16_slide_7_image_left_colored_text(slide, data, img_arg=None):
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t16_get_body_text(data)
+    words = body_text.split()
+    mid = max(1, len(words) // 2)
+    text1 = " ".join(words[:mid])
+    text2 = " ".join(words[mid:])
+    if img_arg:
+        _t16_replace_group_blip(slide, 0, img_arg)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t16_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'color': '19437A', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t16_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': '19437A', 'text': text2}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t16_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1500, 'b': 0, 'color': 'FFFFFF', 'text': text1}]}
+        ])
+
+def fill_t16_slide_8_conclusion(slide, data):
+    pass
+
+def generate_template_16_presentation(prs, topic, requested_slide_count, language,
+                                       content_data_list, name_surname,
+                                       user_images=None, plan_data=None):
+    import io
+    slides = prs.slides
+    if len(slides) < 2:
+        logging.error("[T16] Shablon slaydlari yetarli emas")
+        return None
+    fill_t16_slide_1_cover(slides[0], topic, name_surname)
+    plan_dict = plan_data if isinstance(plan_data, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    fill_t16_slide_2_plan(slides[1], plan_dict)
+    content_slide_funcs = [
+        fill_t16_slide_3_text_left_image_right,
+        fill_t16_slide_4_image_left_two_texts,
+        fill_t16_slide_5_image_left_text_right_two,
+        fill_t16_slide_6_text_left_image_right_quote,
+        fill_t16_slide_7_image_left_colored_text,
+    ]
+    user_img_idx = 0
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        image_query = data.get("image_query", topic)
+        slide_type = i % len(content_slide_funcs)
+        if user_images and user_img_idx < len(user_images):
+            img_path = save_user_image_to_tmp(user_images[user_img_idx])
+            user_img_idx += 1
+            img_arg = img_path if img_path else image_query
+        else:
+            img_arg = image_query
+        content_slide_funcs[slide_type](slide, data, img_arg)
+        logging.info(f"  [T16] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t16_slide_8_conclusion(slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
