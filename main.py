@@ -1478,6 +1478,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         13: generate_template_13_presentation,
         14: generate_template_14_presentation,
         15: generate_template_15_presentation,
+        16: generate_template_16_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1815,7 +1816,8 @@ async def _rebuild_and_send_presentation_with_user_images(
         13: generate_template_13_presentation,
         14: generate_template_14_presentation,
         15: generate_template_15_presentation,
-    }.get(template_num, generate_template_9_presentation)
+        16: generate_template_16_presentation,
+    }.get(template_num, generate_template_16_presentation)
 
     try:
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", f"{template_num}.pptx")
