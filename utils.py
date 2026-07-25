@@ -6649,7 +6649,7 @@ def generate_template_11_presentation(prs, topic, requested_slide_count, languag
 
 
 # ============================================================
-# 12-SHABLON (AESTHETIC / BOTANICAL)
+# 12-SHABLON (AESTHETIC / BOTANICAL) — QAYTA YOZILGAN
 # ============================================================
 
 SLIDE_TYPE_NAMES_T12 = {
@@ -6685,114 +6685,115 @@ def build_slide_structure_12(prs, requested_content_count):
     return total_content_slides
 
 
+def _t12_clear_and_write(txBody, ns_a, paragraphs_data):
+    """
+    txBody dagi barcha paragraflarni o'chirib, yangi paragraflar yozadi.
+    paragraphs_data: list of dict {algn, marL, indent, spcPts, runs: [{sz, b, text}]}
+    """
+    from lxml import etree
+    import re
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        # pPr atributlari
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"' 
+        if indent:
+            pPr_attrs += f' indent="{indent}"' 
+        # spcBef
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        # runs
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2000)
+            b = run.get('b', 0)
+            text = run.get('text', '')
+            safe_text = str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b}" dirty="0">' 
+                f'<a:solidFill><a:srgbClr val="000000"/></a:solidFill>' 
+                f'</a:rPr><a:t>{safe_text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="{ns_a}">' 
+            f'<a:pPr {pPr_attrs}><a:buNone/>{spcBef_xml}</a:pPr>' 
+            f'{runs_xml}</a:p>'
+        )
+        txBody.append(etree.fromstring(p_xml))
+
+
 def fill_t12_slide_1_cover(slide, topic, name_surname):
     """
     12-Shablon Slayd 1 — Muqova.
-    Shape[0]: Sarlavha (TextBox 9): left=4.8683, top=4.1275, w=39.5817, h=2.5648
-    Shape[1]: Ism-familiya (TextBox 11): left=15.4517, top=23.6008, w=20.1083, h=3.9683
+    Shape[0] 'TextBox 9': sarlavha — sz=6000, b=0, algn=ctr, spcPts=17205
+    Shape[1] 'TextBox 11': ism-familiya — sz=2251, b=1, algn=ctr
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     # Sarlavha (Shape[0])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        tf = slide.shapes[0].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        title_text = topic.upper() if topic else "TAQDIMOT"
-        font_pt = calc_body_font_pt(len(title_text), base_pt=36, min_pt=22, max_pt=48)
-        safe_t = title_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="0" dirty="0"/>'
-            f'<a:t>{safe_t}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
+        title_text = (topic or "TAQDIMOT").upper()
+        _t12_clear_and_write(slide.shapes[0].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'spcPts': 17205, 'runs': [{'sz': 6000, 'b': 0, 'text': title_text}]}
+        ])
     # Ism-familiya (Shape[1])
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        name_text = name_surname if name_surname else ""
-        safe_n = name_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="1600" b="1" dirty="0"/>'
-            f'<a:t>{safe_n}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
+        name_text = name_surname or ""
+        _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2251, 'b': 1, 'text': name_text}]}
+        ])
 
 
 def fill_t12_slide_2_plan(slide, plan_dict):
     """
     12-Shablon Slayd 2 — Reja.
-    Shape[0]: 'REJA' sarlavhasi (TextBox 7): left=13.2582, top=3.7379, w=23.2461, h=3.1273
-    Shape[1]: Reja matni (TextBox 8): left=12.5349, top=11.2022, w=28.5284, h=8.2690
+    Shape[0] 'TextBox 7': 'REJA' sarlavhasi — sz=8135, b=0, algn=ctr (o'zgarmaydi)
+    Shape[1] 'TextBox 8': reja ro'yxati — sz=2771, b=1, algn=l, marL=514350, indent=-514350
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
+    import re
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
-    # Sarlavha (Shape[0]) - "REJA" deb qoladi
-    # Shape[1] - reja ro'yxati
+    # Shape[0] — "REJA" sarlavhasi o'zgarmaydi
+    # Shape[1] — reja punktlari
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-
         items = []
         if isinstance(plan_dict, dict):
             for k, v in plan_dict.items():
                 items.append(str(v) if v else str(k))
         elif isinstance(plan_dict, list):
             items = [str(x) for x in plan_dict]
-
-        # Raqamlarni tozalab, faqat "1." "2." formatda yozish
-        import re
+        # Raqamlarni tozalash
         clean_items = []
         for item in items:
-            cleaned = re.sub(r'^\s*[\d]+[\.\:\)]+\s*[\d]*[\.\:\)]*\s*', '', str(item)).strip()
+            cleaned = re.sub(r'^\s*[\d]+[\.\'\:\)]+\s*[\d]*[\.\'\:\)]*\s*', '', str(item)).strip()
             if cleaned:
                 clean_items.append(cleaned)
-
-        font_pt = calc_body_font_pt(sum(len(x) for x in clean_items), base_pt=18, min_pt=12, max_pt=22)
+        paragraphs = []
         for idx, item in enumerate(clean_items):
-            safe_item = item.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            p_xml = (
-                f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l" marL="457200" indent="-457200"><a:buNone/></a:pPr>'
-                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-                f'<a:t>{idx+1}. {safe_item}</a:t></a:r></a:p>'
-            )
-            txBody.append(etree.fromstring(p_xml))
+            paragraphs.append({
+                'algn': 'l',
+                'marL': 514350,
+                'indent': -514350,
+                'runs': [{'sz': 2771, 'b': 1, 'text': f'{idx+1}. {item}'}]
+            })
+        if paragraphs:
+            _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, paragraphs)
 
 
 def fill_t12_slide_3_text_left(slide, content_data, image_query=None):
     """
     12-Shablon Slayd 3 — Sarlavha + Matn chap, Dekor o'ng.
-    Shape[0]: Freeform 6 (dekor, saqlanadi): left=31.54, top=4.53, w=13.61, h=19.62
-    Shape[1]: Asosiy matn (TextBox 7): left=3.6287, top=8.7081, w=22.4063, h=8.8589
-    Shape[2]: Sarlavha (TextBox 8): left=4.2333, top=2.4342, w=27.3067, h=2.0518
+    Shape[0] 'Freeform 6': dekor (o'zgarmaydi)
+    Shape[1] 'TextBox 7': asosiy matn — sz=2000, b=1, algn=l
+    Shape[2] 'TextBox 8': sarlavha — sz=4800, b=0, algn=l
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     title = content_data.get("title", "")
     items = content_data.get("content", [])
     if isinstance(items, str):
@@ -6801,57 +6802,28 @@ def fill_t12_slide_3_text_left(slide, content_data, image_query=None):
         col1 = content_data.get("col1", "")
         col2 = content_data.get("col2", "")
         items = [x for x in [col1, col2] if x]
-
-    # Sarlavha (Shape[2])
+    # Sarlavha (Shape[2]) — sz=4800, b=0, algn=l
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
-        tf = slide.shapes[2].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_t = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="l"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="2800" b="0" dirty="0"/>'
-            f'<a:t>{safe_t.upper()}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    # Asosiy matn (Shape[1])
+        _t12_clear_and_write(slide.shapes[2].text_frame._txBody, ns_a, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'text': title.upper()}]}
+        ])
+    # Asosiy matn (Shape[1]) — sz=2000, b=1, algn=l
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
-        tf.word_wrap = True
-        total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=11, max_pt=20)
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
+        paragraphs = []
         for item in items:
-            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            p_xml = (
-                f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
-                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-                f'<a:t>{safe_item}</a:t></a:r></a:p>'
-            )
-            txBody.append(etree.fromstring(p_xml))
+            paragraphs.append({'algn': 'l', 'runs': [{'sz': 2000, 'b': 1, 'text': str(item)}]})
+        if paragraphs:
+            _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, paragraphs)
 
 
 def fill_t12_slide_4_image_left(slide, content_data, image_query=None):
     """
-    12-Shablon Slayd 4 — Rasm chap (freeform joyi), Sarlavha + Matn o'ng.
-    Shape[0]: Matn (TextBox 4): left=20.8298, top=8.7842, w=21.7713, h=8.2820
-    Shape[1]: Sarlavha (TextBox 7): left=20.8298, top=1.7992, w=28.7497, h=2.7839
-    Shape[2]: Freeform 7 (rasm joyi): left=2.4466, top=4.5255, w=14.6104, h=21.0707
+    12-Shablon Slayd 4 — Rasm chap (freeform), Sarlavha + Matn o'ng.
+    Shape[0] 'TextBox 4': asosiy matn — sz=2400, b=1, algn=l
+    Shape[1] 'TextBox 7': sarlavha — sz=4800, b=0, algn=l
+    Shape[2] 'Freeform 7': rasm joyi (freeform o'chirib rasm qo'yiladi)
     """
-    from pptx.util import Pt, Cm
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     title = content_data.get("title", "")
     items = content_data.get("content", [])
     if isinstance(items, str):
@@ -6860,58 +6832,32 @@ def fill_t12_slide_4_image_left(slide, content_data, image_query=None):
         col1 = content_data.get("col1", "")
         col2 = content_data.get("col2", "")
         items = [x for x in [col1, col2] if x]
-
-    # Sarlavha (Shape[1])
+    # Sarlavha (Shape[1]) — sz=4800, b=0, algn=l
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_t = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="l"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="2800" b="0" dirty="0"/>'
-            f'<a:t>{safe_t.upper()}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    # Asosiy matn (Shape[0])
+        _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'text': title.upper()}]}
+        ])
+    # Asosiy matn (Shape[0]) — sz=2400, b=1, algn=l
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        tf = slide.shapes[0].text_frame
-        tf.word_wrap = True
-        total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=11, max_pt=20)
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
+        paragraphs = []
         for item in items:
-            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            p_xml = (
-                f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
-                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-                f'<a:t>{safe_item}</a:t></a:r></a:p>'
-            )
-            txBody.append(etree.fromstring(p_xml))
-
-    # Rasm (Shape[2] — freeform joyi o'chirib, rasm qo'yish)
-    if image_query:
-        img_data = fetch_image(image_query) if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')) else None
-        if img_data is None and isinstance(image_query, str) and image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-            try:
-                with open(image_query, 'rb') as f:
-                    img_data = f.read()
-            except Exception:
-                img_data = None
-        if img_data:
-            try:
-                from pptx.util import Cm
-                import io as _io
-                # Freeform ni o'chirish
+            paragraphs.append({'algn': 'l', 'runs': [{'sz': 2400, 'b': 1, 'text': str(item)}]})
+        if paragraphs:
+            _t12_clear_and_write(slide.shapes[0].text_frame._txBody, ns_a, paragraphs)
+    # Rasm (Shape[2] — Freeform 7 o'chirib, rasm qo'yish)
+    if image_query and len(slide.shapes) > 2:
+        try:
+            import io as _io
+            img_data = None
+            if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                img_data = fetch_image(image_query)
+            elif isinstance(image_query, str):
+                try:
+                    with open(image_query, 'rb') as f:
+                        img_data = f.read()
+                except Exception:
+                    img_data = fetch_image(image_query)
+            if img_data:
                 freeform_shape = slide.shapes[2]
                 left = freeform_shape.left
                 top = freeform_shape.top
@@ -6919,99 +6865,61 @@ def fill_t12_slide_4_image_left(slide, content_data, image_query=None):
                 height = freeform_shape.height
                 sp = freeform_shape._element
                 sp.getparent().remove(sp)
-                # Yangi rasm qo'shish
                 img_stream = _io.BytesIO(img_data)
                 slide.shapes.add_picture(img_stream, left, top, width, height)
-            except Exception as e:
-                logging.warning(f"[T12] Slayd 4 rasm qo'shishda xatolik: {e}")
+        except Exception as e:
+            logging.warning(f"[T12] Slayd 4 rasm qo'shishda xatolik: {e}")
 
 
 def fill_t12_slide_5_two_columns(slide, content_data, image_query=None):
     """
     12-Shablon Slayd 5 — Sarlavha + 2 ta ustun matni.
-    Shape[0]: Sarlavha (TextBox 4): left=1.4817, top=2.0108, w=47.6250, h=3.0537
-    Shape[1]: Chap ustun (TextBox 9): left=5.7150, top=9.9564, w=17.3567, h=14.4911
-    Shape[2]: O'ng ustun (TextBox 10): left=27.1445, top=9.9564, w=17.3567, h=14.4911
+    Shape[0] 'TextBox 4': sarlavha — sz=7200, b=0, algn=ctr
+    Shape[1] 'TextBox 9': chap ustun — sz=2567, b=1, algn=ctr
+    Shape[2] 'TextBox 10': o'ng ustun — sz=2567, b=1, algn=ctr
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     title = content_data.get("title", "")
     col1 = content_data.get("col1", "")
     col2 = content_data.get("col2", "")
-    # content formatidan ham olish
     if not col1 and not col2:
         items = content_data.get("content", [])
         if isinstance(items, list) and len(items) >= 2:
-            col1 = items[0]
-            col2 = items[1]
+            col1, col2 = items[0], items[1]
         elif isinstance(items, list) and len(items) == 1:
             col1 = items[0]
         elif isinstance(items, str):
             col1 = items
-
-    # Sarlavha (Shape[0])
+    # Sarlavha (Shape[0]) — sz=7200, b=0, algn=ctr
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        tf = slide.shapes[0].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_t = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="3600" b="0" dirty="0"/>'
-            f'<a:t>{safe_t.upper()}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    def write_col(shape, text):
-        if not shape.has_text_frame:
-            return
-        tf = shape.text_frame
-        tf.word_wrap = True
-        font_pt = calc_body_font_pt(len(str(text)), base_pt=16, min_pt=11, max_pt=20)
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_text = str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr" marL="0" indent="0"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-            f'<a:t>{safe_text}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    if len(slide.shapes) > 1:
-        write_col(slide.shapes[1], col1)
-    if len(slide.shapes) > 2:
-        write_col(slide.shapes[2], col2)
+        _t12_clear_and_write(slide.shapes[0].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 7200, 'b': 0, 'text': title.upper()}]}
+        ])
+    # Chap ustun (Shape[1]) — sz=2567, b=1, algn=ctr
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2567, 'b': 1, 'text': str(col1)}]}
+        ])
+    # O'ng ustun (Shape[2]) — sz=2567, b=1, algn=ctr
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t12_clear_and_write(slide.shapes[2].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2567, 'b': 1, 'text': str(col2)}]}
+        ])
 
 
 def fill_t12_slide_6_three_columns(slide, content_data, image_query=None):
     """
     12-Shablon Slayd 6 — Sarlavha + 3 ta ustun matni.
-    Shape[0]: Sarlavha (TextBox 3): left=2.3283, top=2.0108, w=46.1306, h=3.0537
-    Shape[1]: Chap ustun (TextBox 7): left=2.3410, top=10.8201, w=13.7583, h=13.8391
-    Shape[2]: Markaz ustun (TextBox 8): left=18.5272, top=10.8201, w=13.7583, h=13.8391
-    Shape[3]: O'ng ustun (TextBox 9): left=34.7133, top=10.8201, w=13.7583, h=13.8391
+    Shape[0] 'TextBox 3': sarlavha — sz=7200, b=0, algn=ctr
+    Shape[1] 'TextBox 7': chap ustun — sz=2899, b=1, algn=ctr
+    Shape[2] 'TextBox 8': markaz ustun — sz=2899, b=1, algn=ctr
+    Shape[3] 'TextBox 9': o'ng ustun — sz=2899, b=1, algn=ctr
     """
-    from pptx.util import Pt
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     title = content_data.get("title", "")
     col1 = content_data.get("col1", "")
     col2 = content_data.get("col2", "")
     col3 = content_data.get("col3", "")
-    # content formatidan ham olish
     if not col1 and not col2 and not col3:
         items = content_data.get("content", [])
         if isinstance(items, list):
@@ -7023,63 +6931,36 @@ def fill_t12_slide_6_three_columns(slide, content_data, image_query=None):
                 col1 = items[0]
         elif isinstance(items, str):
             col1 = items
-
-    # Sarlavha (Shape[0])
+    # Sarlavha (Shape[0]) — sz=7200, b=0, algn=ctr
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        tf = slide.shapes[0].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_t = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="3600" b="0" dirty="0"/>'
-            f'<a:t>{safe_t.upper()}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    def write_col(shape, text):
-        if not shape.has_text_frame:
-            return
-        tf = shape.text_frame
-        tf.word_wrap = True
-        font_pt = calc_body_font_pt(len(str(text)), base_pt=14, min_pt=10, max_pt=18)
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_text = str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="ctr" marL="0" indent="0"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-            f'<a:t>{safe_text}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    if len(slide.shapes) > 1:
-        write_col(slide.shapes[1], col1)
-    if len(slide.shapes) > 2:
-        write_col(slide.shapes[2], col2)
-    if len(slide.shapes) > 3:
-        write_col(slide.shapes[3], col3)
+        _t12_clear_and_write(slide.shapes[0].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 7200, 'b': 0, 'text': title.upper()}]}
+        ])
+    # Chap ustun (Shape[1]) — sz=2899, b=1, algn=ctr
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2899, 'b': 1, 'text': str(col1)}]}
+        ])
+    # Markaz ustun (Shape[2]) — sz=2899, b=1, algn=ctr
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t12_clear_and_write(slide.shapes[2].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2899, 'b': 1, 'text': str(col2)}]}
+        ])
+    # O'ng ustun (Shape[3]) — sz=2899, b=1, algn=ctr
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t12_clear_and_write(slide.shapes[3].text_frame._txBody, ns_a, [
+            {'algn': 'ctr', 'runs': [{'sz': 2899, 'b': 1, 'text': str(col3)}]}
+        ])
 
 
 def fill_t12_slide_7_image_right(slide, content_data, image_query=None):
     """
-    12-Shablon Slayd 7 — Sarlavha + Matn chap, Rasm o'ng (freeform joyi).
-    Shape[0]: Asosiy matn (TextBox 8): left=3.1536, top=9.1234, w=32.1115, h=4.1142
-    Shape[1]: Sarlavha (TextBox 13): left=1.8748, top=1.8032, w=38.5536, h=3.0537
-    Shape[2]: Freeform 10 (rasm joyi): left=35.6092, top=8.4048, w=13.1186, h=18.9191
+    12-Shablon Slayd 7 — Sarlavha + Matn chap, Rasm o'ng (freeform).
+    Shape[0] 'TextBox 8': asosiy matn — sz=2899, b=1, algn=l
+    Shape[1] 'TextBox 13': sarlavha — sz=7200, b=0, algn=l
+    Shape[2] 'Freeform 10': rasm joyi (freeform o'chirib rasm qo'yiladi)
     """
-    from pptx.util import Pt, Cm
-    from pptx.enum.text import PP_ALIGN
-    from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
     title = content_data.get("title", "")
     items = content_data.get("content", [])
     if isinstance(items, str):
@@ -7088,56 +6969,32 @@ def fill_t12_slide_7_image_right(slide, content_data, image_query=None):
         col1 = content_data.get("col1", "")
         col2 = content_data.get("col2", "")
         items = [x for x in [col1, col2] if x]
-
-    # Sarlavha (Shape[1])
+    # Sarlavha (Shape[1]) — sz=7200, b=0, algn=l
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        tf = slide.shapes[1].text_frame
-        tf.word_wrap = True
-        txBody = tf._txBody
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
-        safe_t = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        p_xml = (
-            f'<a:p xmlns:a="{ns_a}">'
-            f'<a:pPr algn="l"><a:buNone/></a:pPr>'
-            f'<a:r><a:rPr lang="uz-UZ" sz="2800" b="0" dirty="0"/>'
-            f'<a:t>{safe_t.upper()}</a:t></a:r></a:p>'
-        )
-        txBody.append(etree.fromstring(p_xml))
-
-    # Asosiy matn (Shape[0])
+        _t12_clear_and_write(slide.shapes[1].text_frame._txBody, ns_a, [
+            {'algn': 'l', 'runs': [{'sz': 7200, 'b': 0, 'text': title.upper()}]}
+        ])
+    # Asosiy matn (Shape[0]) — sz=2899, b=1, algn=l
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        tf = slide.shapes[0].text_frame
-        tf.word_wrap = True
-        total_chars = sum(len(s) for s in items)
-        font_pt = calc_body_font_pt(total_chars, base_pt=16, min_pt=11, max_pt=20)
-        txBody = tf._txBody
-        for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
-            lst.clear()
-        for p_elem in txBody.findall(f'{{{ns_a}}}p'):
-            txBody.remove(p_elem)
+        paragraphs = []
         for item in items:
-            safe_item = str(item).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            p_xml = (
-                f'<a:p xmlns:a="{ns_a}">'
-                f'<a:pPr algn="l" marL="0" indent="0"><a:buNone/></a:pPr>'
-                f'<a:r><a:rPr lang="uz-UZ" sz="{int(font_pt*100)}" b="1" dirty="0"/>'
-                f'<a:t>{safe_item}</a:t></a:r></a:p>'
-            )
-            txBody.append(etree.fromstring(p_xml))
-
-    # Rasm (Shape[2] — freeform joyi o'chirib, rasm qo'yish)
-    if image_query:
-        img_data = fetch_image(image_query) if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')) else None
-        if img_data is None and isinstance(image_query, str) and image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-            try:
-                with open(image_query, 'rb') as f:
-                    img_data = f.read()
-            except Exception:
-                img_data = None
-        if img_data:
-            try:
-                import io as _io
+            paragraphs.append({'algn': 'l', 'runs': [{'sz': 2899, 'b': 1, 'text': str(item)}]})
+        if paragraphs:
+            _t12_clear_and_write(slide.shapes[0].text_frame._txBody, ns_a, paragraphs)
+    # Rasm (Shape[2] — Freeform 10 o'chirib, rasm qo'yish)
+    if image_query and len(slide.shapes) > 2:
+        try:
+            import io as _io
+            img_data = None
+            if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                img_data = fetch_image(image_query)
+            elif isinstance(image_query, str):
+                try:
+                    with open(image_query, 'rb') as f:
+                        img_data = f.read()
+                except Exception:
+                    img_data = fetch_image(image_query)
+            if img_data:
                 freeform_shape = slide.shapes[2]
                 left = freeform_shape.left
                 top = freeform_shape.top
@@ -7147,17 +7004,17 @@ def fill_t12_slide_7_image_right(slide, content_data, image_query=None):
                 sp.getparent().remove(sp)
                 img_stream = _io.BytesIO(img_data)
                 slide.shapes.add_picture(img_stream, left, top, width, height)
-            except Exception as e:
-                logging.warning(f"[T12] Slayd 7 rasm qo'shishda xatolik: {e}")
+        except Exception as e:
+            logging.warning(f"[T12] Slayd 7 rasm qo'shishda xatolik: {e}")
 
 
 def fill_t12_slide_8_conclusion(slide, content_data):
     """
     12-Shablon Slayd 8 — Xulosa.
-    Shape[0]: Markaziy matn (TextBox 9): left=7.3293, top=9.4342, w=36.1414, h=6.8395
+    Shape[0] 'TextBox 9': xulosa matni — sz=8000, b=0, algn=ctr, spcPts=17205
+    Shablon matni saqlanadi (o'zgarmaydi).
     """
-    # Xulosa slaydida matn o'zgarmaydi - shablon matni saqlanadi
-    pass
+    pass  # Xulosa slaydida shablon matni saqlanadi
 
 
 def generate_template_12_presentation(prs, topic, requested_slide_count, language,
