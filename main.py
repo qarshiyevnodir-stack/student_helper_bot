@@ -27,6 +27,7 @@ from utils import (
     generate_template_16_presentation,
     generate_template_17_presentation,
     generate_template_18_presentation,
+    generate_template_19_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -48,6 +49,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T16,
     SLIDE_TYPE_NAMES_T17,
     SLIDE_TYPE_NAMES_T18,
+    SLIDE_TYPE_NAMES_T19,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1396,25 +1398,25 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 18-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 19-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_18_path = os.path.join(previews_dir, "18.png")
+    preview_19_path = os.path.join(previews_dir, "19.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_18")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_19")],
     ])
-    if os.path.exists(preview_18_path):
-        with open(preview_18_path, "rb") as f:
+    if os.path.exists(preview_19_path):
+        with open(preview_19_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="⚫ *Technology Pitch Deck shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🖤 *Cyber Security shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="⚫ *Technology Pitch Deck shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🖤 *Cyber Security shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1467,6 +1469,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         16: SLIDE_TYPE_NAMES_T16,
         17: SLIDE_TYPE_NAMES_T17,
         18: SLIDE_TYPE_NAMES_T18,
+        19: SLIDE_TYPE_NAMES_T19,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1487,6 +1490,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         16: generate_template_16_presentation,
         17: generate_template_17_presentation,
         18: generate_template_18_presentation,
+        19: generate_template_19_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1528,6 +1532,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             16: [0, 1, 2, 3, 4],  # T16: barcha kontent slaydlarda rasm bor
             17: [0, 1, 2, 3, 4],  # T17: barcha kontent slaydlarda rasm bor
             18: [0, 2, 4],  # T18: slayd3, slayd5, slayd7 da rasm bor
+            19: [0, 1, 2, 3, 4],  # T19: barcha kontent slaydlarda rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
@@ -1829,6 +1834,7 @@ async def _rebuild_and_send_presentation_with_user_images(
         16: generate_template_16_presentation,
         17: generate_template_17_presentation,
         18: generate_template_18_presentation,
+        19: generate_template_19_presentation,
     }.get(template_num, generate_template_16_presentation)
 
     try:
