@@ -7039,6 +7039,8 @@ def generate_template_12_presentation(prs, topic, requested_slide_count, languag
             break
         slide = prs.slides[slide_index]
         data = content_data_list[i] if i < len(content_data_list) else {}
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
         image_query = data.get("image_query", topic)
         slide_type = i % 5
         has_image = slide_type in IMAGE_SLIDE_TYPES
