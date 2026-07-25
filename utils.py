@@ -6759,19 +6759,31 @@ def fill_t12_slide_2_plan(slide, plan_dict):
     """
     import re
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-    # Shape[0] — "REJA" sarlavhasi o'zgarmaydi
     # Shape[1] — reja punktlari
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         items = []
+        # plan_dict = {"title": "Reja", "content": ["1. ...", "2. ..."]}
         if isinstance(plan_dict, dict):
-            for k, v in plan_dict.items():
-                items.append(str(v) if v else str(k))
+            content = plan_dict.get("content", [])
+            if isinstance(content, list) and content:
+                items = [str(x) for x in content]
+            elif isinstance(content, str) and content:
+                items = [content]
+            else:
+                # content yo'q bo'lsa, boshqa keylardan olish
+                for k, v in plan_dict.items():
+                    if k == "title":
+                        continue
+                    if isinstance(v, list):
+                        items.extend([str(x) for x in v])
+                    elif isinstance(v, str) and v:
+                        items.append(v)
         elif isinstance(plan_dict, list):
             items = [str(x) for x in plan_dict]
-        # Raqamlarni tozalash
+        # Raqamlarni tozalash - faqat boshidagi raqamlarni olib tashlash
         clean_items = []
         for item in items:
-            cleaned = re.sub(r'^\s*[\d]+[\.\'\:\)]+\s*[\d]*[\.\'\:\)]*\s*', '', str(item)).strip()
+            cleaned = re.sub(r'^\s*[\d]+[\.\'\:\)]+\s*', '', str(item)).strip()
             if cleaned:
                 clean_items.append(cleaned)
         paragraphs = []
@@ -6847,17 +6859,14 @@ def fill_t12_slide_4_image_left(slide, content_data, image_query=None):
     # Rasm (Shape[2] — Freeform 7 o'chirib, rasm qo'yish)
     if image_query and len(slide.shapes) > 2:
         try:
-            import io as _io
-            img_data = None
-            if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                img_data = fetch_image(image_query)
+            img_path = None
+            if isinstance(image_query, str) and image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                # Fayl yo'li berilgan
+                img_path = image_query
             elif isinstance(image_query, str):
-                try:
-                    with open(image_query, 'rb') as f:
-                        img_data = f.read()
-                except Exception:
-                    img_data = fetch_image(image_query)
-            if img_data:
+                # Qidiruv so'zi berilgan - fetch_image fayl yo'li qaytaradi
+                img_path = fetch_image(image_query)
+            if img_path and os.path.exists(img_path):
                 freeform_shape = slide.shapes[2]
                 left = freeform_shape.left
                 top = freeform_shape.top
@@ -6865,8 +6874,7 @@ def fill_t12_slide_4_image_left(slide, content_data, image_query=None):
                 height = freeform_shape.height
                 sp = freeform_shape._element
                 sp.getparent().remove(sp)
-                img_stream = _io.BytesIO(img_data)
-                slide.shapes.add_picture(img_stream, left, top, width, height)
+                slide.shapes.add_picture(img_path, left, top, width, height)
         except Exception as e:
             logging.warning(f"[T12] Slayd 4 rasm qo'shishda xatolik: {e}")
 
@@ -6984,17 +6992,12 @@ def fill_t12_slide_7_image_right(slide, content_data, image_query=None):
     # Rasm (Shape[2] — Freeform 10 o'chirib, rasm qo'yish)
     if image_query and len(slide.shapes) > 2:
         try:
-            import io as _io
-            img_data = None
-            if isinstance(image_query, str) and not image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                img_data = fetch_image(image_query)
+            img_path = None
+            if isinstance(image_query, str) and image_query.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                img_path = image_query
             elif isinstance(image_query, str):
-                try:
-                    with open(image_query, 'rb') as f:
-                        img_data = f.read()
-                except Exception:
-                    img_data = fetch_image(image_query)
-            if img_data:
+                img_path = fetch_image(image_query)
+            if img_path and os.path.exists(img_path):
                 freeform_shape = slide.shapes[2]
                 left = freeform_shape.left
                 top = freeform_shape.top
@@ -7002,8 +7005,7 @@ def fill_t12_slide_7_image_right(slide, content_data, image_query=None):
                 height = freeform_shape.height
                 sp = freeform_shape._element
                 sp.getparent().remove(sp)
-                img_stream = _io.BytesIO(img_data)
-                slide.shapes.add_picture(img_stream, left, top, width, height)
+                slide.shapes.add_picture(img_path, left, top, width, height)
         except Exception as e:
             logging.warning(f"[T12] Slayd 7 rasm qo'shishda xatolik: {e}")
 
