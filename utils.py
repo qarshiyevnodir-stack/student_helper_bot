@@ -7161,8 +7161,7 @@ def _t13_replace_blip(slide, shape_idx, img_arg):
         blip = el.find('.//a:blip', {'a': ns_a})
         if blip is not None:
             part = slide.part
-            img_rId = part.relate_to(img_path,
-                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image')
+            _, img_rId = part.get_or_add_image_part(img_path)
             blip.set(f'{{{ns_r}}}embed', img_rId)
     except Exception as e:
         logging.warning(f"[T13] Rasm almashtirish xatoligi: {e}")
