@@ -7497,7 +7497,7 @@ def fill_t14_slide_1_cover(slide, topic, name_surname):
         ])
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 3872, 'b': 0, 'color': '000000', 'text': f"Presented by {name_surname or ''}"}]}
+            {'algn': 'l', 'runs': [{'sz': 3872, 'b': 0, 'color': '000000', 'text': name_surname or ''}]}
         ])
 
 def fill_t14_slide_2_plan(slide, plan_dict):
