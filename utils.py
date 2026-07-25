@@ -7364,3 +7364,342 @@ def generate_template_13_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ==================== 14-SHABLON (Thesis Defense) ====================
+
+SLIDE_TYPE_NAMES_T14 = {
+    0: "image_right",      # Slayd 3: sarlavha + matn chap, freeform rasm o'ng
+    1: "image_left",       # Slayd 4: freeform rasm chap, sarlavha + matn o'ng
+    2: "image_left_list",  # Slayd 5: sarlavha tepada, freeform rasm chap, ro'yxat matn o'ng
+    3: "title_body",       # Slayd 6: sarlavha + matn chap, rasm/diagramma o'ng (rasm qo'yiladi)
+    4: "image_left",       # Slayd 7: freeform rasm chap, sarlavha + matn o'ng
+}
+CONTENT_SLIDE_TEMPLATE_INDICES_T14 = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
+
+def build_slide_structure_14(prs, requested_content_count):
+    n_templates = len(CONTENT_SLIDE_TEMPLATE_INDICES_T14)
+    full_repeats = max(1, round(requested_content_count / n_templates))
+    total_content_slides = full_repeats * n_templates
+    logging.info(f"[T14] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
+    conclusion_current_index = 7
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_T14:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T14] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logging.info(f"[T14] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
+
+def _t14_clear_and_write(txBody, paragraphs_data):
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for p_elem in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p_elem)
+    for para in paragraphs_data:
+        algn = para.get('algn', 'l')
+        marL = para.get('marL', 0)
+        indent = para.get('indent', 0)
+        spcPts = para.get('spcPts', None)
+        runs = para.get('runs', [])
+        pPr_attrs = f'algn="{algn}"'
+        if marL:
+            pPr_attrs += f' marL="{marL}"'
+        if indent:
+            pPr_attrs += f' indent="{indent}"'
+        spcBef_xml = ''
+        if spcPts:
+            spcBef_xml = f'<a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2000)
+            b = run.get('b', 0)
+            color = run.get('color', '000000')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            b_val = '1' if b else '0'
+            runs_xml += (
+                f'<a:r><a:rPr lang="uz-UZ" sz="{sz}" b="{b_val}" dirty="0">'
+                f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+                f'</a:rPr><a:t>{text}</a:t></a:r>'
+            )
+        p_xml = (
+            f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:pPr {pPr_attrs}>{spcBef_xml}</a:pPr>'
+            f'{runs_xml}'
+            f'</a:p>'
+        )
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+def _t14_replace_blip(slide, shape_idx, img_arg):
+    """Freeform yoki Picture ichidagi blip ni yangi rasm bilan almashtirish"""
+    try:
+        import os
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        shape = slide.shapes[shape_idx]
+        el = shape._element
+        if isinstance(img_arg, str) and os.path.exists(img_arg):
+            img_path = img_arg
+        else:
+            img_path = fetch_image(img_arg)
+        if not img_path or not os.path.exists(img_path):
+            return
+        blip = el.find('.//a:blip', {'a': ns_a})
+        if blip is not None:
+            part = slide.part
+            _, img_rId = part.get_or_add_image_part(img_path)
+            blip.set(f'{{{ns_r}}}embed', img_rId)
+    except Exception as e:
+        logging.warning(f"[T14] Rasm almashtirish xatoligi: {e}")
+
+def _t14_replace_picture(slide, shape_idx, img_arg):
+    """Oddiy Picture shape ni yangi rasm bilan almashtirish"""
+    try:
+        import os
+        from pptx.util import Emu
+        shape = slide.shapes[shape_idx]
+        if isinstance(img_arg, str) and os.path.exists(img_arg):
+            img_path = img_arg
+        else:
+            img_path = fetch_image(img_arg)
+        if not img_path or not os.path.exists(img_path):
+            return
+        left = shape.left
+        top = shape.top
+        width = shape.width
+        height = shape.height
+        sp = shape._element
+        sp.getparent().remove(sp)
+        slide.shapes.add_picture(img_path, left, top, width, height)
+    except Exception as e:
+        logging.warning(f"[T14] Picture almashtirish xatoligi: {e}")
+
+def _t14_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("col1", "") or data.get("text", "")
+    return body_text
+
+def fill_t14_slide_1_cover(slide, topic, name_surname):
+    """Slayd 1: Shape[0]=katta sarlavha, Shape[1]=ism-familiya"""
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t14_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 6000, 'b': 1, 'color': '000000', 'text': (topic or "TAQDIMOT").upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3872, 'b': 0, 'color': '000000', 'text': f"Presented by {name_surname or ''}"}]}
+        ])
+
+def fill_t14_slide_2_plan(slide, plan_dict):
+    """Slayd 2: Shape[0]=sarlavha 'Reja', Shape[1]=reja matn"""
+    import re
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    # Sarlavha
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t14_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 8000, 'b': 0, 'color': 'ffffff', 'text': 'Reja'}]}
+        ])
+    # Reja matn
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        content = plan_dict.get("content", [])
+        if isinstance(content, str):
+            content = [content]
+        if not content:
+            content = plan_dict.get("items", [])
+        if not content:
+            content = [plan_dict.get("title", "")]
+        clean_items = []
+        for item in content:
+            if isinstance(item, str):
+                item_clean = re.sub(r'^\s*\d+[\.\)]\s*', '', item.strip())
+                if item_clean:
+                    clean_items.append(item_clean)
+        if not clean_items:
+            clean_items = ["Reja mavjud emas"]
+        paragraphs = []
+        for idx, item in enumerate(clean_items):
+            paragraphs.append({
+                'algn': 'just',
+                'marL': 816609,
+                'indent': -514350,
+                'runs': [{'sz': 2500, 'b': 0, 'color': '000000', 'text': f"{idx + 1}.  {item}"}]
+            })
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, paragraphs)
+
+def fill_t14_slide_3_text_left_image_right(slide, data, img_arg=None):
+    """Slayd 3: Shape[0]=Freeform(rasm o'ng), Shape[1]=sarlavha, Shape[2]=matn"""
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t14_get_body_text(data)
+    # Rasm (Freeform o'ng tomonda)
+    if img_arg and len(slide.shapes) > 0:
+        _t14_replace_blip(slide, 0, img_arg)
+    # Sarlavha
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 0, 'color': '000000', 'text': title}]}
+        ])
+    # Matn
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t14_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 3500, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+
+def fill_t14_slide_4_image_left_text_right(slide, data, img_arg=None):
+    """Slayd 4: Shape[0]=Freeform(rasm chap), Shape[1]=matn, Shape[2]=sarlavha"""
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t14_get_body_text(data)
+    # Rasm (Freeform chap tomonda)
+    if img_arg and len(slide.shapes) > 0:
+        _t14_replace_blip(slide, 0, img_arg)
+    # Matn (o'ng tomonda)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 3500, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+    # Sarlavha (o'ng yuqori)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t14_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 0, 'color': '1a3a5c', 'text': title}]}
+        ])
+
+def fill_t14_slide_5_image_left_list_right(slide, data, img_arg=None):
+    """Slayd 5: Shape[0]=matn o'ng, Shape[1]=Freeform(rasm chap), Shape[2]=sarlavha tepada"""
+    import re
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    content = data.get("content", [])
+    if isinstance(content, str):
+        content = [content]
+    if not content:
+        content = [_t14_get_body_text(data)]
+    # Rasm (Freeform chap tomonda)
+    if img_arg and len(slide.shapes) > 1:
+        _t14_replace_blip(slide, 1, img_arg)
+    # Sarlavha (tepada)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t14_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 0, 'color': '000000', 'text': title}]}
+        ])
+    # Matn (o'ng tomonda) - raqamlangan
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        clean_items = []
+        for item in content:
+            if isinstance(item, str):
+                item_clean = re.sub(r'^\s*\d+[\.\)]\s*', '', item.strip())
+                if item_clean:
+                    clean_items.append(item_clean)
+        if not clean_items:
+            clean_items = [_t14_get_body_text(data)]
+        paragraphs = []
+        for idx, item in enumerate(clean_items):
+            paragraphs.append({
+                'algn': 'just',
+                'runs': [{'sz': 3000, 'b': 0, 'color': '000000', 'text': f"{idx + 1}.{item}"}]
+            })
+        _t14_clear_and_write(slide.shapes[0].text_frame._txBody, paragraphs)
+
+def fill_t14_slide_6_text_left_image_right(slide, data, img_arg=None):
+    """Slayd 6: Shape[0]=Picture(rasm o'ng), Shape[1]=sarlavha, Shape[2]=matn"""
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t14_get_body_text(data)
+    # Rasm (Picture o'ng tomonda)
+    if img_arg and len(slide.shapes) > 0:
+        _t14_replace_picture(slide, 0, img_arg)
+    # Sarlavha
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 0, 'color': '1a3a5c', 'text': title}]}
+        ])
+    # Matn
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t14_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 3000, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+
+def fill_t14_slide_7_image_left_text_right(slide, data, img_arg=None):
+    """Slayd 7: Shape[0]=Freeform(rasm chap), Shape[1]=matn, Shape[2]=sarlavha"""
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t14_get_body_text(data)
+    # Rasm (Freeform chap tomonda)
+    if img_arg and len(slide.shapes) > 0:
+        _t14_replace_blip(slide, 0, img_arg)
+    # Matn (o'ng tomonda)
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t14_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 3000, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+    # Sarlavha (tepada)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t14_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 0, 'color': '1a3a5c', 'text': title}]}
+        ])
+
+def fill_t14_slide_8_conclusion(slide, data):
+    """Slayd 8: Yakuniy slayd - shablondagi matn saqlanadi"""
+    pass
+
+def generate_template_14_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname, plan, content_data_list, user_images=None):
+    import io
+    total_content_slides = build_slide_structure_14(prs, requested_slide_count)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    fill_t14_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_t14_slide_2_plan(prs.slides[1], plan_dict)
+    user_img_idx = 0
+    IMAGE_SLIDE_TYPES = [0, 1, 2, 3, 4]  # Barcha slaydlarda rasm bor
+    for i in range(total_content_slides):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+        slide = prs.slides[slide_index]
+        data = content_data_list[i] if i < len(content_data_list) else {}
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        image_query = data.get("image_query", topic)
+        slide_type = i % 5
+        has_image = slide_type in IMAGE_SLIDE_TYPES
+        if has_image:
+            if user_images and user_img_idx < len(user_images):
+                img_path = save_user_image_to_tmp(user_images[user_img_idx])
+                user_img_idx += 1
+                img_arg = img_path if img_path else image_query
+            else:
+                img_arg = image_query
+        else:
+            img_arg = None
+        if slide_type == 0:
+            fill_t14_slide_3_text_left_image_right(slide, data, img_arg)
+        elif slide_type == 1:
+            fill_t14_slide_4_image_left_text_right(slide, data, img_arg)
+        elif slide_type == 2:
+            fill_t14_slide_5_image_left_list_right(slide, data, img_arg)
+        elif slide_type == 3:
+            fill_t14_slide_6_text_left_image_right(slide, data, img_arg)
+        elif slide_type == 4:
+            fill_t14_slide_7_image_left_text_right(slide, data, img_arg)
+        logging.info(f"  [T14] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t14_slide_8_conclusion(prs.slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
