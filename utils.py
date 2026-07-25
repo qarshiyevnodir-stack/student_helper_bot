@@ -8252,8 +8252,8 @@ def fill_t16_slide_8_conclusion(slide, data):
     pass
 
 def generate_template_16_presentation(prs, topic, requested_slide_count, language,
-                                       content_data_list, name_surname,
-                                       user_images=None, plan_data=None):
+                                       name_surname, plan=None, content_data_list=None,
+                                       user_images=None):
     import io
     slides = prs.slides
     if len(slides) < 2:
