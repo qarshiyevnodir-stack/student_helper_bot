@@ -1406,25 +1406,25 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 23-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 22-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_23_path = os.path.join(previews_dir, "23.png")
+    preview_22_path = os.path.join(previews_dir, "22.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_23")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_22")],
     ])
-    if os.path.exists(preview_23_path):
-        with open(preview_23_path, "rb") as f:
+    if os.path.exists(preview_22_path):
+        with open(preview_22_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="⚽ *World of Sports shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="📚 *Informative Presentation shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="⚽ *World of Sports shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="📚 *Informative Presentation shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
