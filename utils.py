@@ -11227,13 +11227,12 @@ def _t26_clear_and_write(txBody, paragraphs_data):
         txBody.append(p_elem)
 
 def _t26_replace_blip(slide, shape_index, img_path):
-    """Freeform shape ichidagi blip rasmni yangi rasm bilan almashtirish.
+    """Freeform blip shapeni topib, uni o'chirib o'rniga add_picture bilan rasm qo'yish.
     shape_index berilsa shu indeksdan, aks holda slayddagi birinchi blip topiladi."""
     import logging
     try:
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-        # Avval berilgan shape_index dan blip qidirish
+        # Freeform blip shapeni topish
         target_shape = None
         if shape_index is not None and shape_index < len(slide.shapes):
             candidate = slide.shapes[shape_index]
@@ -11250,11 +11249,16 @@ def _t26_replace_blip(slide, shape_index, img_path):
         if target_shape is None:
             logging.warning(f"[T26] Slaydda blip topilmadi")
             return False
-        blips = target_shape._element.findall(f'.//{{{ns_a}}}blip')
-        blip = blips[0]
-        slide_part = target_shape.part
-        img_part, new_rId = slide_part.get_or_add_image_part(img_path)
-        blip.set(f'{{{ns_r}}}embed', new_rId)
+        # Freeform o'lchamlarini saqlash
+        left = target_shape.left
+        top = target_shape.top
+        width = target_shape.width
+        height = target_shape.height
+        # Freeform ni o'chirish
+        sp = target_shape._element
+        sp.getparent().remove(sp)
+        # O'rniga rasm qo'yish
+        slide.shapes.add_picture(img_path, left, top, width, height)
         return True
     except Exception as e:
         logging.warning(f"[T26] Blip almashtirish xatoligi: {e}")
