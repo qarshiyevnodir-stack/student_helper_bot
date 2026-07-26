@@ -11227,21 +11227,36 @@ def _t26_clear_and_write(txBody, paragraphs_data):
         txBody.append(p_elem)
 
 def _t26_replace_blip(slide, shape_index, img_path):
-    """Freeform shape ichidagi blip rasmni yangi rasm bilan almashtirish"""
+    """Freeform shape ichidagi blip rasmni yangi rasm bilan almashtirish.
+    shape_index berilsa shu indeksdan, aks holda slayddagi birinchi blip topiladi."""
+    import logging
     try:
-        from lxml import etree
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-        shape = slide.shapes[shape_index]
-        blips = shape._element.findall(f'.//{{{ns_a}}}blip')
-        if not blips:
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        # Avval berilgan shape_index dan blip qidirish
+        target_shape = None
+        if shape_index is not None and shape_index < len(slide.shapes):
+            candidate = slide.shapes[shape_index]
+            blips = candidate._element.findall(f'.//{{{ns_a}}}blip')
+            if blips:
+                target_shape = candidate
+        # Topilmasa, slayddagi barcha shapelarda blip qidirish
+        if target_shape is None:
+            for shape in slide.shapes:
+                blips = shape._element.findall(f'.//{{{ns_a}}}blip')
+                if blips:
+                    target_shape = shape
+                    break
+        if target_shape is None:
+            logging.warning(f"[T26] Slaydda blip topilmadi")
             return False
+        blips = target_shape._element.findall(f'.//{{{ns_a}}}blip')
         blip = blips[0]
-        slide_part = shape.part
+        slide_part = target_shape.part
         img_part, new_rId = slide_part.get_or_add_image_part(img_path)
-        blip.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed', new_rId)
+        blip.set(f'{{{ns_r}}}embed', new_rId)
         return True
     except Exception as e:
-        import logging
         logging.warning(f"[T26] Blip almashtirish xatoligi: {e}")
     return False
 
@@ -11476,8 +11491,7 @@ def generate_template_26_presentation(prs, topic, requested_slide_count, languag
         fill_t26_slide_6_img_left_title_text,
         fill_t26_slide_7_img_bottom_right_title_three_text,
     ]
-    # Barcha kontent slaydlarda Freeform blip rasm bor
-    img_slide_types = {0, 1, 2, 3, 4}
+    # Barcha kontent slaydlarda Freeform blip rasm bor - har doim rasm olinadi
     for i, data in enumerate(content_data_list):
         slide_index = i + 2
         if slide_index >= len(slides) - 1:
@@ -11486,13 +11500,12 @@ def generate_template_26_presentation(prs, topic, requested_slide_count, languag
         if not isinstance(data, dict):
             data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
         slide_type = i % len(content_slide_funcs)
-        img_arg = None
-        if slide_type in img_slide_types:
-            if user_images and i < len(user_images):
-                img_arg = user_images[i]
-            else:
-                img_query = data.get("title", topic) if isinstance(data, dict) else topic
-                img_arg = fetch_image(img_query + " science")
+        # Har doim rasm olish - barcha kontent slaydlarda blip rasm bor
+        if user_images and i < len(user_images):
+            img_arg = user_images[i]
+        else:
+            img_query = data.get("title", topic) if isinstance(data, dict) else topic
+            img_arg = fetch_image(img_query + " science")
         content_slide_funcs[slide_type](slide, data, img_arg)
         logging.info(f"  [T26] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
     fill_t26_slide_8_conclusion(slides[-1], {})
