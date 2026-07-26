@@ -34,6 +34,7 @@ from utils import (
     generate_template_23_presentation,
     generate_template_24_presentation,
     generate_template_25_presentation,
+    generate_template_26_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -62,6 +63,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T23,
     SLIDE_TYPE_NAMES_T24,
     SLIDE_TYPE_NAMES_T25,
+    SLIDE_TYPE_NAMES_T26,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1410,25 +1412,25 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 25-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 26-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_25_path = os.path.join(previews_dir, "25.png")
+    preview_26_path = os.path.join(previews_dir, "26.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_25")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_26")],
     ])
-    if os.path.exists(preview_25_path):
-        with open(preview_25_path, "rb") as f:
+    if os.path.exists(preview_26_path):
+        with open(preview_26_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🏃 *Sports Blue Dark shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🔬 *Science Presentation shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🏃 *Sports Blue Dark shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🔬 *Science Presentation shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1488,6 +1490,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         23: SLIDE_TYPE_NAMES_T23,
         24: SLIDE_TYPE_NAMES_T24,
         25: SLIDE_TYPE_NAMES_T25,
+        26: SLIDE_TYPE_NAMES_T26,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1515,6 +1518,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         23: generate_template_23_presentation,
         24: generate_template_24_presentation,
         25: generate_template_25_presentation,
+        26: generate_template_26_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1563,6 +1567,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             23: [0, 1, 2, 3, 4],  # T23: barcha kontent slaydlarda Freeform rasm bor
             24: [0, 2, 3],  # T24: slayd3, slayd5, slayd6 da Freeform rasm bor
             25: [0, 1, 2, 3, 4],  # T25: barcha kontent slaydlarda Picture rasm bor
+            26: [0, 1, 2, 3, 4],  # T26: barcha kontent slaydlarda Freeform blip rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
@@ -1871,6 +1876,7 @@ async def _rebuild_and_send_presentation_with_user_images(
         23: generate_template_23_presentation,
         24: generate_template_24_presentation,
         25: generate_template_25_presentation,
+        26: generate_template_26_presentation,
     }.get(template_num, generate_template_16_presentation)
 
     try:
