@@ -9937,9 +9937,9 @@ def fill_t22_slide_2_plan(slide, plan_dict):
             _t22_clear_and_write(slide.shapes[0].text_frame._txBody, paras)
 
 def fill_t22_slide_3_title_left_two_text_rows_dark(slide, data, img_arg=None):
-    # shapes[0] = matn 1 (28pt, 571A0E to'q jigarrang, left) - yuqori
+    # shapes[0] = matn 1 (24pt, 571A0E to'q jigarrang, left) - yuqori
     # shapes[1] = sarlavha (44pt, C15943, bold, left)
-    # shapes[2] = matn 2 (28pt, 571A0E to'q jigarrang, left) - pastki
+    # shapes[2] = matn 2 (24pt, 571A0E to'q jigarrang, left) - pastki
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -9954,11 +9954,11 @@ def fill_t22_slide_3_title_left_two_text_rows_dark(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '571A0E', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '571A0E', 'text': text1}]}
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '571A0E', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': '571A0E', 'text': text2}]}
         ])
 
 def fill_t22_slide_4_two_text_columns_center_title(slide, data, img_arg=None):
@@ -9987,9 +9987,9 @@ def fill_t22_slide_4_two_text_columns_center_title(slide, data, img_arg=None):
         ])
 
 def fill_t22_slide_5_title_left_two_text_rows(slide, data, img_arg=None):
-    # shapes[0] = matn 1 (28pt, C15943, left) - yuqori
+    # shapes[0] = matn 1 (24pt, C15943, left) - yuqori
     # shapes[1] = sarlavha (44pt, C15943, bold, left)
-    # shapes[2] = matn 2 (28pt, C15943, left) - pastki
+    # shapes[2] = matn 2 (24pt, C15943, left) - pastki
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -10004,11 +10004,11 @@ def fill_t22_slide_5_title_left_two_text_rows(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         _t22_clear_and_write(slide.shapes[0].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'C15943', 'text': text1}]}
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t22_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': 'C15943', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2400, 'b': 0, 'color': 'C15943', 'text': text2}]}
         ])
 
 def fill_t22_slide_6_title_left_text_left_freeform(slide, data, img_arg=None):
