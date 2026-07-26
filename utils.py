@@ -10922,11 +10922,11 @@ def fill_t25_slide_2_plan(slide, plan_dict):
         item_str = str(item).strip()
         item_str = re.sub(r'^\d+[\.\)]\s*', '', item_str)
         clean_items.append(item_str)
-    # shapes[0] = sarlavha (60pt, 01002A, left)
-    # shapes[1] = reja matn (24pt, FFFFFF, left)
+    # shapes[0] = sarlavha (80pt, 01002A, left)
+    # shapes[1] = reja matn (32pt, FFFFFF, left)
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         _t25_clear_and_write(slide.shapes[0].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 6000, 'b': 0, 'color': '01002A', 'text': plan_title.upper()}]}
+            {'algn': 'l', 'runs': [{'sz': 8000, 'b': 0, 'color': '01002A', 'text': plan_title.upper()}]}
         ])
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         paras = []
@@ -10934,7 +10934,7 @@ def fill_t25_slide_2_plan(slide, plan_dict):
             paras.append({
                 'algn': 'l',
                 'spcPts': 150,
-                'runs': [{'sz': 2400, 'b': 0, 'color': 'FFFFFF', 'text': f"{idx}. {item}"}]
+                'runs': [{'sz': 3200, 'b': 0, 'color': 'FFFFFF', 'text': f"{idx}. {item}"}]
             })
         if paras:
             _t25_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
@@ -10942,7 +10942,7 @@ def fill_t25_slide_2_plan(slide, plan_dict):
 def fill_t25_slide_3_img_right_title_text(slide, data, img_arg=None):
     # shapes[0] = Picture (rasm, o'ng)
     # shapes[1] = sarlavha (48pt, 01002A, left)
-    # shapes[2] = matn (12pt, FFFFFF, left)
+    # shapes[2] = matn (22pt, FFFFFF, left)
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -10953,7 +10953,7 @@ def fill_t25_slide_3_img_right_title_text(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t25_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1200, 'b': 0, 'color': 'FFFFFF', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': 'FFFFFF', 'text': body_text}]}
         ])
     if img_arg and len(slide.shapes) > 0:
         try:
@@ -10968,8 +10968,8 @@ def fill_t25_slide_3_img_right_title_text(slide, data, img_arg=None):
 def fill_t25_slide_4_img_left_title_two_text(slide, data, img_arg=None):
     # shapes[0] = Picture (rasm, chap)
     # shapes[1] = sarlavha (44pt, 01002A, left)
-    # shapes[2] = matn1 (14pt, 1F2020, left) - yuqori o'ng
-    # shapes[3] = matn2 (14pt, 1F2020, left) - pastki o'ng
+    # shapes[2] = matn1 (22pt, 1F2020, left) - yuqori o'ng
+    # shapes[3] = matn2 (22pt, 1F2020, left) - pastki o'ng
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -10983,11 +10983,11 @@ def fill_t25_slide_4_img_left_title_two_text(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t25_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': '1F2020', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '1F2020', 'text': text1}]}
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t25_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': '1F2020', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '1F2020', 'text': text2}]}
         ])
     if img_arg and len(slide.shapes) > 0:
         try:
@@ -11002,8 +11002,8 @@ def fill_t25_slide_4_img_left_title_two_text(slide, data, img_arg=None):
 def fill_t25_slide_5_img_top_right_title_two_text(slide, data, img_arg=None):
     # shapes[0] = Picture (rasm, yuqori o'ng)
     # shapes[1] = sarlavha (44pt, 01002A, left)
-    # shapes[2] = matn1 (14pt, FFFFFF, left) - pastki chap
-    # shapes[3] = matn2 (14pt, FFFFFF, left) - pastki o'ng
+    # shapes[2] = matn1 (22pt, FFFFFF, left) - pastki chap
+    # shapes[3] = matn2 (22pt, FFFFFF, left) - pastki o'ng
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -11017,11 +11017,11 @@ def fill_t25_slide_5_img_top_right_title_two_text(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t25_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': 'FFFFFF', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': 'FFFFFF', 'text': text1}]}
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t25_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': 'FFFFFF', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': 'FFFFFF', 'text': text2}]}
         ])
     if img_arg and len(slide.shapes) > 0:
         try:
@@ -11037,9 +11037,9 @@ def fill_t25_slide_6_two_img_title_three_text(slide, data, img_arg=None, img_arg
     # shapes[0] = Picture1 (rasm, markazda)
     # shapes[1] = Picture2 (rasm, o'ng yuqori)
     # shapes[2] = sarlavha (60pt, 01002A, left)
-    # shapes[3] = matn1 (16pt, 1F2020, left) - o'ng pastda
-    # shapes[4] = matn2 (16pt, 1F2020, left) - pastda
-    # shapes[5] = matn3 (16pt, 1F2020, left) - chap
+    # shapes[3] = matn1 (22pt, 1F2020, left) - o'ng pastda
+    # shapes[4] = matn2 (22pt, 1F2020, left) - pastda
+    # shapes[5] = matn3 (22pt, 1F2020, left) - chap
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -11054,15 +11054,15 @@ def fill_t25_slide_6_two_img_title_three_text(slide, data, img_arg=None, img_arg
         ])
     if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
         _t25_clear_and_write(slide.shapes[3].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '1F2020', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '1F2020', 'text': text1}]}
         ])
     if len(slide.shapes) > 4 and slide.shapes[4].has_text_frame:
         _t25_clear_and_write(slide.shapes[4].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '1F2020', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '1F2020', 'text': text2}]}
         ])
     if len(slide.shapes) > 5 and slide.shapes[5].has_text_frame:
         _t25_clear_and_write(slide.shapes[5].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '1F2020', 'text': text3}]}
+            {'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '1F2020', 'text': text3}]}
         ])
     # Rasmlarni almashtirish
     if img_arg and len(slide.shapes) > 0:
@@ -11087,7 +11087,7 @@ def fill_t25_slide_6_two_img_title_three_text(slide, data, img_arg=None, img_arg
 def fill_t25_slide_7_img_left_title_text(slide, data, img_arg=None):
     # shapes[0] = Picture (rasm, chap)
     # shapes[1] = sarlavha (48pt, 01002A, left)
-    # shapes[2] = matn (16pt, 1F2020, left)
+    # shapes[2] = matn (28pt, 1F2020, left)
     if not isinstance(data, dict):
         data = {}
     title = data.get("title", "")
@@ -11098,7 +11098,7 @@ def fill_t25_slide_7_img_left_title_text(slide, data, img_arg=None):
         ])
     if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
         _t25_clear_and_write(slide.shapes[2].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '1F2020', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 0, 'color': '1F2020', 'text': body_text}]}
         ])
     if img_arg and len(slide.shapes) > 0:
         try:
