@@ -10135,12 +10135,7 @@ SLIDE_TYPE_NAMES_T23 = {
 }
 
 def _t23_replace_blip(shape, img_path):
-    """Freeform ichidagi blip (rasm) ni yangi rasm bilan almashtirish"""
-    from lxml import etree
-    import base64
-    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
-    from pptx.opc.part import Part
-    import mimetypes
+    """Freeform ichidagi blip (rasm) ni yangi rasm bilan almashtirish - get_or_add_image_part usuli"""
     try:
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         blips = shape._element.findall('.//a:blip', {'a': ns_a})
@@ -10151,20 +10146,10 @@ def _t23_replace_blip(shape, img_path):
         if not rId:
             return False
         slide_part = shape.part
-        with open(img_path, 'rb') as f:
-            img_data = f.read()
-        ext = img_path.rsplit('.', 1)[-1].lower()
-        mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'bmp': 'image/bmp'}
-        content_type = mime_map.get(ext, 'image/jpeg')
-        part_name_str = f'/ppt/media/t23_img_{id(shape)}.{ext}'
-        from pptx.opc.packuri import PackURI
-        new_part = Part(PackURI(part_name_str), content_type, img_data)
-        slide_part.relate_to(new_part, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image')
-        new_rels = [r for r in slide_part.rels.values() if r._target is new_part]
-        if new_rels:
-            new_rId = new_rels[-1].rId
-            blip.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed', new_rId)
-            return True
+        # get_or_add_image_part - eng ishonchli usul
+        img_part, new_rId = slide_part.get_or_add_image_part(img_path)
+        blip.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed', new_rId)
+        return True
     except Exception as e:
         logging.warning(f"[T23] blip almashtirish xatoligi: {e}")
     return False
