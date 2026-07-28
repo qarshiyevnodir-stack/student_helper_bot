@@ -12689,6 +12689,21 @@ def _t30_replace_picture(slide, shape_idx, img_arg):
         import logging
         logging.error(f"Error replacing picture in T30: {e}")
 
+def _t30_find_pic_placeholder(slide):
+    """Slayddagi picture placeholder yoki blip shape indeksini topish."""
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for i, s in enumerate(slide.shapes):
+        # Avval blip bor shapeni tekshirish
+        blips = s._element.findall(f'.//{{{ns_a}}}blip')
+        if blips:
+            return i
+        # Keyin picture placeholder ni tekshirish
+        ph = s._element.find(f'.//{{{ns_p}}}ph')
+        if ph is not None and ph.get('type', '') == 'pic':
+            return i
+    return None
+
 def fill_t30_slide_1_cover(slide, title, name_surname):
     # [0] sarlavha (44pt bold 000000 center) top=0.83
     # [1] muallif (24pt 000000 center) top=6.11
@@ -12793,19 +12808,19 @@ def fill_t30_slide_5_img_right(slide, data, img_arg=None):
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t30_get_body_text(data)
     
-    pic_shape_idx = None
-    for i, s in enumerate(slide.shapes):
-        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
-        if blips:
-            pic_shape_idx = i
-            break
+    pic_shape_idx = _t30_find_pic_placeholder(slide)
     if pic_shape_idx is not None and img_arg:
         _t30_replace_picture(slide, pic_shape_idx, img_arg)
         
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     text_shapes = []
     for i, s in enumerate(slide.shapes):
-        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        blips = s._element.findall(f'.//{{{ns_a}}}blip')
         if blips:
+            continue
+        ph = s._element.find(f'.//{{{ns_p}}}ph')
+        if ph is not None and ph.get('type', '') == 'pic':
             continue
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
             text_shapes.append((s.top or 0, i))
@@ -12871,19 +12886,19 @@ def fill_t30_slide_7_img_left(slide, data, img_arg=None):
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t30_get_body_text(data)
     
-    pic_shape_idx = None
-    for i, s in enumerate(slide.shapes):
-        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
-        if blips:
-            pic_shape_idx = i
-            break
+    pic_shape_idx = _t30_find_pic_placeholder(slide)
     if pic_shape_idx is not None and img_arg:
         _t30_replace_picture(slide, pic_shape_idx, img_arg)
         
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     text_shapes = []
     for i, s in enumerate(slide.shapes):
-        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        blips = s._element.findall(f'.//{{{ns_a}}}blip')
         if blips:
+            continue
+        ph = s._element.find(f'.//{{{ns_p}}}ph')
+        if ph is not None and ph.get('type', '') == 'pic':
             continue
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
             # page number shape larni o'tkazib yuborish (kichik yoki pastda)
