@@ -13000,8 +13000,15 @@ def generate_template_30_presentation(prs, topic, requested_slide_count, languag
     prs.save(out)
     return out.getvalue()
 def _t31_clear_and_write(txBody, paras_data):
+    """paras_data ichidagi 'color' qiymati:
+       - 'bg1', 'tx1', 'accent1' kabi string => schemeClr
+       - 'FFFFFF', 'FE5A5B' kabi 6 xonali hex => srgbClr
+    """
     from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
+                     'accent1','accent2','accent3','accent4','accent5','accent6',
+                     'hlink','folHlink'}
     for p in list(txBody):
         if p.tag == f'{{{ns_a}}}p':
             txBody.remove(p)
@@ -13016,14 +13023,22 @@ def _t31_clear_and_write(txBody, paras_data):
             r_elem = etree.SubElement(p_elem, f'{{{ns_a}}}r')
             rPr = etree.SubElement(r_elem, f'{{{ns_a}}}rPr')
             rPr.set('lang', 'en-US')
+            rPr.set('dirty', '0')
             if 'sz' in run:
                 rPr.set('sz', str(run['sz']))
             if run.get('b'):
                 rPr.set('b', '1')
+            else:
+                rPr.set('b', '0')
             if 'color' in run:
                 solidFill = etree.SubElement(rPr, f'{{{ns_a}}}solidFill')
-                srgbClr = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
-                srgbClr.set('val', run['color'])
+                color_val = run['color']
+                if color_val in SCHEME_COLORS:
+                    schemeClr = etree.SubElement(solidFill, f'{{{ns_a}}}schemeClr')
+                    schemeClr.set('val', color_val)
+                else:
+                    srgbClr = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
+                    srgbClr.set('val', color_val.upper().lstrip('#'))
             t_elem = etree.SubElement(r_elem, f'{{{ns_a}}}t')
             t_elem.text = run.get('text', '')
 
@@ -13074,8 +13089,8 @@ def _t31_find_pic_placeholder(slide):
     return None
 
 def fill_t31_slide_1_cover(slide, title, name_surname):
-    # [0] TEXT 48pt top=0.69 left=0.7 (Sarlavha)
-    # [1] TEXT 18pt top=6.5 left=0.17 (Muallif)
+    # [0] TEXT 48pt top=0.69 left=0.7 (Sarlavha) — QORA fon, OQ matn
+    # [1] TEXT 18pt top=6.5 left=0.17 (Muallif) — QORA fon, OQ matn
     text_shapes = []
     for i, s in enumerate(slide.shapes):
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
@@ -13086,10 +13101,10 @@ def fill_t31_slide_1_cover(slide, title, name_surname):
         title_idx = text_shapes[0][1]
         author_idx = text_shapes[1][1]
         _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'bg1', 'text': title.upper()}]}
         ])
         _t31_clear_and_write(slide.shapes[author_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': f"Muallif: {name_surname}"}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': 'bg1', 'text': f"Muallif: {name_surname}"}]}
         ])
 
 def fill_t31_slide_2_plan(slide, plan_data):
@@ -13105,7 +13120,7 @@ def fill_t31_slide_2_plan(slide, plan_data):
         title_idx = text_shapes[0][1]
         matn_idx = text_shapes[1][1]
         _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 1, 'color': '000000', 'text': "REJA"}]}
+            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 1, 'color': 'bg1', 'text': "REJA"}]}
         ])
         
         items = plan_data.get("content", []) if isinstance(plan_data, dict) else []
@@ -13115,8 +13130,8 @@ def fill_t31_slide_2_plan(slide, plan_data):
         import re
         paras = []
         for idx, item in enumerate(items):
-            clean_item = re.sub(r'^\d+[\.\)]\s*', '', str(item)).strip()
-            paras.append({'algn': 'ctr', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': f"{idx+1}. {clean_item}"}]})
+            clean_item = re.sub(r'^\d+[.)]\s*', '', str(item)).strip()
+            paras.append({'algn': 'l', 'runs': [{'sz': 1867, 'b': 0, 'color': 'bg1', 'text': f"{idx+1}. {clean_item}"}]})
         _t31_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, paras)
 
 def fill_t31_slide_3_two_col(slide, data, img_arg=None):
@@ -13148,16 +13163,16 @@ def fill_t31_slide_3_two_col(slide, data, img_arg=None):
     others.sort(key=lambda x: x[1])
     
     _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-        {'algn': 'l', 'runs': [{'sz': 5400, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+        {'algn': 'ctr', 'runs': [{'sz': 5400, 'b': 1, 'color': 'bg1', 'text': title.upper()}]}
     ])
     if len(others) >= 2:
         left_idx = others[0][2]
         right_idx = others[1][2]
         _t31_clear_and_write(slide.shapes[left_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': '000000', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 1200, 'b': 0, 'color': 'bg1', 'text': text1}]}
         ])
         _t31_clear_and_write(slide.shapes[right_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1400, 'b': 0, 'color': '000000', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 1200, 'b': 0, 'color': 'bg1', 'text': text2}]}
         ])
 
 def fill_t31_slide_4_two_col(slide, data, img_arg=None):
@@ -13187,16 +13202,16 @@ def fill_t31_slide_4_two_col(slide, data, img_arg=None):
     others.sort(key=lambda x: x[1])
     
     _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-        {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+        {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'tx1', 'text': title.upper()}]}
     ])
     if len(others) >= 2:
         left_idx = others[0][2]
         right_idx = others[1][2]
         _t31_clear_and_write(slide.shapes[left_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '000000', 'text': text1}]}
+            {'algn': 'just', 'runs': [{'sz': 1400, 'b': 0, 'color': 'tx1', 'text': text1}]}
         ])
         _t31_clear_and_write(slide.shapes[right_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '000000', 'text': text2}]}
+            {'algn': 'just', 'runs': [{'sz': 1400, 'b': 0, 'color': 'tx1', 'text': text2}]}
         ])
 
 def fill_t31_slide_5_img_left(slide, data, img_arg=None):
@@ -13230,10 +13245,10 @@ def fill_t31_slide_5_img_left(slide, data, img_arg=None):
         title_idx = text_shapes[0][1]
         matn_idx = text_shapes[1][1]
         _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': 'bg1', 'text': title.upper()}]}
         ])
         _t31_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '000000', 'text': body_text}]}
+            {'algn': 'just', 'runs': [{'sz': 1400, 'b': 0, 'color': 'bg1', 'text': body_text}]}
         ])
 
 def fill_t31_slide_6_three_col(slide, data, img_arg=None):
@@ -13267,12 +13282,12 @@ def fill_t31_slide_6_three_col(slide, data, img_arg=None):
     others.sort(key=lambda x: x[1])
     
     _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-        {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+        {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'tx1', 'text': title.upper()}]}
     ])
     
     for idx, txt in zip([x[2] for x in others], [text1, text2, text3]):
         _t31_clear_and_write(slide.shapes[idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '000000', 'text': txt}]}
+            {'algn': 'ctr', 'runs': [{'sz': 1400, 'b': 0, 'color': 'tx1', 'text': txt}]}
         ])
 
 def fill_t31_slide_7_img_right(slide, data, img_arg=None):
@@ -13305,18 +13320,23 @@ def fill_t31_slide_7_img_right(slide, data, img_arg=None):
     if len(text_shapes) >= 2:
         title_idx = text_shapes[0][1]
         matn_idx = text_shapes[1][1]
+        # Sarlavha: accent1 (tema qizil rangi), algn=r — asl shablon kabi
         _t31_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+            {'algn': 'r', 'runs': [
+                {'sz': 2800, 'b': 1, 'color': 'accent1', 'text': title},
+                {'sz': 2800, 'b': 1, 'color': '5D6268', 'text': ''}
+            ]}
         ])
+        # Matn: tx1 (qora) rang, algn=r
         _t31_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': '000000', 'text': body_text}]}
+            {'algn': 'r', 'runs': [{'sz': 1400, 'b': 0, 'color': 'tx1', 'text': body_text}]}
         ])
 
 def fill_t31_slide_8_conclusion(slide, data):
     # [0] TEXT top=2.65 left=0 (E'TIBORINGIZ UCHUN RAHMAT!)
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
         _t31_clear_and_write(slide.shapes[0].text_frame._txBody, [
-            {'algn': 'ctr', 'runs': [{'sz': 6000, 'b': 1, 'color': '000000', 'text': "E'TIBORINGIZ UCHUN RAHMAT!"}]}
+            {'algn': 'ctr', 'runs': [{'sz': 6000, 'b': 1, 'color': 'tx1', 'text': "E'TIBORINGIZ UCHUN RAHMAT!"}]}
         ])
 
 def build_slide_structure_31(prs, requested_slide_count):
