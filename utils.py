@@ -13781,28 +13781,13 @@ def build_slide_structure_32(prs, requested_slide_count):
                 prs.part.drop_rel(rId)
             del prs.slides._sldIdLst[idx]
 
-def generate_template_32_presentation(title, name_surname, content_data_list, image_paths=None):
-    import copy, logging
-    from pptx import Presentation
-    from io import BytesIO
-
-    template_path = '/app/templates/shablonlar/32.pptx'
+def generate_template_32_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images=None):
+    import logging
+    from utils import fetch_image, save_user_image_to_tmp
     import os
-    if not os.path.exists(template_path):
-        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'shablonlar', '32.pptx')
-
-    prs = Presentation(template_path)
-    n_content = len(content_data_list)
-    build_slide_structure_32(prs, n_content)
-
-    # 1-slayd: Muqova
-    fill_t32_slide_1_cover(prs.slides[0], title, name_surname)
-
-    # 2-slayd: Reja
-    plan = {'content': [d.get('title', '') for d in content_data_list if isinstance(d, dict)]}
+    build_slide_structure_32(prs, requested_slide_count)
+    fill_t32_slide_1_cover(prs.slides[0], topic, name_surname)
     fill_t32_slide_2_plan(prs.slides[1], plan)
-
-    # Content slaydlar (3-7 → index 2-6)
     fill_funcs = [
         fill_t32_slide_3_img_left,
         fill_t32_slide_4_img_right,
@@ -13810,20 +13795,32 @@ def generate_template_32_presentation(title, name_surname, content_data_list, im
         fill_t32_slide_6_img_left2,
         fill_t32_slide_7_three_col,
     ]
-
-    for ci, data in enumerate(content_data_list):
-        slide_idx = ci + 2
-        if slide_idx >= len(prs.slides) - 1:
+    img_counter = 0
+    img_slide_types = {0, 1, 2, 3, 4}  # barcha content slaydlarda rasm bor
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
             break
-        func_idx = ci % len(fill_funcs)
-        img = None
-        if image_paths and ci < len(image_paths):
-            img = image_paths[ci]
-        fill_funcs[func_idx](prs.slides[slide_idx], data, img)
-
-    # Oxirgi slayd: Xulosa
+        slide = prs.slides[slide_index]
+        slide_type = i % len(fill_funcs)
+        func = fill_funcs[slide_type]
+        img_arg = None
+        if slide_type in img_slide_types:
+            img_query = data.get('image_query', '') if isinstance(data, dict) else ''
+            if user_images and img_counter < len(user_images):
+                raw = user_images[img_counter]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
+                img_counter += 1
+            else:
+                img_arg = fetch_image(img_query) or fetch_image(topic)
+        func(slide, data, img_arg)
     fill_t32_slide_8_conclusion(prs.slides[-1], {})
-
-    out = BytesIO()
-    prs.save(out)
-    return out.getvalue()
+    import io
+    output = io.BytesIO()
+    prs.save(output)
+    return output.getvalue()
