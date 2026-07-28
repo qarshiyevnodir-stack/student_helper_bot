@@ -11518,6 +11518,17 @@ def generate_template_26_presentation(prs, topic, requested_slide_count, languag
     buf.seek(0)
     return buf.read()
 
+SLIDE_TYPE_NAMES_T27 = {
+    "cover": "Muqova",
+    "plan": "Reja",
+    "img_left_title_text": "Rasm chap, sarlavha va matn o'ng",
+    "img_right_title_two_text": "Rasm o'ng, sarlavha va ikki matn",
+    "img_left_title_two_text": "Rasm chap, sarlavha va uch matn",
+    "title_two_text": "Sarlavha markazda, ikki ustun matn",
+    "title_text": "Sarlavha markazda, katta matn",
+    "conclusion": "Xulosa",
+}
+
 # 27-SHABLON (Minimalist Blue) funksiyalari
 # Fon: oq, Matn: to'q ko'k 01324F
 # 8 slayd: muqova, reja, 5 kontent, xulosa

@@ -65,6 +65,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T24,
     SLIDE_TYPE_NAMES_T25,
     SLIDE_TYPE_NAMES_T26,
+    SLIDE_TYPE_NAMES_T27,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1492,6 +1493,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         24: SLIDE_TYPE_NAMES_T24,
         25: SLIDE_TYPE_NAMES_T25,
         26: SLIDE_TYPE_NAMES_T26,
+        27: SLIDE_TYPE_NAMES_T27,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
