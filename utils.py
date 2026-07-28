@@ -11572,7 +11572,11 @@ def _t27_clear_and_write(txBody, paras_data):
 def _t27_replace_freeform_with_picture(slide, img_path):
     """Freeform blip shapeni topib, uni o'chirib o'rniga add_picture bilan rasm qo'yish."""
     import logging
+    import os
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    if not img_path or not os.path.exists(img_path):
+        logging.warning(f"[T27] Rasm fayli topilmadi: {img_path}")
+        return False
     try:
         target_shape = None
         for shape in slide.shapes:
@@ -11581,7 +11585,13 @@ def _t27_replace_freeform_with_picture(slide, img_path):
                 target_shape = shape
                 break
         if target_shape is None:
-            logging.warning("[T27] Slaydda Freeform blip topilmadi")
+            # blip yo'q bo'lsa, birinchi Freeform ni topamiz
+            for shape in slide.shapes:
+                if shape.shape_type == 5:  # FREEFORM
+                    target_shape = shape
+                    break
+        if target_shape is None:
+            logging.warning("[T27] Slaydda Freeform topilmadi")
             return False
         left = target_shape.left
         top = target_shape.top
@@ -11590,6 +11600,7 @@ def _t27_replace_freeform_with_picture(slide, img_path):
         sp = target_shape._element
         sp.getparent().remove(sp)
         slide.shapes.add_picture(img_path, left, top, width, height)
+        logging.info(f"[T27] Freeform o'chirildi, rasm qo'yildi: {img_path}")
         return True
     except Exception as e:
         logging.warning(f"[T27] Freeform almashtirish xatoligi: {e}")
@@ -11637,10 +11648,13 @@ def fill_t27_slide_2_plan(slide, plan_dict):
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         paras = []
         for idx, item in enumerate(clean_items[:7], 1):
+            # AI allaqachon "1. Mavzu" formatida berishi mumkin, shuning uchun raqamni olib tashlaymiz
+            import re
+            clean_item = re.sub(r'^\d+[\.\.\s]+', '', item).strip()
             paras.append({
                 'algn': 'l',
                 'spcPts': 150,
-                'runs': [{'sz': 2700, 'b': 0, 'color': '01324F', 'text': f"{idx}. {item}"}]
+                'runs': [{'sz': 2700, 'b': 0, 'color': '01324F', 'text': f"{idx}. {clean_item}"}]
             })
         if paras:
             _t27_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
