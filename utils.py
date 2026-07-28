@@ -11517,3 +11517,317 @@ def generate_template_26_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+# 27-SHABLON (Minimalist Blue) funksiyalari
+# Fon: oq, Matn: to'q ko'k 01324F
+# 8 slayd: muqova, reja, 5 kontent, xulosa
+# Slayd 3,4,5 da Freeform blip rasm bor
+
+def _t27_clear_and_write(txBody, paras_data):
+    from lxml import etree
+    for child in list(txBody):
+        tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+        if tag == 'p':
+            txBody.remove(child)
+    ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    for pd in paras_data:
+        algn = pd.get('algn', 'l')
+        spcPts = pd.get('spcPts', 0)
+        runs = pd.get('runs', [])
+        pPr_xml = f'<a:pPr xmlns:a="{ns}" algn="{algn}"'
+        if spcPts:
+            pPr_xml += f'><a:spcBef><a:spcPts val="{spcPts}"/></a:spcBef></a:pPr>'
+        else:
+            pPr_xml += '/>'
+        runs_xml = ''
+        for run in runs:
+            sz = run.get('sz', 2400)
+            b = run.get('b', 0)
+            color = run.get('color', '01324F')
+            text = run.get('text', '')
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+            runs_xml += f'''<a:r xmlns:a="{ns}">
+  <a:rPr lang="uz-UZ" sz="{sz}" b="{b}" dirty="0">
+    <a:solidFill><a:srgbClr val="{color}"/></a:solidFill>
+    <a:latin typeface="+mj-lt"/>
+  </a:rPr>
+  <a:t>{text}</a:t>
+</a:r>'''
+        p_xml = f'<a:p xmlns:a="{ns}">{pPr_xml}{runs_xml}</a:p>'
+        p_elem = etree.fromstring(p_xml)
+        txBody.append(p_elem)
+
+
+def _t27_replace_freeform_with_picture(slide, img_path):
+    """Freeform blip shapeni topib, uni o'chirib o'rniga add_picture bilan rasm qo'yish."""
+    import logging
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    try:
+        target_shape = None
+        for shape in slide.shapes:
+            blips = shape._element.findall(f'.//{{{ns_a}}}blip')
+            if blips:
+                target_shape = shape
+                break
+        if target_shape is None:
+            logging.warning("[T27] Slaydda Freeform blip topilmadi")
+            return False
+        left = target_shape.left
+        top = target_shape.top
+        width = target_shape.width
+        height = target_shape.height
+        sp = target_shape._element
+        sp.getparent().remove(sp)
+        slide.shapes.add_picture(img_path, left, top, width, height)
+        return True
+    except Exception as e:
+        logging.warning(f"[T27] Freeform almashtirish xatoligi: {e}")
+    return False
+
+
+def _t27_get_body_text(data):
+    content = data.get("content", [])
+    if isinstance(content, list):
+        body_text = " ".join(str(c) for c in content if c)
+    else:
+        body_text = str(content) if content else ""
+    if not body_text:
+        body_text = data.get("text", "")
+    return body_text
+
+
+def fill_t27_slide_1_cover(slide, topic, name_surname):
+    # shapes[0] = sarlavha (66pt, 86AADF, center)
+    # shapes[1] = ism (27pt, 01324F)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t27_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 6600, 'b': 0, 'color': '86AADF', 'text': topic.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2700, 'b': 0, 'color': '01324F', 'text': name_surname}]}
+        ])
+
+
+def fill_t27_slide_2_plan(slide, plan_dict):
+    # shapes[0] = "Reja" sarlavha (113pt, 01324F, center)
+    # shapes[1] = reja elementlari (27pt, 01324F)
+    if not isinstance(plan_dict, dict):
+        plan_dict = {}
+    plan_title = plan_dict.get("title", "Reja")
+    items = plan_dict.get("content", [])
+    if isinstance(items, str):
+        items = [items]
+    clean_items = [str(i).strip() for i in items if i]
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t27_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 11300, 'b': 0, 'color': '01324F', 'text': plan_title.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        paras = []
+        for idx, item in enumerate(clean_items[:7], 1):
+            paras.append({
+                'algn': 'l',
+                'spcPts': 150,
+                'runs': [{'sz': 2700, 'b': 0, 'color': '01324F', 'text': f"{idx}. {item}"}]
+            })
+        if paras:
+            _t27_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
+
+
+def fill_t27_slide_3_img_left_title_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform blip (rasm, chap) L=1" T=3" W=4" H=5"
+    # shapes[1] = matn (28pt, 01324F, justify) o'ng
+    # shapes[2] = sarlavha (48pt, 01324F, left) yuqori
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t27_get_body_text(data)
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t27_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4800, 'b': 0, 'color': '01324F', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2800, 'b': 0, 'color': '01324F', 'text': body_text}]}
+        ])
+    if img_arg:
+        import os
+        import logging
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and os.path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t27_replace_freeform_with_picture(slide, img_path)
+        except Exception as e:
+            logging.warning(f"[T27] Slayd3 rasm: {e}")
+
+
+def fill_t27_slide_4_img_right_title_two_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform blip (rasm, o'ng) L=14" T=0" W=2" H=4"
+    # shapes[1] = sarlavha (48pt, 01324F, center) yuqori
+    # shapes[2] = matn1 (24pt, 01324F, justify) chap pastki
+    # shapes[3] = matn2 (24pt, 01324F, justify) o'ng pastki
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t27_get_body_text(data)
+    blocks = split_text_into_blocks(body_text, 2)
+    text1 = blocks[0] if len(blocks) > 0 else ""
+    text2 = blocks[1] if len(blocks) > 1 else ""
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4800, 'b': 0, 'color': '01324F', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t27_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2400, 'b': 0, 'color': '01324F', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t27_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2400, 'b': 0, 'color': '01324F', 'text': text2}]}
+        ])
+    if img_arg:
+        import os
+        import logging
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and os.path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t27_replace_freeform_with_picture(slide, img_path)
+        except Exception as e:
+            logging.warning(f"[T27] Slayd4 rasm: {e}")
+
+
+def fill_t27_slide_5_img_left_title_two_text(slide, data, img_arg=None):
+    # shapes[0] = Freeform blip (rasm, chap) L=1" T=0" W=5" H=6"
+    # shapes[1] = sarlavha (44pt, 01324F, left) pastki chap
+    # shapes[2] = matn1 (24pt, 01324F, justify) pastki chap
+    # shapes[3] = matn2 (22pt, 01324F, justify) o'ng yuqori
+    # shapes[4] = matn3 (22pt, 01324F, justify) o'ng pastki
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t27_get_body_text(data)
+    blocks = split_text_into_blocks(body_text, 3)
+    text1 = blocks[0] if len(blocks) > 0 else ""
+    text2 = blocks[1] if len(blocks) > 1 else ""
+    text3 = blocks[2] if len(blocks) > 2 else ""
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4400, 'b': 0, 'color': '01324F', 'text': title}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t27_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2400, 'b': 0, 'color': '01324F', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 3 and slide.shapes[3].has_text_frame:
+        _t27_clear_and_write(slide.shapes[3].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2200, 'b': 0, 'color': '01324F', 'text': text2}]}
+        ])
+    if len(slide.shapes) > 4 and slide.shapes[4].has_text_frame:
+        _t27_clear_and_write(slide.shapes[4].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2200, 'b': 0, 'color': '01324F', 'text': text3}]}
+        ])
+    if img_arg:
+        import os
+        import logging
+        try:
+            img_path = img_arg if (isinstance(img_arg, str) and os.path.exists(img_arg)) else fetch_image(img_arg)
+            if img_path:
+                _t27_replace_freeform_with_picture(slide, img_path)
+        except Exception as e:
+            logging.warning(f"[T27] Slayd5 rasm: {e}")
+
+
+def fill_t27_slide_6_title_two_text(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (44pt, 01324F, center) yuqori
+    # shapes[1] = matn1 (22pt, 01324F, justify) chap
+    # shapes[2] = matn2 (22pt, 01324F, justify) o'ng
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t27_get_body_text(data)
+    blocks = split_text_into_blocks(body_text, 2)
+    text1 = blocks[0] if len(blocks) > 0 else ""
+    text2 = blocks[1] if len(blocks) > 1 else ""
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t27_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4400, 'b': 0, 'color': '01324F', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2200, 'b': 0, 'color': '01324F', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t27_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2200, 'b': 0, 'color': '01324F', 'text': text2}]}
+        ])
+
+
+def fill_t27_slide_7_title_text(slide, data, img_arg=None):
+    # shapes[0] = sarlavha (54pt, 01324F, center) yuqori
+    # shapes[1] = matn (28pt, 01324F, justify) markazda
+    if not isinstance(data, dict):
+        data = {}
+    title = data.get("title", "")
+    body_text = _t27_get_body_text(data)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t27_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 5400, 'b': 0, 'color': '01324F', 'text': title}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t27_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'just', 'runs': [{'sz': 2800, 'b': 0, 'color': '01324F', 'text': body_text}]}
+        ])
+
+
+def fill_t27_slide_8_conclusion(slide, data):
+    # shapes[0] = "E'TIBORINGIZ UCHUN RAHMAT!" (96pt, 01324F, center)
+    pass
+
+
+def generate_template_27_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None, content_data_list=None,
+                                       user_images=None):
+    import io
+    import logging
+    slides = prs.slides
+    if len(slides) < 2:
+        logging.error("[T27] Shablon slaydlari yetarli emas")
+        return None
+    fill_t27_slide_1_cover(slides[0], topic, name_surname)
+    plan_dict = plan if isinstance(plan, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    fill_t27_slide_2_plan(slides[1], plan_dict)
+    content_slide_funcs = [
+        fill_t27_slide_3_img_left_title_text,
+        fill_t27_slide_4_img_right_title_two_text,
+        fill_t27_slide_5_img_left_title_two_text,
+        fill_t27_slide_6_title_two_text,
+        fill_t27_slide_7_title_text,
+    ]
+    # Slayd 3, 4, 5 da rasm bor (index 0, 1, 2)
+    img_slide_types = {0, 1, 2}
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+        slide_type = i % len(content_slide_funcs)
+        img_arg = None
+        if slide_type in img_slide_types:
+            if user_images and i < len(user_images):
+                img_arg = user_images[i]
+            else:
+                img_query = data.get("title", topic) if isinstance(data, dict) else topic
+                img_arg = fetch_image(img_query)
+        content_slide_funcs[slide_type](slide, data, img_arg)
+        logging.info(f"  [T27] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+    fill_t27_slide_8_conclusion(slides[-1], {})
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()

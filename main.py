@@ -35,6 +35,7 @@ from utils import (
     generate_template_24_presentation,
     generate_template_25_presentation,
     generate_template_26_presentation,
+    generate_template_27_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -1412,25 +1413,25 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 26-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 27-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_26_path = os.path.join(previews_dir, "26.png")
+    preview_27_path = os.path.join(previews_dir, "27.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_26")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_27")],
     ])
-    if os.path.exists(preview_26_path):
-        with open(preview_26_path, "rb") as f:
+    if os.path.exists(preview_27_path):
+        with open(preview_27_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🔬 *Science Presentation shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🔵 *Minimalist Blue shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🔬 *Science Presentation shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🔵 *Minimalist Blue shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1519,6 +1520,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         24: generate_template_24_presentation,
         25: generate_template_25_presentation,
         26: generate_template_26_presentation,
+        27: generate_template_27_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
 
@@ -1877,6 +1879,7 @@ async def _rebuild_and_send_presentation_with_user_images(
         24: generate_template_24_presentation,
         25: generate_template_25_presentation,
         26: generate_template_26_presentation,
+        27: generate_template_27_presentation,
     }.get(template_num, generate_template_16_presentation)
 
     try:
