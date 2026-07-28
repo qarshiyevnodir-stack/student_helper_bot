@@ -12032,8 +12032,11 @@ def fill_t28_slide_2_plan(slide, plan_data):
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         content = plan_data.get("content", []) if isinstance(plan_data, dict) else []
         paras = []
+        import re as _re
         for idx, item in enumerate(content):
-            paras.append({'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '818CF8', 'text': f"{idx+1}. {item}"}]})
+            # item da allaqachon raqam bo'lishi mumkin (masalan "1. Mavzu") - tozalash
+            clean_item = _re.sub(r'^\d+[.)\s]+', '', str(item).strip())
+            paras.append({'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '818CF8', 'text': f"{idx+1}. {clean_item}"}]})
         _t28_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
 
 def fill_t28_slide_3_two_col(slide, data, img_arg=None):
@@ -12090,18 +12093,19 @@ def fill_t28_slide_4_img_left(slide, data, img_arg=None):
     # Oddiy indeks usuli (ishonchli)
     if pic_shape_idx is not None and img_arg:
         _t28_replace_picture(slide, pic_shape_idx, img_arg)
-    # Rasm almashtirilgandan keyin shapes yangilandi - qayta topish
-    sarlavha_idx = None
-    matn_idx = None
+    # Rasm almashtirilgandan keyin shapes yangilandi - TOP koordinatasi bo'yicha topish
+    # Sarlavha = eng tepada turgan matn shape (min top)
+    # Matn = qolgan matn shape
+    text_shapes = []
     for i, s in enumerate(slide.shapes):
         blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
         if blips:
             continue
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
-            if sarlavha_idx is None:
-                sarlavha_idx = i
-            else:
-                matn_idx = i
+            text_shapes.append((s.top, i))
+    text_shapes.sort(key=lambda x: x[0])  # top bo'yicha saralash
+    sarlavha_idx = text_shapes[0][1] if len(text_shapes) > 0 else None
+    matn_idx = text_shapes[1][1] if len(text_shapes) > 1 else None
     if sarlavha_idx is not None and slide.shapes[sarlavha_idx].has_text_frame:
         _t28_clear_and_write(slide.shapes[sarlavha_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
@@ -12124,18 +12128,17 @@ def fill_t28_slide_5_img_right(slide, data, img_arg=None):
             break
     if pic_shape_idx is not None and img_arg:
         _t28_replace_picture(slide, pic_shape_idx, img_arg)
-    # Rasm almashtirilgandan keyin matn shapelari
-    sarlavha_idx = None
-    matn_idx = None
+    # TOP koordinatasi bo'yicha sarlavha va matn topish
+    text_shapes = []
     for i, s in enumerate(slide.shapes):
         blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
         if blips:
             continue
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
-            if sarlavha_idx is None:
-                sarlavha_idx = i
-            else:
-                matn_idx = i
+            text_shapes.append((s.top, i))
+    text_shapes.sort(key=lambda x: x[0])
+    sarlavha_idx = text_shapes[0][1] if len(text_shapes) > 0 else None
+    matn_idx = text_shapes[1][1] if len(text_shapes) > 1 else None
     if sarlavha_idx is not None and slide.shapes[sarlavha_idx].has_text_frame:
         _t28_clear_and_write(slide.shapes[sarlavha_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
