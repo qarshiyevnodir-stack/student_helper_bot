@@ -11831,16 +11831,45 @@ def fill_t27_slide_8_conclusion(slide, data):
     pass
 
 
+CONTENT_SLIDE_TEMPLATE_INDICES_27 = [2, 3, 4, 5, 6]  # 27-shablondagi 3-7 slaydlar
+
+
+def build_slide_structure_27(prs, requested_content_count):
+    """27-shablon uchun slayd tuzilmasini quradi. 3-7 slaydlar takrorlanadi, 8-slayd oxirida."""
+    full_repeats = max(1, round(requested_content_count / 5))
+    total_content_slides = full_repeats * 5
+    logging.info(f"[T27] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_27:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T27] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logging.info(f"[T27] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
+
+
 def generate_template_27_presentation(prs, topic, requested_slide_count, language,
                                        name_surname="", plan=None, content_data_list=None,
                                        user_images=None):
     import io
     import logging
     import os
-    slides = prs.slides
-    if len(slides) < 2:
+    if len(prs.slides) < 2:
         logging.error("[T27] Shablon slaydlari yetarli emas")
         return None
+    # ── 1. Slayd tuzilmasini qurish (requested_slide_count bo'yicha ko'paytirish) ──
+    total_content_slides = build_slide_structure_27(prs, requested_slide_count)
+    # content_data_list ni to'ldirish yoki kengaytirish
+    if not content_data_list:
+        content_data_list = []
+    while len(content_data_list) < total_content_slides:
+        idx = len(content_data_list)
+        content_data_list.append({"title": f"{topic} — {idx + 1}", "content": [topic]})
+    slides = prs.slides
     fill_t27_slide_1_cover(slides[0], topic, name_surname)
     plan_dict = plan if isinstance(plan, dict) else {}
     if not plan_dict and content_data_list:
