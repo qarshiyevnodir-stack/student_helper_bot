@@ -11680,10 +11680,12 @@ def fill_t27_slide_3_img_left_title_text(slide, data, img_arg=None):
         import os
         import logging
         try:
-            if isinstance(img_arg, str) and os.path.exists(img_arg):
+            if isinstance(img_arg, (bytes, bytearray)):
+                img_path = save_user_image_to_tmp(img_arg)
+            elif isinstance(img_arg, str) and os.path.exists(img_arg):
                 img_path = img_arg
             else:
-                img_path = fetch_image(img_arg if isinstance(img_arg, str) else topic)
+                img_path = fetch_image(img_arg if isinstance(img_arg, str) else title or "science")
             if img_path and os.path.exists(img_path):
                 _t27_replace_freeform_with_picture(slide, img_path)
             else:
@@ -11720,10 +11722,12 @@ def fill_t27_slide_4_img_right_title_two_text(slide, data, img_arg=None):
         import os
         import logging
         try:
-            if isinstance(img_arg, str) and os.path.exists(img_arg):
+            if isinstance(img_arg, (bytes, bytearray)):
+                img_path = save_user_image_to_tmp(img_arg)
+            elif isinstance(img_arg, str) and os.path.exists(img_arg):
                 img_path = img_arg
             else:
-                img_path = fetch_image(img_arg if isinstance(img_arg, str) else "")
+                img_path = fetch_image(img_arg if isinstance(img_arg, str) else title or "science")
             if img_path and os.path.exists(img_path):
                 _t27_replace_freeform_with_picture(slide, img_path)
             else:
@@ -11766,10 +11770,12 @@ def fill_t27_slide_5_img_left_title_two_text(slide, data, img_arg=None):
         import os
         import logging
         try:
-            if isinstance(img_arg, str) and os.path.exists(img_arg):
+            if isinstance(img_arg, (bytes, bytearray)):
+                img_path = save_user_image_to_tmp(img_arg)
+            elif isinstance(img_arg, str) and os.path.exists(img_arg):
                 img_path = img_arg
             else:
-                img_path = fetch_image(img_arg if isinstance(img_arg, str) else "")
+                img_path = fetch_image(img_arg if isinstance(img_arg, str) else title or "science")
             if img_path and os.path.exists(img_path):
                 _t27_replace_freeform_with_picture(slide, img_path)
             else:

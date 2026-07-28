@@ -1572,6 +1572,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             24: [0, 2, 3],  # T24: slayd3, slayd5, slayd6 da Freeform rasm bor
             25: [0, 1, 2, 3, 4],  # T25: barcha kontent slaydlarda Picture rasm bor
             26: [0, 1, 2, 3, 4],  # T26: barcha kontent slaydlarda Freeform blip rasm bor
+            27: [0, 1, 2],  # T27: slayd3 (idx 0), slayd4 (idx 1), slayd5 (idx 2) da Freeform blip rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
