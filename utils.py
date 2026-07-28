@@ -12032,8 +12032,8 @@ def fill_t28_slide_2_plan(slide, plan_data):
     if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
         content = plan_data.get("content", []) if isinstance(plan_data, dict) else []
         paras = []
-        for item in content:
-            paras.append({'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '818CF8', 'text': f"• {item}"}]})
+        for idx, item in enumerate(content):
+            paras.append({'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '818CF8', 'text': f"{idx+1}. {item}"}]})
         _t28_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
 
 def fill_t28_slide_3_two_col(slide, data, img_arg=None):
@@ -12060,58 +12060,124 @@ def fill_t28_slide_3_two_col(slide, data, img_arg=None):
         ])
 
 def fill_t28_slide_4_img_left(slide, data, img_arg=None):
-    # shapes[0] = PICTURE (chap)
-    # shapes[2] = sarlavha (32pt bold F8FAFC)
-    # shapes[1] = matn (16pt CBD5E1)
+    # shapes[0] = PICTURE (chap), shapes[1] = matn, shapes[2] = sarlavha
+    # MUHIM: avval rasmni almashtirish, keyin matnlarni yozish
+    # (rasm almashtirish shapes tartibini o'zgartiradi)
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t28_get_body_text(data)
-    
-    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
-        _t28_clear_and_write(slide.shapes[2].text_frame._txBody, [
+    # Avval matnlarni yozish (shapes tartibini bilgan holda)
+    # shapes[2] = sarlavha, shapes[1] = matn
+    title_shape = None
+    text_shape = None
+    pic_shape_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            pic_shape_idx = i
+        elif hasattr(s, 'has_text_frame') and s.has_text_frame:
+            txt = s.text_frame.text.strip()
+            if s.left < 7000000:  # chap tomonda
+                if title_shape is None or s.top < title_shape.top:
+                    if s.width > 4000000:  # keng shape = sarlavha
+                        title_shape = s
+                    else:
+                        text_shape = s
+            else:  # o'ng tomonda
+                if title_shape is None:
+                    title_shape = s
+                else:
+                    text_shape = s
+    # Oddiy indeks usuli (ishonchli)
+    if pic_shape_idx is not None and img_arg:
+        _t28_replace_picture(slide, pic_shape_idx, img_arg)
+    # Rasm almashtirilgandan keyin shapes yangilandi - qayta topish
+    sarlavha_idx = None
+    matn_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            continue
+        if hasattr(s, 'has_text_frame') and s.has_text_frame:
+            if sarlavha_idx is None:
+                sarlavha_idx = i
+            else:
+                matn_idx = i
+    if sarlavha_idx is not None and slide.shapes[sarlavha_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[sarlavha_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
         ])
-    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+    if matn_idx is not None and slide.shapes[matn_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
         ])
-    if img_arg:
-        _t28_replace_picture(slide, 0, img_arg)
 
 def fill_t28_slide_5_img_right(slide, data, img_arg=None):
-    # shapes[1] = PICTURE (ong)
-    # shapes[2] = sarlavha (32pt bold F8FAFC)
-    # shapes[0] = matn (16pt CBD5E1)
+    # shapes[0] = matn (chap), shapes[1] = PICTURE (ong), shapes[2] = sarlavha
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t28_get_body_text(data)
-    
-    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
-        _t28_clear_and_write(slide.shapes[2].text_frame._txBody, [
+    # Avval rasm indeksini topish
+    pic_shape_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            pic_shape_idx = i
+            break
+    if pic_shape_idx is not None and img_arg:
+        _t28_replace_picture(slide, pic_shape_idx, img_arg)
+    # Rasm almashtirilgandan keyin matn shapelari
+    sarlavha_idx = None
+    matn_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            continue
+        if hasattr(s, 'has_text_frame') and s.has_text_frame:
+            if sarlavha_idx is None:
+                sarlavha_idx = i
+            else:
+                matn_idx = i
+    if sarlavha_idx is not None and slide.shapes[sarlavha_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[sarlavha_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
         ])
-    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+    if matn_idx is not None and slide.shapes[matn_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
         ])
-    if img_arg:
-        _t28_replace_picture(slide, 1, img_arg)
 
 def fill_t28_slide_6_img_right_large(slide, data, img_arg=None):
-    # shapes[2] = PICTURE (ong katta)
-    # shapes[0] = sarlavha (28pt bold F8FAFC)
-    # shapes[1] = matn (16pt CBD5E1)
+    # shapes[0] = sarlavha, shapes[1] = matn, shapes[2] = PICTURE (ong katta)
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t28_get_body_text(data)
-    
-    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
-        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+    # Avval rasm indeksini topish
+    pic_shape_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            pic_shape_idx = i
+            break
+    if pic_shape_idx is not None and img_arg:
+        _t28_replace_picture(slide, pic_shape_idx, img_arg)
+    # Matn shapelari
+    sarlavha_idx = None
+    matn_idx = None
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+        if blips:
+            continue
+        if hasattr(s, 'has_text_frame') and s.has_text_frame:
+            if sarlavha_idx is None:
+                sarlavha_idx = i
+            else:
+                matn_idx = i
+    if sarlavha_idx is not None and slide.shapes[sarlavha_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[sarlavha_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 2800, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
         ])
-    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
-        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+    if matn_idx is not None and slide.shapes[matn_idx].has_text_frame:
+        _t28_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
         ])
-    if img_arg:
-        _t28_replace_picture(slide, 2, img_arg)
 
 def fill_t28_slide_7_quote(slide, data, img_arg=None):
     # shapes[1] = muallif (24pt bold 22D3EE center)
