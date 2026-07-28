@@ -11836,6 +11836,7 @@ def generate_template_27_presentation(prs, topic, requested_slide_count, languag
                                        user_images=None):
     import io
     import logging
+    import os
     slides = prs.slides
     if len(slides) < 2:
         logging.error("[T27] Shablon slaydlari yetarli emas")
@@ -11866,7 +11867,14 @@ def generate_template_27_presentation(prs, topic, requested_slide_count, languag
         img_arg = None
         if slide_type in img_slide_types:
             if user_images and i < len(user_images):
-                img_arg = user_images[i]
+                raw = user_images[i]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_query = data.get("title", topic) if isinstance(data, dict) else topic
+                    img_arg = fetch_image(img_query)
             else:
                 img_query = data.get("title", topic) if isinstance(data, dict) else topic
                 img_arg = fetch_image(img_query)
