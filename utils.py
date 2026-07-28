@@ -13104,7 +13104,7 @@ def fill_t31_slide_1_cover(slide, title, name_surname):
             {'algn': 'l', 'runs': [{'sz': 4800, 'b': 1, 'color': 'bg1', 'text': title.upper()}]}
         ])
         _t31_clear_and_write(slide.shapes[author_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': 'bg1', 'text': f"Muallif: {name_surname}"}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': 'bg1', 'text': name_surname}]}
         ])
 
 def fill_t31_slide_2_plan(slide, plan_data):
