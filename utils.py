@@ -12299,9 +12299,11 @@ def _t29_clear_and_write(txBody, paras_data):
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     for p_data in paras_data:
         p = etree.SubElement(txBody, f"{{{ns_a}}}p")
+        pPr = etree.SubElement(p, f"{{{ns_a}}}pPr")
         if 'algn' in p_data:
-            pPr = etree.SubElement(p, f"{{{ns_a}}}pPr")
             pPr.set('algn', p_data['algn'])
+        # Bullet/numbering ni o'chirish - har doim buNone qo'shish
+        etree.SubElement(pPr, f"{{{ns_a}}}buNone")
         for run_data in p_data.get('runs', []):
             r = etree.SubElement(p, f"{{{ns_a}}}r")
             rPr = etree.SubElement(r, f"{{{ns_a}}}rPr")
@@ -12393,45 +12395,33 @@ def fill_t29_slide_3_title_text(slide, data, img_arg=None):
         ])
 
 def fill_t29_slide_4_two_col(slide, data, img_arg=None):
-    # shapes: chap matn + o'ng matn (sarlavha yo'q)
-    # Ba'zi slaydlarda 3 ta shape bo'lishi mumkin (sarlavha + 2 matn)
+    # Slayd 4: chap blok = SARLAVHA, o'ng blok = ASOSIY MATN
+    # left koordinatasi bo'yicha: eng chapda = sarlavha, o'ngda = matn
     body_text = _t29_get_body_text(data)
     title = data.get("title", "") if isinstance(data, dict) else ""
-    blocks = split_text_into_blocks(body_text, 2)
-    text1 = blocks[0] if len(blocks) > 0 else ""
-    text2 = blocks[1] if len(blocks) > 1 else ""
     
-    # Barcha matn shapelari ni top koordinatasi bo'yicha saralash
+    # Matn shapelari ni left koordinatasi bo'yicha saralash
     text_shapes = []
     for i, s in enumerate(slide.shapes):
         if hasattr(s, 'has_text_frame') and s.has_text_frame:
-            text_shapes.append((s.top or 0, i))
-    text_shapes.sort(key=lambda x: x[0])
+            text_shapes.append((s.left or 0, i))
+    text_shapes.sort(key=lambda x: x[0])  # chapdan o'ngga
     
-    if len(text_shapes) == 2:
-        # Sarlavha yo'q: chap=shapes[0], o'ng=shapes[1]
-        full_text1 = (title.upper() + "\n" + text1).strip() if title else text1
-        idx0 = text_shapes[0][1]
-        idx1 = text_shapes[1][1]
-        _t29_clear_and_write(slide.shapes[idx0].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': full_text1}]}
-        ])
-        _t29_clear_and_write(slide.shapes[idx1].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': text2}]}
-        ])
-    elif len(text_shapes) >= 3:
-        # Sarlavha bor: sarlavha=shapes[0], chap=shapes[1], o'ng=shapes[2]
-        idx_title = text_shapes[0][1]
-        idx_left = text_shapes[1][1]
-        idx_right = text_shapes[2][1]
-        _t29_clear_and_write(slide.shapes[idx_title].text_frame._txBody, [
+    if len(text_shapes) >= 2:
+        # Chap blok = sarlavha
+        left_idx = text_shapes[0][1]
+        # O'ng blok = asosiy matn
+        right_idx = text_shapes[1][1]
+        _t29_clear_and_write(slide.shapes[left_idx].text_frame._txBody, [
             {'algn': 'l', 'runs': [{'sz': 3600, 'b': 1, 'color': '000000', 'text': title.upper()}]}
         ])
-        _t29_clear_and_write(slide.shapes[idx_left].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': text1}]}
+        _t29_clear_and_write(slide.shapes[right_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': body_text}]}
         ])
-        _t29_clear_and_write(slide.shapes[idx_right].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': text2}]}
+    elif len(text_shapes) == 1:
+        idx = text_shapes[0][1]
+        _t29_clear_and_write(slide.shapes[idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3600, 'b': 1, 'color': '000000', 'text': title.upper()}]}
         ])
 
 def fill_t29_slide_5_img_left(slide, data, img_arg=None):
