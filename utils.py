@@ -11874,10 +11874,10 @@ def generate_template_27_presentation(prs, topic, requested_slide_count, languag
                     img_arg = raw
                 else:
                     img_query = data.get("title", topic) if isinstance(data, dict) else topic
-                    img_arg = fetch_image(img_query)
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
             else:
                 img_query = data.get("title", topic) if isinstance(data, dict) else topic
-                img_arg = fetch_image(img_query)
+                img_arg = fetch_image(img_query) or fetch_image(topic)
         content_slide_funcs[slide_type](slide, data, img_arg)
         logging.info(f"  [T27] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
     fill_t27_slide_8_conclusion(slides[-1], {})
