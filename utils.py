@@ -12242,6 +12242,7 @@ def generate_template_28_presentation(prs, topic, requested_slide_count, languag
     # Slayd 4, 5, 6 da rasm bor (index 1, 2, 3)
     img_slide_types = {1, 2, 3}
     
+    img_counter = 0  # Rasm slaydlari uchun alohida hisoblagich
     for i, data in enumerate(content_data_list):
         slide_index = i + 2
         if slide_index >= len(slides) - 1:
@@ -12254,8 +12255,8 @@ def generate_template_28_presentation(prs, topic, requested_slide_count, languag
         img_arg = None
         
         if slide_type in img_slide_types:
-            if user_images and i < len(user_images):
-                raw = user_images[i]
+            if user_images and img_counter < len(user_images):
+                raw = user_images[img_counter]
                 if isinstance(raw, (bytes, bytearray)):
                     img_arg = save_user_image_to_tmp(raw)
                 elif isinstance(raw, str) and os.path.exists(raw):
@@ -12266,6 +12267,7 @@ def generate_template_28_presentation(prs, topic, requested_slide_count, languag
             else:
                 img_query = data.get("title", topic) if isinstance(data, dict) else topic
                 img_arg = fetch_image(img_query) or fetch_image(topic)
+            img_counter += 1  # Har bir rasm slaydida hisoblagichni oshirish
                 
         content_slide_funcs[slide_type](slide, data, img_arg)
         logging.info(f"  [T28] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
