@@ -13029,6 +13029,14 @@ def _t31_clear_and_write(txBody, paras_data):
 
 def _t31_get_body_text(data):
     if isinstance(data, dict):
+        # col1/col2 formatini ham handle qilish
+        if "col1" in data or "col2" in data:
+            parts = []
+            for k in ["col1", "col2", "col3"]:
+                v = data.get(k, "")
+                if v:
+                    parts.append(str(v))
+            return "\n".join(parts)
         c = data.get("content", [])
         if isinstance(c, list):
             return "\n".join(str(x) for x in c)
@@ -13116,11 +13124,15 @@ def fill_t31_slide_3_two_col(slide, data, img_arg=None):
     # [1] TEXT 12pt top=1.93 left=1.1 (Chap matn)
     # [2] TEXT 12pt top=1.92 left=6.17 (O'ng matn)
     title = data.get("title", "") if isinstance(data, dict) else ""
-    body_text = _t31_get_body_text(data)
-    from utils import split_text_into_blocks
-    blocks = split_text_into_blocks(body_text, 2)
-    text1 = blocks[0] if len(blocks) > 0 else ""
-    text2 = blocks[1] if len(blocks) > 1 else ""
+    if isinstance(data, dict) and ("col1" in data or "col2" in data):
+        text1 = str(data.get("col1", ""))
+        text2 = str(data.get("col2", ""))
+    else:
+        body_text = _t31_get_body_text(data)
+        from utils import split_text_into_blocks
+        blocks = split_text_into_blocks(body_text, 2)
+        text1 = blocks[0] if len(blocks) > 0 else ""
+        text2 = blocks[1] if len(blocks) > 1 else ""
     
     text_shapes = []
     for i, s in enumerate(slide.shapes):
@@ -13153,11 +13165,15 @@ def fill_t31_slide_4_two_col(slide, data, img_arg=None):
     # [1] TEXT 14pt top=2.1 left=1.0 (Chap matn)
     # [2] TEXT 14pt top=2.1 left=7.38 (O'ng matn)
     title = data.get("title", "") if isinstance(data, dict) else ""
-    body_text = _t31_get_body_text(data)
-    from utils import split_text_into_blocks
-    blocks = split_text_into_blocks(body_text, 2)
-    text1 = blocks[0] if len(blocks) > 0 else ""
-    text2 = blocks[1] if len(blocks) > 1 else ""
+    if isinstance(data, dict) and ("col1" in data or "col2" in data):
+        text1 = str(data.get("col1", ""))
+        text2 = str(data.get("col2", ""))
+    else:
+        body_text = _t31_get_body_text(data)
+        from utils import split_text_into_blocks
+        blocks = split_text_into_blocks(body_text, 2)
+        text1 = blocks[0] if len(blocks) > 0 else ""
+        text2 = blocks[1] if len(blocks) > 1 else ""
     
     text_shapes = []
     for i, s in enumerate(slide.shapes):
@@ -13226,12 +13242,18 @@ def fill_t31_slide_6_three_col(slide, data, img_arg=None):
     # [2] TEXT 14pt top=2.74 left=5.22 (Matn 2)
     # [3] TEXT 14pt top=2.75 left=9.38 (Matn 3)
     title = data.get("title", "") if isinstance(data, dict) else ""
-    body_text = _t31_get_body_text(data)
-    from utils import split_text_into_blocks
-    blocks = split_text_into_blocks(body_text, 3)
-    text1 = blocks[0] if len(blocks) > 0 else ""
-    text2 = blocks[1] if len(blocks) > 1 else ""
-    text3 = blocks[2] if len(blocks) > 2 else ""
+    # col1/col2/col3 formatini to'g'ridan olish
+    if isinstance(data, dict) and ("col1" in data or "col2" in data):
+        text1 = str(data.get("col1", ""))
+        text2 = str(data.get("col2", ""))
+        text3 = str(data.get("col3", ""))
+    else:
+        body_text = _t31_get_body_text(data)
+        from utils import split_text_into_blocks
+        blocks = split_text_into_blocks(body_text, 3)
+        text1 = blocks[0] if len(blocks) > 0 else ""
+        text2 = blocks[1] if len(blocks) > 1 else ""
+        text3 = blocks[2] if len(blocks) > 2 else ""
     
     text_shapes = []
     for i, s in enumerate(slide.shapes):
@@ -13316,13 +13338,13 @@ def build_slide_structure_31(prs, requested_slide_count):
         last_content_idx = 6 + needed
         move_slide(prs, len(prs.slides)-1, last_content_idx + 1)
 
-SLIDE_TYPE_NAMES_T31 = [
-    "two_col",
-    "two_col_alt",
-    "img_left",
-    "three_col",
-    "img_right"
-]
+SLIDE_TYPE_NAMES_T31 = {
+    0: "two_columns",
+    1: "two_columns",
+    2: "image_left",
+    3: "three_columns",
+    4: "image_right"
+}
 
 def generate_template_31_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images=None):
     import logging
