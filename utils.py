@@ -11914,3 +11914,307 @@ def generate_template_27_presentation(prs, topic, requested_slide_count, languag
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+# ============================================================
+# 28-SHABLON (Zamonaviy PPT Dizayni 2.0)
+# Fon: to'q ko'k, Matn: Oq (F8FAFC), Moviy (CBD5E1, 818CF8, 22D3EE)
+# 8 slayd: muqova, reja, 5 kontent, xulosa
+# Slayd 4,5,6 da rasm bor (PICTURE shapes)
+
+CONTENT_SLIDE_TEMPLATE_INDICES_28 = [2, 3, 4, 5, 6]
+
+def build_slide_structure_28(prs, requested_content_count):
+    """28-shablon uchun slayd tuzilmasini quradi. 3-7 slaydlar takrorlanadi, 8-slayd oxirida."""
+    full_repeats = max(1, round(requested_content_count / 5))
+    total_content_slides = full_repeats * 5
+    logging.info(f"[T28] Kontent slaydlari: {requested_content_count} so'raldi, "
+                 f"{full_repeats} marta takrorlanadi ({total_content_slides} ta kontent slayd)")
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_28:
+            duplicate_slide(prs, slide_template_idx)
+        logging.info(f"  [T28] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logging.info(f"[T28] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+    return total_content_slides
+
+def _t28_clear_and_write(txBody, paras_data):
+    from lxml import etree
+    for child in list(txBody):
+        tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+        if tag == 'p':
+            child.getparent().remove(child)
+    for p_data in paras_data:
+        p_elem = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}p')
+        pPr = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}pPr')
+        algn = p_data.get('algn', 'l')
+        if algn != 'l':
+            pPr.set('algn', algn)
+        p_elem.append(pPr)
+        for run_data in p_data.get('runs', []):
+            r_elem = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}r')
+            rPr = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}rPr')
+            rPr.set('lang', 'en-US')
+            if run_data.get('sz'):
+                rPr.set('sz', str(run_data['sz']))
+            if run_data.get('b') is not None:
+                rPr.set('b', str(run_data['b']))
+            if run_data.get('color'):
+                solidFill = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}solidFill')
+                srgbClr = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}srgbClr')
+                srgbClr.set('val', run_data['color'])
+                solidFill.append(srgbClr)
+                rPr.append(solidFill)
+            r_elem.append(rPr)
+            t_elem = etree.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}t')
+            t_elem.text = run_data.get('text', '')
+            r_elem.append(t_elem)
+            p_elem.append(r_elem)
+        txBody.append(p_elem)
+
+def _t28_get_body_text(data):
+    if isinstance(data, dict):
+        content = data.get("content", [])
+        if isinstance(content, list):
+            return " ".join(str(x) for x in content)
+        return str(content)
+    return str(data)
+
+def _t28_replace_picture(slide, shape_idx, img_path):
+    """Slayddagi rasmni (PICTURE) yangisi bilan almashtiradi."""
+    import os
+    import logging
+    if not img_path or not os.path.exists(img_path):
+        return False
+    try:
+        if shape_idx >= len(slide.shapes):
+            return False
+        target_shape = slide.shapes[shape_idx]
+        left = target_shape.left
+        top = target_shape.top
+        width = target_shape.width
+        height = target_shape.height
+        
+        # Eski rasmni o'chirish
+        sp = target_shape._element
+        sp.getparent().remove(sp)
+        
+        # Yangi rasmni qo'shish
+        slide.shapes.add_picture(img_path, left, top, width, height)
+        logging.info(f"[T28] Rasm almashtirildi: {img_path}")
+        return True
+    except Exception as e:
+        logging.error(f"[T28] Rasm almashtirish xatosi: {e}")
+        return False
+
+def fill_t28_slide_1_cover(slide, topic, name_surname):
+    # shapes[0] = sarlavha (54pt bold F8FAFC center)
+    # shapes[1] = subtitle (16pt CBD5E1 center)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 5400, 'b': 1, 'color': 'F8FAFC', 'text': str(topic).upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        sub = name_surname if name_surname else "Zamonaviy taqdimot"
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': str(sub)}]}
+        ])
+
+def fill_t28_slide_2_plan(slide, plan_data):
+    # shapes[0] = sarlavha (54pt bold F8FAFC center)
+    # shapes[1] = reja_matn (22pt 818CF8)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 5400, 'b': 1, 'color': 'F8FAFC', 'text': "REJA"}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        content = plan_data.get("content", []) if isinstance(plan_data, dict) else []
+        paras = []
+        for item in content:
+            paras.append({'algn': 'l', 'runs': [{'sz': 2200, 'b': 0, 'color': '818CF8', 'text': f"• {item}"}]})
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, paras)
+
+def fill_t28_slide_3_two_col(slide, data, img_arg=None):
+    # shapes[2] = sarlavha (32pt bold F8FAFC left)
+    # shapes[0] = matn_chap (16pt CBD5E1)
+    # shapes[1] = matn_ong (16pt CBD5E1)
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t28_get_body_text(data)
+    blocks = split_text_into_blocks(body_text, 2)
+    text1 = blocks[0] if len(blocks) > 0 else ""
+    text2 = blocks[1] if len(blocks) > 1 else ""
+    
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t28_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': text1}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': text2}]}
+        ])
+
+def fill_t28_slide_4_img_left(slide, data, img_arg=None):
+    # shapes[0] = PICTURE (chap)
+    # shapes[2] = sarlavha (32pt bold F8FAFC)
+    # shapes[1] = matn (16pt CBD5E1)
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t28_get_body_text(data)
+    
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t28_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
+        ])
+    if img_arg:
+        _t28_replace_picture(slide, 0, img_arg)
+
+def fill_t28_slide_5_img_right(slide, data, img_arg=None):
+    # shapes[1] = PICTURE (ong)
+    # shapes[2] = sarlavha (32pt bold F8FAFC)
+    # shapes[0] = matn (16pt CBD5E1)
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t28_get_body_text(data)
+    
+    if len(slide.shapes) > 2 and slide.shapes[2].has_text_frame:
+        _t28_clear_and_write(slide.shapes[2].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3200, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
+        ])
+    if img_arg:
+        _t28_replace_picture(slide, 1, img_arg)
+
+def fill_t28_slide_6_img_right_large(slide, data, img_arg=None):
+    # shapes[2] = PICTURE (ong katta)
+    # shapes[0] = sarlavha (28pt bold F8FAFC)
+    # shapes[1] = matn (16pt CBD5E1)
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t28_get_body_text(data)
+    
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2800, 'b': 1, 'color': 'F8FAFC', 'text': title.upper()}]}
+        ])
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1600, 'b': 0, 'color': 'CBD5E1', 'text': body_text}]}
+        ])
+    if img_arg:
+        _t28_replace_picture(slide, 2, img_arg)
+
+def fill_t28_slide_7_quote(slide, data, img_arg=None):
+    # shapes[1] = muallif (24pt bold 22D3EE center)
+    # shapes[0] = iqtibos (20pt F8FAFC center)
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t28_get_body_text(data)
+    
+    if len(slide.shapes) > 1 and slide.shapes[1].has_text_frame:
+        _t28_clear_and_write(slide.shapes[1].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 2400, 'b': 1, 'color': '22D3EE', 'text': title}]}
+        ])
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 2000, 'b': 0, 'color': 'F8FAFC', 'text': body_text}]}
+        ])
+
+def fill_t28_slide_8_conclusion(slide, data):
+    # shapes[0] = xulosa_matn (60pt bold 22D3EE center)
+    if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
+        _t28_clear_and_write(slide.shapes[0].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 6000, 'b': 1, 'color': '22D3EE', 'text': "E'TIBORINGIZ UCHUN RAHMAT!"}]}
+        ])
+
+def generate_template_28_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname="", plan=None, content_data_list=None,
+                                       user_images=None):
+    import io
+    import logging
+    import os
+    if len(prs.slides) < 2:
+        logging.error("[T28] Shablon slaydlari yetarli emas")
+        return None
+        
+    total_content_slides = build_slide_structure_28(prs, requested_slide_count)
+    
+    if not content_data_list:
+        content_data_list = []
+    while len(content_data_list) < total_content_slides:
+        idx = len(content_data_list)
+        content_data_list.append({"title": f"{topic} — {idx + 1}", "content": [topic]})
+        
+    slides = prs.slides
+    fill_t28_slide_1_cover(slides[0], topic, name_surname)
+    
+    plan_dict = plan if isinstance(plan, dict) else {}
+    if not plan_dict and content_data_list:
+        titles = [d.get("title", "") for d in content_data_list if isinstance(d, dict)]
+        plan_dict = {"title": "Reja", "content": titles}
+    fill_t28_slide_2_plan(slides[1], plan_dict)
+    
+    content_slide_funcs = [
+        fill_t28_slide_3_two_col,
+        fill_t28_slide_4_img_left,
+        fill_t28_slide_5_img_right,
+        fill_t28_slide_6_img_right_large,
+        fill_t28_slide_7_quote,
+    ]
+    
+    # Slayd 4, 5, 6 da rasm bor (index 1, 2, 3)
+    img_slide_types = {1, 2, 3}
+    
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(slides) - 1:
+            break
+        slide = slides[slide_index]
+        if not isinstance(data, dict):
+            data = {"title": str(data)[:80] if data else "", "content": [str(data)] if data else []}
+            
+        slide_type = i % len(content_slide_funcs)
+        img_arg = None
+        
+        if slide_type in img_slide_types:
+            if user_images and i < len(user_images):
+                raw = user_images[i]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_query = data.get("title", topic) if isinstance(data, dict) else topic
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
+            else:
+                img_query = data.get("title", topic) if isinstance(data, dict) else topic
+                img_arg = fetch_image(img_query) or fetch_image(topic)
+                
+        content_slide_funcs[slide_type](slide, data, img_arg)
+        logging.info(f"  [T28] Slayd {slide_index + 1} to'ldirildi (tur {slide_type}): {data.get('title', '')}")
+        
+    fill_t28_slide_8_conclusion(slides[-1], {})
+    
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+SLIDE_TYPE_NAMES_T28 = {
+    "cover": "Muqova",
+    "plan": "Reja",
+    "two_col": "Ikki ustunli matn",
+    "img_left": "Rasm chap, sarlavha va matn o'ng",
+    "img_right": "Rasm o'ng, sarlavha va matn chap",
+    "img_right_large": "Katta rasm o'ng, sarlavha va matn chap",
+    "quote": "Iqtibos va muallif",
+    "conclusion": "Xulosa",
+}

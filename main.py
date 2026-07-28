@@ -36,6 +36,7 @@ from utils import (
     generate_template_25_presentation,
     generate_template_26_presentation,
     generate_template_27_presentation,
+    generate_template_28_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -66,6 +67,7 @@ from utils import (
     SLIDE_TYPE_NAMES_T25,
     SLIDE_TYPE_NAMES_T26,
     SLIDE_TYPE_NAMES_T27,
+    SLIDE_TYPE_NAMES_T28,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1414,25 +1416,25 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
     chat_id = query.message.chat_id
-    # 27-shablon preview rasmini yuborish (agar mavjud bo'lsa)
+    # 28-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_27_path = os.path.join(previews_dir, "27.png")
+    preview_28_path = os.path.join(previews_dir, "28.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_27")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_28")],
     ])
-    if os.path.exists(preview_27_path):
-        with open(preview_27_path, "rb") as f:
+    if os.path.exists(preview_28_path):
+        with open(preview_28_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🔵 *Minimalist Blue shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🌑 *Dark Modern shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🔵 *Minimalist Blue shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🌑 *Dark Modern shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -1494,6 +1496,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         25: SLIDE_TYPE_NAMES_T25,
         26: SLIDE_TYPE_NAMES_T26,
         27: SLIDE_TYPE_NAMES_T27,
+        28: SLIDE_TYPE_NAMES_T28,
     }[template_num]
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1523,9 +1526,9 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         25: generate_template_25_presentation,
         26: generate_template_26_presentation,
         27: generate_template_27_presentation,
+        28: generate_template_28_presentation,
     }[template_num]
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
-
     try:
         content_data_list = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -1573,6 +1576,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             25: [0, 1, 2, 3, 4],  # T25: barcha kontent slaydlarda Picture rasm bor
             26: [0, 1, 2, 3, 4],  # T26: barcha kontent slaydlarda Freeform blip rasm bor
             27: [0, 1, 2],  # T27: slayd3 (idx 0), slayd4 (idx 1), slayd5 (idx 2) da Freeform blip rasm bor
+            28: [1, 2, 3],  # T28: slayd4 (idx 1), slayd5 (idx 2), slayd6 (idx 3) da Picture rasm bor
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
@@ -1883,6 +1887,7 @@ async def _rebuild_and_send_presentation_with_user_images(
         25: generate_template_25_presentation,
         26: generate_template_26_presentation,
         27: generate_template_27_presentation,
+        28: generate_template_28_presentation,
     }.get(template_num, generate_template_16_presentation)
 
     try:
