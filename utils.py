@@ -14441,6 +14441,13 @@ def fill_t34_slide_2_plan(slide, plan_items):
     """2-slayd: Reja — sarlavha + raqamlangan ro'yxat"""
     from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    # plan_items dict bo'lsa content ni ol, list bo'lsa to'g'ridan ishlat
+    if isinstance(plan_items, dict):
+        items = plan_items.get('content', [])
+    elif isinstance(plan_items, list):
+        items = plan_items
+    else:
+        items = []
     shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
     # [0] sarlavha
     if len(shapes) >= 1:
@@ -14450,7 +14457,7 @@ def fill_t34_slide_2_plan(slide, plan_items):
     # [1] body — raqamlangan ro'yxat
     if len(shapes) >= 2:
         paras = []
-        for idx, item in enumerate(plan_items, 1):
+        for idx, item in enumerate(items, 1):
             paras.append({'text': f"{idx}. {item}", 'sz': 2000, 'b': 0, 'color': '44546A', 'algn': 'l'})
         _t34_clear_and_write(shapes[1].text_frame._txBody, paras)
 
