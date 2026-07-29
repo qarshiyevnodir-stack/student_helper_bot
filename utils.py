@@ -14694,3 +14694,427 @@ def generate_template_34_presentation(prs, topic, requested_slide_count, languag
     output = io.BytesIO()
     prs.save(output)
     return output.getvalue()
+
+
+# ============================================================
+# ODDIY1 SHABLON FUNKSIYALARI
+# ============================================================
+
+def _oddiy1_clear_and_write(txBody, paras_data):
+    """
+    txBody ichidagi barcha paragraflarni tozalab, yangi matn yozadi.
+    paras_data: list of dict:
+      - 'text': str
+      - 'sz': int (half-points, e.g. 3200 = 32pt)
+      - 'b': bool/int
+      - 'color': str hex (e.g. '003366') yoki schemeClr nomi
+      - 'algn': str ('l','r','ctr','just') yoki None
+    """
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
+                     'accent1','accent2','accent3','accent4','accent5','accent6',
+                     'hlink','folHlink'}
+
+    # Barcha mavjud paragraflarni o'chirish
+    for p in txBody.findall(f'{{{ns_a}}}p'):
+        txBody.remove(p)
+    # lstStyle ni tozalash — hanging indent va bullet muammolarini oldini olish
+    lstStyle = txBody.find(f'{{{ns_a}}}lstStyle')
+    if lstStyle is not None:
+        for child in list(lstStyle):
+            lstStyle.remove(child)
+        # Barcha 9 daraja uchun toza pPr qo'yish
+        for lvl in range(1, 10):
+            lvl_elem = etree.SubElement(lstStyle, f'{{{ns_a}}}lvl{lvl}pPr')
+            lvl_elem.set('marL', '0')
+            lvl_elem.set('indent', '0')
+            lvl_elem.set('algn', 'l')
+            buNone = etree.SubElement(lvl_elem, f'{{{ns_a}}}buNone')
+
+    for para_data in paras_data:
+        text = para_data.get('text', '')
+        sz = para_data.get('sz', 1800)
+        b = para_data.get('b', 0)
+        color = para_data.get('color', '334155')
+        algn = para_data.get('algn', None)
+
+        p_elem = etree.SubElement(txBody, f'{{{ns_a}}}p')
+        pPr = etree.SubElement(p_elem, f'{{{ns_a}}}pPr')
+        if algn:
+            pPr.set('algn', algn)
+        pPr.set('marL', '0')
+        pPr.set('indent', '0')
+        buNone = etree.SubElement(pPr, f'{{{ns_a}}}buNone')
+
+        r_elem = etree.SubElement(p_elem, f'{{{ns_a}}}r')
+        rPr = etree.SubElement(r_elem, f'{{{ns_a}}}rPr', attrib={'lang': 'uz-UZ', 'dirty': '0'})
+        if sz:
+            rPr.set('sz', str(sz))
+        if b:
+            rPr.set('b', '1')
+        else:
+            rPr.set('b', '0')
+        # Rang
+        solidFill = etree.SubElement(rPr, f'{{{ns_a}}}solidFill')
+        if color in SCHEME_COLORS:
+            clr_elem = etree.SubElement(solidFill, f'{{{ns_a}}}schemeClr')
+            clr_elem.set('val', color)
+        else:
+            clr_elem = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
+            clr_elem.set('val', color.lstrip('#'))
+        t_elem = etree.SubElement(r_elem, f'{{{ns_a}}}t')
+        t_elem.text = text
+
+
+def fill_oddiy1_slide_1_cover(slide, title, name_surname):
+    """1-slayd: Muqova — fon rasmi saqlanadi, sarlavha va muallif yoziladi"""
+    shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(shapes) >= 1:
+        _oddiy1_clear_and_write(shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 5400, 'b': 1, 'color': 'FFFFFF', 'algn': 'ctr'}
+        ])
+    if len(shapes) >= 2:
+        _oddiy1_clear_and_write(shapes[1].text_frame._txBody, [
+            {'text': name_surname, 'sz': 1650, 'b': 1, 'color': 'CBD5E1', 'algn': 'ctr'}
+        ])
+
+
+def fill_oddiy1_slide_2_plan(slide, plan_items):
+    """2-slayd: Reja — sarlavha + raqamlangan ro'yxat"""
+    import re
+    if isinstance(plan_items, dict):
+        items = plan_items.get('content', [])
+    elif isinstance(plan_items, list):
+        items = plan_items
+    else:
+        items = []
+    shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(shapes) >= 1:
+        _oddiy1_clear_and_write(shapes[0].text_frame._txBody, [
+            {'text': 'Reja:', 'sz': 4800, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(shapes) >= 2:
+        paras = []
+        for idx, item in enumerate(items, 1):
+            item_str = str(item).strip()
+            clean = re.sub(r'^\d+[\.\)\:]\s*', '', item_str).strip()
+            text = f"{idx}. {clean}" if clean else f"{idx}. {item_str}"
+            paras.append({'text': text, 'sz': 2800, 'b': 0, 'color': '64748B', 'algn': 'l'})
+        _oddiy1_clear_and_write(shapes[1].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_3_two_col(slide, title, col1_text, col2_text):
+    """3-slayd: Ikki matn bloki"""
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = []
+        lines = col1_text.split('\n') if col1_text else []
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0, 'color': '334155', 'algn': 'l'})
+        if not paras:
+            paras = [{'text': col1_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        paras = []
+        lines = col2_text.split('\n') if col2_text else []
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0, 'color': '334155', 'algn': 'l'})
+        if not paras:
+            paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
+    """4-slayd: Sarlavha + chap matn + o'ng rasm"""
+    from pptx.util import Inches, Pt, Emu
+    from pptx.enum.text import PP_ALIGN
+    import os
+
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    pic_shapes = [s for s in slide.shapes if s.shape_type == 13]
+
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p.strip(), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}
+                 for p in body_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': body_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+
+    # Rasm almashtirish
+    if image_path and os.path.exists(image_path) and pic_shapes:
+        pic = pic_shapes[0]
+        left, top, width, height = pic.left, pic.top, pic.width, pic.height
+        sp = pic._element
+        sp.getparent().remove(sp)
+        slide.shapes.add_picture(image_path, left, top, width, height)
+
+
+def fill_oddiy1_slide_5_three_col(slide, title, col1_text, col2_text, col3_text):
+    """5-slayd: Sarlavha + 3 ustun"""
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    for col_idx, col_text in enumerate([col1_text, col2_text, col3_text]):
+        shape_idx = col_idx + 1
+        if len(text_shapes) > shape_idx:
+            paras = [{'text': p.strip(), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}
+                     for p in col_text.split('\n') if p.strip()]
+            if not paras:
+                paras = [{'text': col_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
+            _oddiy1_clear_and_write(text_shapes[shape_idx].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_6_two_col_bold(slide, title, col1_text, col2_text):
+    """6-slayd: Sarlavha + 2 ustun (ustun sarlavhalari qalin ko'k)"""
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        lines = col1_text.split('\n') if col1_text else []
+        paras = []
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0,
+                               'color': '003366' if i == 0 else '334155', 'algn': 'just'})
+        if not paras:
+            paras = [{'text': col1_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        lines = col2_text.split('\n') if col2_text else []
+        paras = []
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0,
+                               'color': '003366' if i == 0 else '334155', 'algn': 'just'})
+        if not paras:
+            paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
+        _oddiy1_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_7_img_center(slide, title, body_text, image_path=None):
+    """7-slayd: Sarlavha + markazda katta rasm (PLACEHOLDER tipida)"""
+    import os
+    from pptx.util import Inches, Emu
+
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    pic_shapes = [s for s in slide.shapes if s.shape_type == 13]
+
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    # 2-shape PLACEHOLDER — bu rasm uchun joy. Rasm qo'shish
+    if image_path and os.path.exists(image_path):
+        # Placeholder ni olib tashlash va rasm qo'yish
+        if len(text_shapes) >= 2:
+            ph = text_shapes[1]
+            left, top, width, height = ph.left, ph.top, ph.width, ph.height
+            sp = ph._element
+            sp.getparent().remove(sp)
+            slide.shapes.add_picture(image_path, left, top, width, height)
+        elif pic_shapes:
+            pic = pic_shapes[0]
+            left, top, width, height = pic.left, pic.top, pic.width, pic.height
+            sp = pic._element
+            sp.getparent().remove(sp)
+            slide.shapes.add_picture(image_path, left, top, width, height)
+    else:
+        # Rasm yo'q bo'lsa, placeholder ga matn yozish
+        if len(text_shapes) >= 2:
+            _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, [
+                {'text': body_text or '', 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}
+            ])
+
+
+def fill_oddiy1_slide_8_outro(slide):
+    """8-slayd: Xulosa — o'zgartirmasdan qoldiriladi"""
+    pass
+
+
+def build_slide_structure_oddiy1(prs, requested_slide_count):
+    """
+    Shablon slaydlarini kerakli songa moslash.
+    Slayd tuzilmasi:
+      [0] cover
+      [1] plan
+      [2..N-2] content (two_col, img_right, three_col, two_col_bold, img_center navbatma-navbat)
+      [N-1] outro
+    """
+    from pptx.util import Emu
+    import copy
+    from lxml import etree
+
+    CONTENT_SLIDE_TYPES = [
+        2,  # two_col (3-slayd)
+        3,  # img_right (4-slayd)
+        4,  # three_col (5-slayd)
+        5,  # two_col_bold (6-slayd)
+        6,  # img_center (7-slayd)
+    ]
+    content_count = max(1, requested_slide_count - 2)
+    total_needed = content_count + 2  # cover + content + outro
+
+    # Outro slaydini saqlash
+    outro_slide_xml = copy.deepcopy(prs.slides[-1]._element)
+
+    # Mavjud content slaydlarini o'chirish (cover va outro dan tashqari)
+    slide_list = prs.slides._sldIdLst
+    existing_slides = list(prs.slides)
+    for slide in existing_slides[1:-1]:
+        rId = prs.slides._sldIdLst.findall(
+            '{http://schemas.openxmlformats.org/presentationml/2006/main}sldId'
+        )
+
+    # Yangi content slaydlarini qo'shish
+    template_slides = list(prs.slides)
+    n_templates = len(CONTENT_SLIDE_TYPES)
+
+    # Avval barcha content slaydlarini o'chirish
+    slides_to_remove = list(prs.slides)[1:-1]
+    for slide in slides_to_remove:
+        rId_to_remove = None
+        for rId, rel in prs.part.rels.items():
+            if hasattr(rel, 'target_part') and rel.target_part == slide.part:
+                rId_to_remove = rId
+                break
+        if rId_to_remove:
+            prs.part.drop_rel(rId_to_remove)
+        sldId_elem = None
+        for elem in prs.slides._sldIdLst:
+            if elem.get('r:id') == rId_to_remove:
+                sldId_elem = elem
+                break
+        if sldId_elem is not None:
+            prs.slides._sldIdLst.remove(sldId_elem)
+
+    # Kerakli content slaydlarini template dan nusxa ko'chirib qo'shish
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    import copy
+
+    for i in range(content_count):
+        tmpl_idx = CONTENT_SLIDE_TYPES[i % n_templates]
+        if tmpl_idx < len(template_slides):
+            tmpl_slide = template_slides[tmpl_idx]
+        else:
+            tmpl_slide = template_slides[2]
+
+        # Yangi slayd yaratish
+        new_slide_part = copy.deepcopy(tmpl_slide.part)
+        rId = prs.part.relate_to(new_slide_part,
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide')
+        ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        sldId_elem = etree.SubElement(prs.slides._sldIdLst, f'{{{ns_p}}}sldId')
+        max_id = max((int(e.get('id', 256)) for e in prs.slides._sldIdLst), default=256)
+        sldId_elem.set('id', str(max_id + 1))
+        sldId_elem.set(f'{{{ns_r}}}id', rId)
+
+
+SLIDE_TYPE_NAMES_ODDIY1 = {
+    0: 'two_col',
+    1: 'img_right',
+    2: 'three_col',
+    3: 'two_col',
+    4: 'img_right',
+}
+
+
+def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, language,
+                                           name_surname, plan, content_data_list,
+                                           user_images=None):
+    """oddiy1-shablon asosida taqdimot yaratish"""
+    import logging
+    import os
+    try:
+        from utils import fetch_image, save_user_image_to_tmp
+    except ImportError:
+        from student_helper_bot_git.utils import fetch_image, save_user_image_to_tmp
+
+    logger = logging.getLogger(__name__)
+
+    fill_oddiy1_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_oddiy1_slide_2_plan(prs.slides[1], plan)
+
+    fill_funcs = [
+        fill_oddiy1_slide_3_two_col,        # 0: two_col
+        fill_oddiy1_slide_4_img_right,      # 1: img_right
+        fill_oddiy1_slide_5_three_col,      # 2: three_col
+        fill_oddiy1_slide_6_two_col_bold,   # 3: two_col_bold
+        fill_oddiy1_slide_7_img_center,     # 4: img_center
+    ]
+    img_slide_types = {1, 4}  # img_right va img_center
+    img_counter = 0
+
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+        slide = prs.slides[slide_index]
+        slide_type = i % len(fill_funcs)
+        func = fill_funcs[slide_type]
+        img_arg = None
+
+        if slide_type in img_slide_types:
+            img_query = data.get('image_query', '') if isinstance(data, dict) else ''
+            if user_images and img_counter < len(user_images):
+                raw = user_images[img_counter]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
+                img_counter += 1
+            else:
+                img_arg = fetch_image(img_query) or fetch_image(topic)
+
+        # Data dan matn olish
+        if isinstance(data, dict):
+            title = data.get('title', topic)
+            col1 = data.get('col1', data.get('content', ''))
+            col2 = data.get('col2', '')
+            col3 = data.get('col3', '')
+            body = data.get('content', col1)
+        else:
+            title = topic
+            col1 = str(data)
+            col2 = ''
+            col3 = ''
+            body = str(data)
+
+        try:
+            if slide_type == 0:   # two_col
+                func(slide, title, col1, col2)
+            elif slide_type == 1: # img_right
+                func(slide, title, body, img_arg)
+            elif slide_type == 2: # three_col
+                func(slide, title, col1, col2, col3)
+            elif slide_type == 3: # two_col_bold
+                func(slide, title, col1, col2)
+            elif slide_type == 4: # img_center
+                func(slide, title, body, img_arg)
+        except Exception as e:
+            logger.warning(f"oddiy1 slide {slide_index} fill xatolik: {e}")
+
+    fill_oddiy1_slide_8_outro(prs.slides[-1])
+
+    from io import BytesIO
+    buf = BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
