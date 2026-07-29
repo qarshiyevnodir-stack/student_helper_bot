@@ -15199,9 +15199,9 @@ def _t_oddiy2_clear_and_write(shape, text, sz=None, bold=None, algn=None, color=
 def fill_t_oddiy2_slide_1_cover(slide, title, name_surname):
     """1-slayd: Muqova — sarlavha va muallif."""
     shapes = slide.shapes
-    # Shape[0]: sarlavha (katta markaziy panel)
+    # Shape[0]: sarlavha (katta markaziy panel) — KATTA HARFLARDA
     if len(shapes) > 0 and shapes[0].has_text_frame:
-        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+        _t_oddiy2_clear_and_write(shapes[0], title.upper() if title else '', algn='l')
     # Shape[1]: muallif (pastda)
     if len(shapes) > 1 and shapes[1].has_text_frame:
         _t_oddiy2_clear_and_write(shapes[1], name_surname, sz=2400, algn='l')
@@ -15266,10 +15266,25 @@ def fill_t_oddiy2_slide_5_two_col(slide, title, content):
     col1_text = ''
     col2_text = ''
     if isinstance(content, dict):
-        col1_text = content.get('col1', content.get('content', ''))
+        col1_text = content.get('col1', '')
         col2_text = content.get('col2', '')
+        # col1/col2 yo'q bo'lsa content ni ikki teng bo'lib yozish
+        if not col1_text and not col2_text:
+            full = content.get('content', '')
+            if isinstance(full, list):
+                mid = len(full) // 2
+                col1_text = '\n'.join(str(x) for x in full[:mid])
+                col2_text = '\n'.join(str(x) for x in full[mid:])
+            elif isinstance(full, str):
+                sentences = full.split('. ')
+                mid = max(1, len(sentences) // 2)
+                col1_text = '. '.join(sentences[:mid]) + ('.' if sentences[:mid] else '')
+                col2_text = '. '.join(sentences[mid:])
     elif isinstance(content, str):
-        col1_text = content
+        sentences = content.split('. ')
+        mid = max(1, len(sentences) // 2)
+        col1_text = '. '.join(sentences[:mid]) + '.'
+        col2_text = '. '.join(sentences[mid:])
 
     if len(shapes) > 0 and shapes[0].has_text_frame:
         _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
@@ -15285,10 +15300,24 @@ def fill_t_oddiy2_slide_6_two_col_dark(slide, title, content):
     col1_text = ''
     col2_text = ''
     if isinstance(content, dict):
-        col1_text = content.get('col1', content.get('content', ''))
+        col1_text = content.get('col1', '')
         col2_text = content.get('col2', '')
+        if not col1_text and not col2_text:
+            full = content.get('content', '')
+            if isinstance(full, list):
+                mid = len(full) // 2
+                col1_text = '\n'.join(str(x) for x in full[:mid])
+                col2_text = '\n'.join(str(x) for x in full[mid:])
+            elif isinstance(full, str):
+                sentences = full.split('. ')
+                mid = max(1, len(sentences) // 2)
+                col1_text = '. '.join(sentences[:mid]) + ('.' if sentences[:mid] else '')
+                col2_text = '. '.join(sentences[mid:])
     elif isinstance(content, str):
-        col1_text = content
+        sentences = content.split('. ')
+        mid = max(1, len(sentences) // 2)
+        col1_text = '. '.join(sentences[:mid]) + '.'
+        col2_text = '. '.join(sentences[mid:])
 
     if len(shapes) > 0 and shapes[0].has_text_frame:
         _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
@@ -15304,10 +15333,24 @@ def fill_t_oddiy2_slide_7_two_col_dark2(slide, title, content):
     col1_text = ''
     col2_text = ''
     if isinstance(content, dict):
-        col1_text = content.get('col1', content.get('content', ''))
+        col1_text = content.get('col1', '')
         col2_text = content.get('col2', '')
+        if not col1_text and not col2_text:
+            full = content.get('content', '')
+            if isinstance(full, list):
+                mid = len(full) // 2
+                col1_text = '\n'.join(str(x) for x in full[:mid])
+                col2_text = '\n'.join(str(x) for x in full[mid:])
+            elif isinstance(full, str):
+                sentences = full.split('. ')
+                mid = max(1, len(sentences) // 2)
+                col1_text = '. '.join(sentences[:mid]) + ('.' if sentences[:mid] else '')
+                col2_text = '. '.join(sentences[mid:])
     elif isinstance(content, str):
-        col1_text = content
+        sentences = content.split('. ')
+        mid = max(1, len(sentences) // 2)
+        col1_text = '. '.join(sentences[:mid]) + '.'
+        col2_text = '. '.join(sentences[mid:])
 
     if len(shapes) > 0 and shapes[0].has_text_frame:
         _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
