@@ -1434,23 +1434,23 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     chat_id = query.message.chat_id
     # 28-shablon preview rasmini yuborish (agar mavjud bo'lsa)
     previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_oddiy2_path = os.path.join(previews_dir, "oddiy2.png")
+    preview_oddiy1_path = os.path.join(previews_dir, "oddiy1.png")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_36")],
+        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_35")],
     ])
-    if os.path.exists(preview_oddiy2_path):
-        with open(preview_oddiy2_path, "rb") as f:
+    if os.path.exists(preview_oddiy1_path):
+        with open(preview_oddiy1_path, "rb") as f:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
-                caption="🎨 *Oddiy2 shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
+                caption="🎨 *Oddiy1 shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
     else:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🎨 *Oddiy2 shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
+            text="🎨 *Oddiy1 shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
