@@ -15331,68 +15331,11 @@ def build_slide_structure_oddiy2(content_data_list, plan, slide_count):
     return slides
 
 
-def generate_template_oddiy2_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images):
+def generate_template_oddiy2_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images=None):
     """oddiy2 shablon asosida taqdimot yaratish."""
-    from io import BytesIO
-    import copy
-    from lxml import etree
+    import io
 
-    template_slides = list(prs.slides)
-    # Slayd turlari: 0=muqova, 1=reja, 2=quote, 3=single, 4=two_col, 5=two_col_dark, 6=two_col_dark2, 7=xulosa
-    # Kontent slaydlari: 2, 3, 4, 5, 6 (indekslar)
-    content_slide_indices = [2, 3, 4, 5, 6]
-
-    def copy_slide(prs_obj, slide_idx):
-        """Shablondan slayd nusxasini olish."""
-        template = prs_obj.slides[slide_idx]
-        slide_layout = template.slide_layout
-        new_slide = prs_obj.slides.add_slide(slide_layout)
-        # Barcha shapeni nusxalash
-        for shape in list(new_slide.placeholders):
-            sp = shape._element
-            sp.getparent().remove(sp)
-        spTree = new_slide.shapes._spTree
-        for shape in template.shapes:
-            sp = copy.deepcopy(shape._element)
-            spTree.append(sp)
-        # Fon nusxalash
-        if template.background.fill.type is not None:
-            new_slide.background.fill._xPr.clear()
-            for child in template.background.fill._xPr:
-                new_slide.background.fill._xPr.append(copy.deepcopy(child))
-        return new_slide
-
-    # Yangi presentation yaratish — asl shablondan foydalanish
-    # Mavjud slaydlarni to'ldirish
-    slides_to_fill = []
-
-    # 1-slayd: muqova (index 0)
-    slides_to_fill.append(('cover', template_slides[0]))
-
-    # 2-slayd: reja (index 1)
-    slides_to_fill.append(('plan', template_slides[1]))
-
-    # Kontent slaydlari
-    content_slide_type_cycle = [2, 3, 4, 5, 6]  # template slayd indekslari
-    for i, item in enumerate(content_data_list):
-        slide_template_idx = content_slide_type_cycle[i % len(content_slide_type_cycle)]
-        slides_to_fill.append(('content', template_slides[slide_template_idx], item))
-
-    # 8-slayd: xulosa (index 7)
-    slides_to_fill.append(('conclusion', template_slides[7]))
-
-    # Yangi prs yaratish
-    new_prs = Presentation('/home/ubuntu/student_helper_bot_git/templates/shablonlar/oddiy2.pptx')
-
-    # Barcha mavjud slaydlarni o'chirish va qayta qurish
-    # Oddiy2 da 8 ta slayd bor, biz ularni to'g'ridan to'ldirish usulini qo'llaymiz
-    # Muqova va reja + kontent + xulosa
-
-    # Slaydlar soni: 2 (muqova+reja) + len(content_data_list) + 1 (xulosa)
-    # Lekin shablon 8 ta slayddan iborat, shuning uchun to'g'ridan to'ldirish
-
-    # Eng oddiy yondashuv: shablon slaydlarini to'g'ridan to'ldirish
-    slides = new_prs.slides
+    slides = prs.slides
 
     # 1-slayd: muqova
     fill_t_oddiy2_slide_1_cover(slides[0], topic, name_surname)
@@ -15419,7 +15362,6 @@ def generate_template_oddiy2_presentation(prs, topic, requested_slide_count, lan
     if len(slides) > 7:
         fill_t_oddiy2_slide_8_conclusion(slides[7], topic)
 
-    buf = BytesIO()
-    new_prs.save(buf)
-    buf.seek(0)
-    return buf.read()
+    output = io.BytesIO()
+    prs.save(output)
+    return output.getvalue()
