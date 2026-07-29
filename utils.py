@@ -15118,3 +15118,308 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ============================================================
+# ODDIY2 SHABLON (template_num=36) — Nature/Green style
+# Slaydlar: 1-muqova, 2-reja, 3-quote_img, 4-single_body,
+#           5-two_col, 6-two_col_dark, 7-two_col_dark2, 8-xulosa
+# ============================================================
+
+SLIDE_TYPE_NAMES_ODDIY2 = {
+    0: 'two_columns',
+    1: 'two_columns',
+    2: 'single_body',
+    3: 'two_columns',
+    4: 'two_columns',
+    5: 'two_columns',
+}
+
+def _t_oddiy2_clear_and_write(shape, text, sz=None, bold=None, algn=None, color=None):
+    """oddiy2 shablon uchun matn yozish — lstStyle ni tozalab, toza matn yozish."""
+    from lxml import etree
+    from pptx.util import Pt
+    from pptx.dml.color import RGBColor
+
+    tf = shape.text_frame
+    txBody = tf._txBody
+    nsA = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    # lstStyle ni tozalash
+    lstStyle = txBody.find(f'{{{nsA}}}lstStyle')
+    if lstStyle is not None:
+        for child in list(lstStyle):
+            lstStyle.remove(child)
+        # Toza lvl1pPr qo'shish
+        lvl1pPr = etree.SubElement(lstStyle, f'{{{nsA}}}lvl1pPr')
+        lvl1pPr.set('marL', '0')
+        lvl1pPr.set('indent', '0')
+        if algn:
+            lvl1pPr.set('algn', algn)
+        buNone = etree.SubElement(lvl1pPr, f'{{{nsA}}}buNone')
+
+    # Barcha paragraflarni tozalash
+    for p in txBody.findall(f'{{{nsA}}}p'):
+        txBody.remove(p)
+
+    # Matnni satrlarga bo'lib yozish
+    lines = text.split('\n') if text else ['']
+    for line in lines:
+        p = etree.SubElement(txBody, f'{{{nsA}}}p')
+        pPr = etree.SubElement(p, f'{{{nsA}}}pPr')
+        pPr.set('marL', '0')
+        pPr.set('indent', '0')
+        if algn:
+            pPr.set('algn', algn)
+        buNone = etree.SubElement(pPr, f'{{{nsA}}}buNone')
+
+        if line.strip():
+            r = etree.SubElement(p, f'{{{nsA}}}r')
+            rPr = etree.SubElement(r, f'{{{nsA}}}rPr', attrib={'lang': 'uz-UZ', 'altLang': 'en-US', 'dirty': '0'})
+            if sz:
+                rPr.set('sz', str(sz))
+            if bold is not None:
+                rPr.set('b', '1' if bold else '0')
+            if color:
+                solidFill = etree.SubElement(rPr, f'{{{nsA}}}solidFill')
+                if len(color) == 6 and all(c in '0123456789ABCDEFabcdef' for c in color):
+                    srgbClr = etree.SubElement(solidFill, f'{{{nsA}}}srgbClr')
+                    srgbClr.set('val', color.upper())
+                else:
+                    schemeClr = etree.SubElement(solidFill, f'{{{nsA}}}schemeClr')
+                    schemeClr.set('val', color)
+            t = etree.SubElement(r, f'{{{nsA}}}t')
+            t.text = line
+
+
+def fill_t_oddiy2_slide_1_cover(slide, title, name_surname):
+    """1-slayd: Muqova — sarlavha va muallif."""
+    shapes = slide.shapes
+    # Shape[0]: sarlavha (katta markaziy panel)
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    # Shape[1]: muallif (pastda)
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], name_surname, sz=2400, algn='l')
+
+
+def fill_t_oddiy2_slide_2_plan(slide, plan):
+    """2-slayd: Reja — tartiblangan ro'yxat."""
+    import re
+    shapes = slide.shapes
+    if isinstance(plan, dict):
+        plan_items = plan.get('content', [])
+    else:
+        plan_items = plan if isinstance(plan, list) else []
+
+    # Shape[0]: sarlavha "Reja"
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], 'Reja', algn='l')
+
+    # Shape[1]: ro'yxat
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        lines = []
+        for i, item in enumerate(plan_items, 1):
+            clean = re.sub(r'^\d+[\.\)]\s*', '', str(item)).strip()
+            lines.append(f'{i}. {clean}')
+        text = '\n'.join(lines)
+        _t_oddiy2_clear_and_write(shapes[1], text, algn='l')
+
+
+def fill_t_oddiy2_slide_3_quote(slide, title, content):
+    """3-slayd: Quote/Image style — sarlavha + katta matn."""
+    shapes = slide.shapes
+    body_text = ''
+    if isinstance(content, dict):
+        body_text = content.get('content', content.get('col1', ''))
+    elif isinstance(content, str):
+        body_text = content
+
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], body_text, algn='l')
+
+
+def fill_t_oddiy2_slide_4_single(slide, title, content):
+    """4-slayd: Single body — sarlavha + bitta katta matn bloki."""
+    shapes = slide.shapes
+    body_text = ''
+    if isinstance(content, dict):
+        body_text = content.get('content', content.get('col1', ''))
+    elif isinstance(content, str):
+        body_text = content
+
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], body_text, algn='l')
+
+
+def fill_t_oddiy2_slide_5_two_col(slide, title, content):
+    """5-slayd: Two-column (pastel fon) — sarlavha + 2 ustun."""
+    shapes = slide.shapes
+    col1_text = ''
+    col2_text = ''
+    if isinstance(content, dict):
+        col1_text = content.get('col1', content.get('content', ''))
+        col2_text = content.get('col2', '')
+    elif isinstance(content, str):
+        col1_text = content
+
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], col1_text, algn='l')
+    if len(shapes) > 2 and shapes[2].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[2], col2_text, algn='l')
+
+
+def fill_t_oddiy2_slide_6_two_col_dark(slide, title, content):
+    """6-slayd: Two-column dark (to'q yashil fon) — sarlavha + 2 ustun."""
+    shapes = slide.shapes
+    col1_text = ''
+    col2_text = ''
+    if isinstance(content, dict):
+        col1_text = content.get('col1', content.get('content', ''))
+        col2_text = content.get('col2', '')
+    elif isinstance(content, str):
+        col1_text = content
+
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], col1_text, algn='l')
+    if len(shapes) > 2 and shapes[2].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[2], col2_text, algn='l')
+
+
+def fill_t_oddiy2_slide_7_two_col_dark2(slide, title, content):
+    """7-slayd: Two-column dark2 (to'q yashil fon) — sarlavha + 2 ustun."""
+    shapes = slide.shapes
+    col1_text = ''
+    col2_text = ''
+    if isinstance(content, dict):
+        col1_text = content.get('col1', content.get('content', ''))
+        col2_text = content.get('col2', '')
+    elif isinstance(content, str):
+        col1_text = content
+
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], title, algn='l')
+    if len(shapes) > 1 and shapes[1].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[1], col1_text, algn='l')
+    if len(shapes) > 2 and shapes[2].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[2], col2_text, algn='l')
+
+
+def fill_t_oddiy2_slide_8_conclusion(slide, title):
+    """8-slayd: Xulosa — markaziy matn."""
+    shapes = slide.shapes
+    if len(shapes) > 0 and shapes[0].has_text_frame:
+        _t_oddiy2_clear_and_write(shapes[0], "E'tiboringiz uchun rahmat!", algn='ctr')
+
+
+def build_slide_structure_oddiy2(content_data_list, plan, slide_count):
+    """oddiy2 uchun slayd tuzilmasini aniqlash."""
+    # Slayd turlari: 3=quote, 4=single, 5=two_col, 6=two_col_dark, 7=two_col_dark2
+    content_slide_types = [3, 4, 5, 6, 7]
+    slides = []
+    for i, item in enumerate(content_data_list):
+        stype = content_slide_types[i % len(content_slide_types)]
+        slides.append({'type': stype, 'data': item})
+    return slides
+
+
+def generate_template_oddiy2_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images):
+    """oddiy2 shablon asosida taqdimot yaratish."""
+    from io import BytesIO
+    import copy
+    from lxml import etree
+
+    template_slides = list(prs.slides)
+    # Slayd turlari: 0=muqova, 1=reja, 2=quote, 3=single, 4=two_col, 5=two_col_dark, 6=two_col_dark2, 7=xulosa
+    # Kontent slaydlari: 2, 3, 4, 5, 6 (indekslar)
+    content_slide_indices = [2, 3, 4, 5, 6]
+
+    def copy_slide(prs_obj, slide_idx):
+        """Shablondan slayd nusxasini olish."""
+        template = prs_obj.slides[slide_idx]
+        slide_layout = template.slide_layout
+        new_slide = prs_obj.slides.add_slide(slide_layout)
+        # Barcha shapeni nusxalash
+        for shape in list(new_slide.placeholders):
+            sp = shape._element
+            sp.getparent().remove(sp)
+        spTree = new_slide.shapes._spTree
+        for shape in template.shapes:
+            sp = copy.deepcopy(shape._element)
+            spTree.append(sp)
+        # Fon nusxalash
+        if template.background.fill.type is not None:
+            new_slide.background.fill._xPr.clear()
+            for child in template.background.fill._xPr:
+                new_slide.background.fill._xPr.append(copy.deepcopy(child))
+        return new_slide
+
+    # Yangi presentation yaratish — asl shablondan foydalanish
+    # Mavjud slaydlarni to'ldirish
+    slides_to_fill = []
+
+    # 1-slayd: muqova (index 0)
+    slides_to_fill.append(('cover', template_slides[0]))
+
+    # 2-slayd: reja (index 1)
+    slides_to_fill.append(('plan', template_slides[1]))
+
+    # Kontent slaydlari
+    content_slide_type_cycle = [2, 3, 4, 5, 6]  # template slayd indekslari
+    for i, item in enumerate(content_data_list):
+        slide_template_idx = content_slide_type_cycle[i % len(content_slide_type_cycle)]
+        slides_to_fill.append(('content', template_slides[slide_template_idx], item))
+
+    # 8-slayd: xulosa (index 7)
+    slides_to_fill.append(('conclusion', template_slides[7]))
+
+    # Yangi prs yaratish
+    new_prs = Presentation('/home/ubuntu/student_helper_bot_git/templates/shablonlar/oddiy2.pptx')
+
+    # Barcha mavjud slaydlarni o'chirish va qayta qurish
+    # Oddiy2 da 8 ta slayd bor, biz ularni to'g'ridan to'ldirish usulini qo'llaymiz
+    # Muqova va reja + kontent + xulosa
+
+    # Slaydlar soni: 2 (muqova+reja) + len(content_data_list) + 1 (xulosa)
+    # Lekin shablon 8 ta slayddan iborat, shuning uchun to'g'ridan to'ldirish
+
+    # Eng oddiy yondashuv: shablon slaydlarini to'g'ridan to'ldirish
+    slides = new_prs.slides
+
+    # 1-slayd: muqova
+    fill_t_oddiy2_slide_1_cover(slides[0], topic, name_surname)
+
+    # 2-slayd: reja
+    fill_t_oddiy2_slide_2_plan(slides[1], plan)
+
+    # Kontent slaydlari (3-7 slaydlar: index 2-6)
+    content_fill_funcs = [
+        fill_t_oddiy2_slide_3_quote,
+        fill_t_oddiy2_slide_4_single,
+        fill_t_oddiy2_slide_5_two_col,
+        fill_t_oddiy2_slide_6_two_col_dark,
+        fill_t_oddiy2_slide_7_two_col_dark2,
+    ]
+
+    for i, item in enumerate(content_data_list[:5]):
+        slide_idx = 2 + i  # 2, 3, 4, 5, 6
+        if slide_idx < len(slides):
+            title = item.get('title', '') if isinstance(item, dict) else ''
+            content_fill_funcs[i](slides[slide_idx], title, item)
+
+    # 8-slayd: xulosa (index 7)
+    if len(slides) > 7:
+        fill_t_oddiy2_slide_8_conclusion(slides[7], topic)
+
+    buf = BytesIO()
+    new_prs.save(buf)
+    buf.seek(0)
+    return buf.read()
