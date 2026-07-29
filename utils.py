@@ -13970,15 +13970,15 @@ def fill_t33_slide_2_plan(slide, plan_data):
         _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, paras)
 
 def fill_t33_slide_3_img_left(slide, data, img_arg=None):
-    # Rasm CHAP | Sarlavha ctr + Matn r O'NG
+    # Rasm CHAP | Sarlavha ctr + Matn l O'NG
     # [0] PICTURE chap
     # [1] Sarlavha: top=0.64 left=4.49, sz=4000, b=1, algn=ctr
-    # [2] Matn: top=2.74 left=5.28, sz=2000, b=0, algn=r
+    # [2] Matn: top=2.74 left=5.28, sz=1800, b=0, algn=l
     title = data.get('title', '') if isinstance(data, dict) else ''
     body_text = _t33_get_body_text(data)
 
     pic_idx = _t33_find_pic_shape(slide)
-    if pic_idx is not None and img_arg:
+    if pic_idx is not None:
         _t33_replace_picture(slide, pic_idx, img_arg)
 
     shapes = _t33_text_shapes(slide)
@@ -13990,19 +13990,19 @@ def fill_t33_slide_3_img_left(slide, data, img_arg=None):
             {'algn': 'ctr', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
         ])
         _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': body_text}]}
         ])
 
 def fill_t33_slide_4_img_right(slide, data, img_arg=None):
     # Rasm O'NG | Sarlavha l + Matn l CHAP
     # [0] PICTURE o'ng
     # [1] Sarlavha: top=1.06 left=0.41, sz=4000, b=1, algn=l
-    # [2] Matn: top=2.78 left=0.78, sz=2000, b=0, algn=l
+    # [2] Matn: top=2.78 left=0.78, sz=1800, b=0, algn=l
     title = data.get('title', '') if isinstance(data, dict) else ''
     body_text = _t33_get_body_text(data)
 
     pic_idx = _t33_find_pic_shape(slide)
-    if pic_idx is not None and img_arg:
+    if pic_idx is not None:
         _t33_replace_picture(slide, pic_idx, img_arg)
 
     shapes = _t33_text_shapes(slide)
@@ -14014,7 +14014,7 @@ def fill_t33_slide_4_img_right(slide, data, img_arg=None):
             {'algn': 'l', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
         ])
         _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': body_text}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': body_text}]}
         ])
 
 def fill_t33_slide_5_img_right2(slide, data, img_arg=None):
@@ -14049,10 +14049,10 @@ def fill_t33_slide_6_two_col(slide, data, img_arg=None):
         col1_idx = others[0][2]
         col2_idx = others[1][2]
         _t33_clear_and_write(slide.shapes[col1_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': text1}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': text1}]}
         ])
         _t33_clear_and_write(slide.shapes[col2_idx].text_frame._txBody, [
-            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': text2}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': text2}]}
         ])
 
 def fill_t33_slide_7_three_col(slide, data, img_arg=None):
@@ -14085,7 +14085,7 @@ def fill_t33_slide_7_three_col(slide, data, img_arg=None):
     ])
     for idx_info, txt in zip(others, [text1, text2, text3]):
         _t33_clear_and_write(slide.shapes[idx_info[2]].text_frame._txBody, [
-            {'algn': 'ctr', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': txt}]}
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': txt}]}
         ])
 
 def fill_t33_slide_8_conclusion(slide, data):
