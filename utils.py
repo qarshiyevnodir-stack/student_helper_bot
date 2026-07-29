@@ -13824,3 +13824,364 @@ def generate_template_32_presentation(prs, topic, requested_slide_count, languag
     output = io.BytesIO()
     prs.save(output)
     return output.getvalue()
+
+
+# ============================================================
+# 33-SHABLON FUNKSIYALARI
+# ============================================================
+
+SLIDE_TYPE_NAMES_T33 = {
+    0: 'image_left',    # Slayd 3 — phone mockup, rasm chap
+    1: 'image_right',   # Slayd 4 — laptop mockup, rasm o'ng
+    2: 'image_right',   # Slayd 5 — photo, rasm o'ng
+    3: 'two_columns',   # Slayd 6 — ikki ustun
+    4: 'three_columns', # Slayd 7 — uch ustun
+}
+
+def _t33_clear_and_write(txBody, paras_data):
+    """paras_data ichidagi 'color':
+       - 'bg1','tx1','accent1' kabi => schemeClr
+       - '000000','FFFFFF' kabi 6-xonali hex => srgbClr
+       - None/'' => rang yozilmaydi (shablon default)
+    """
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
+                     'accent1','accent2','accent3','accent4','accent5','accent6',
+                     'hlink','folHlink'}
+    for p in list(txBody):
+        if p.tag == f'{{{ns_a}}}p':
+            txBody.remove(p)
+    for p_data in paras_data:
+        p_elem = etree.SubElement(txBody, f'{{{ns_a}}}p')
+        pPr = etree.SubElement(p_elem, f'{{{ns_a}}}pPr')
+        algn = p_data.get('algn', 'l')
+        if algn:
+            pPr.set('algn', algn)
+        etree.SubElement(pPr, f'{{{ns_a}}}buNone')
+        for run in p_data.get('runs', []):
+            r_elem = etree.SubElement(p_elem, f'{{{ns_a}}}r')
+            rPr = etree.SubElement(r_elem, f'{{{ns_a}}}rPr')
+            rPr.set('lang', 'en-US')
+            rPr.set('dirty', '0')
+            if 'sz' in run:
+                rPr.set('sz', str(run['sz']))
+            if run.get('b'):
+                rPr.set('b', '1')
+            else:
+                rPr.set('b', '0')
+            color_val = run.get('color', None)
+            if color_val:
+                solidFill = etree.SubElement(rPr, f'{{{ns_a}}}solidFill')
+                if color_val in SCHEME_COLORS:
+                    schemeClr = etree.SubElement(solidFill, f'{{{ns_a}}}schemeClr')
+                    schemeClr.set('val', color_val)
+                else:
+                    srgbClr = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
+                    srgbClr.set('val', color_val.upper().lstrip('#'))
+            t_elem = etree.SubElement(r_elem, f'{{{ns_a}}}t')
+            t_elem.text = run.get('text', '')
+
+def _t33_get_body_text(data):
+    if isinstance(data, dict):
+        c = data.get('content', [])
+        if isinstance(c, list):
+            return '\n'.join(str(x) for x in c)
+        return str(c)
+    return str(data)
+
+def _t33_find_pic_shape(slide):
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall(f'.//{{{ns_a}}}blip')
+        if blips:
+            return i
+        ph = s._element.find(f'.//{{{ns_p}}}ph')
+        if ph is not None and ph.get('type', '') == 'pic':
+            return i
+    return None
+
+def _t33_replace_picture(slide, shape_idx, img_arg):
+    import os
+    if not img_arg:
+        return
+    if isinstance(img_arg, str) and not os.path.exists(img_arg):
+        return
+    old_shape = slide.shapes[shape_idx]
+    left, top = old_shape.left, old_shape.top
+    width, height = old_shape.width, old_shape.height
+    try:
+        spTree = slide.shapes._spTree
+        spTree.remove(old_shape._element)
+        slide.shapes.add_picture(img_arg, left, top, width, height)
+    except Exception as e:
+        import logging
+        logging.error(f"T33 rasm almashtirish xatosi: {e}")
+
+def _t33_text_shapes(slide):
+    """Rasm va pic-placeholder bo'lmagan text shape larni top bo'yicha saralangan holda qaytaradi."""
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    result = []
+    for i, s in enumerate(slide.shapes):
+        blips = s._element.findall(f'.//{{{ns_a}}}blip')
+        if blips: continue
+        ph = s._element.find(f'.//{{{ns_p}}}ph')
+        if ph is not None and ph.get('type', '') == 'pic': continue
+        if hasattr(s, 'has_text_frame') and s.has_text_frame:
+            result.append((s.top or 0, s.left or 0, i))
+    return result
+
+def fill_t33_slide_1_cover(slide, title, name_surname):
+    # [0] Sarlavha: top=1.37 left=0.78, sz=5000, b=0, algn=ctr
+    # [1] Subtitr: top=6.30 left=0.91, sz=2000, b=0, algn=ctr
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    if len(shapes) >= 2:
+        title_idx = shapes[0][2]
+        sub_idx = shapes[1][2]
+        _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 5000, 'b': 0, 'color': '000000', 'text': title}]}
+        ])
+        _t33_clear_and_write(slide.shapes[sub_idx].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': name_surname}]}
+        ])
+
+def fill_t33_slide_2_plan(slide, plan_data):
+    # [0] Sarlavha: top=0.96 left=2.88, sz=4000, b=0, algn=ctr
+    # [1] Ro'yxat: top=2.98 left=1.45, sz=2000, b=0, algn=l
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    if len(shapes) >= 2:
+        title_idx = shapes[0][2]
+        matn_idx = shapes[1][2]
+        _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4000, 'b': 0, 'color': '000000', 'text': 'Reja'}]}
+        ])
+        items = plan_data.get('content', []) if isinstance(plan_data, dict) else []
+        if not items:
+            items = ['Kirish', 'Asosiy qism', 'Xulosa']
+        import re
+        paras = []
+        for idx, item in enumerate(items):
+            clean = re.sub(r'^\d+[.)]\s*', '', str(item)).strip()
+            paras.append({'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': f'{idx+1}.  {clean}'}]})
+        _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, paras)
+
+def fill_t33_slide_3_img_left(slide, data, img_arg=None):
+    # Rasm CHAP | Sarlavha ctr + Matn r O'NG
+    # [0] PICTURE chap
+    # [1] Sarlavha: top=0.64 left=4.49, sz=4000, b=1, algn=ctr
+    # [2] Matn: top=2.74 left=5.28, sz=2000, b=0, algn=r
+    title = data.get('title', '') if isinstance(data, dict) else ''
+    body_text = _t33_get_body_text(data)
+
+    pic_idx = _t33_find_pic_shape(slide)
+    if pic_idx is not None and img_arg:
+        _t33_replace_picture(slide, pic_idx, img_arg)
+
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    if len(shapes) >= 2:
+        title_idx = shapes[0][2]
+        matn_idx = shapes[1][2]
+        _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
+        ])
+        _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+
+def fill_t33_slide_4_img_right(slide, data, img_arg=None):
+    # Rasm O'NG | Sarlavha l + Matn l CHAP
+    # [0] PICTURE o'ng
+    # [1] Sarlavha: top=1.06 left=0.41, sz=4000, b=1, algn=l
+    # [2] Matn: top=2.78 left=0.78, sz=2000, b=0, algn=l
+    title = data.get('title', '') if isinstance(data, dict) else ''
+    body_text = _t33_get_body_text(data)
+
+    pic_idx = _t33_find_pic_shape(slide)
+    if pic_idx is not None and img_arg:
+        _t33_replace_picture(slide, pic_idx, img_arg)
+
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    if len(shapes) >= 2:
+        title_idx = shapes[0][2]
+        matn_idx = shapes[1][2]
+        _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
+        ])
+        _t33_clear_and_write(slide.shapes[matn_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+
+def fill_t33_slide_5_img_right2(slide, data, img_arg=None):
+    # Rasm O'NG | Sarlavha l + Matn l CHAP (slayd 5 ham slayd 4 bilan bir xil tuzilma)
+    fill_t33_slide_4_img_right(slide, data, img_arg)
+
+def fill_t33_slide_6_two_col(slide, data, img_arg=None):
+    # Sarlavha ctr | Col1 chap + Col2 o'ng
+    # [0] Sarlavha: top=0.44 left=1.15, sz=4000, b=1, algn=ctr
+    # [1] Col2 (o'ng): top=2.34 left=6.89, sz=2000, b=0, algn=l
+    # [2] Col1 (chap): top=2.34 left=1.39, sz=2000, b=0, algn=l
+    title = data.get('title', '') if isinstance(data, dict) else ''
+    if isinstance(data, dict) and ('col1' in data or 'col2' in data):
+        text1 = str(data.get('col1', ''))
+        text2 = str(data.get('col2', ''))
+    else:
+        body_text = _t33_get_body_text(data)
+        parts = body_text.split('\n', 1)
+        text1 = parts[0] if parts else ''
+        text2 = parts[1] if len(parts) > 1 else ''
+
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    title_idx = shapes[0][2]
+    # Qolgan 2 ta shape ni left bo'yicha saralash
+    others = sorted(shapes[1:], key=lambda x: x[1])
+
+    _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+        {'algn': 'ctr', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
+    ])
+    if len(others) >= 2:
+        col1_idx = others[0][2]
+        col2_idx = others[1][2]
+        _t33_clear_and_write(slide.shapes[col1_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': text1}]}
+        ])
+        _t33_clear_and_write(slide.shapes[col2_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': text2}]}
+        ])
+
+def fill_t33_slide_7_three_col(slide, data, img_arg=None):
+    # Sarlavha ctr | 3 ustun ctr
+    # [0] Sarlavha: top=0.49 left=0.79, sz=4000, b=1, algn=ctr
+    # [1] Col1: top=3.94 left=1.53, sz=2000, b=0, algn=ctr
+    # [2] Col2: top=3.94 left=5.27, sz=2000, b=0, algn=ctr
+    # [3] Col3: top=3.94 left=9.00, sz=2000, b=0, algn=ctr
+    title = data.get('title', '') if isinstance(data, dict) else ''
+    if isinstance(data, dict) and ('col1' in data or 'col2' in data):
+        text1 = str(data.get('col1', ''))
+        text2 = str(data.get('col2', ''))
+        text3 = str(data.get('col3', ''))
+    else:
+        body_text = _t33_get_body_text(data)
+        parts = body_text.split('\n')
+        n = len(parts)
+        third = max(1, n // 3)
+        text1 = '\n'.join(parts[:third])
+        text2 = '\n'.join(parts[third:2*third])
+        text3 = '\n'.join(parts[2*third:])
+
+    shapes = _t33_text_shapes(slide)
+    shapes.sort(key=lambda x: x[0])
+    title_idx = shapes[0][2]
+    others = sorted(shapes[1:], key=lambda x: x[1])
+
+    _t33_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+        {'algn': 'ctr', 'runs': [{'sz': 4000, 'b': 1, 'color': '000000', 'text': title}]}
+    ])
+    for idx_info, txt in zip(others, [text1, text2, text3]):
+        _t33_clear_and_write(slide.shapes[idx_info[2]].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 2000, 'b': 0, 'color': '000000', 'text': txt}]}
+        ])
+
+def fill_t33_slide_8_conclusion(slide, data):
+    # [0] Markaziy matn: top=2.09 left=0.88, sz=6600, b=1, algn=ctr
+    shapes = _t33_text_shapes(slide)
+    if shapes:
+        idx = shapes[0][2]
+        _t33_clear_and_write(slide.shapes[idx].text_frame._txBody, [
+            {'algn': 'ctr', 'runs': [{'sz': 6600, 'b': 1, 'color': '000000', 'text': "E'TIBORINGIZ UCHUN RAHMAT!"}]}
+        ])
+
+def build_slide_structure_33(prs, requested_slide_count):
+    import logging
+    from pptx.oxml.ns import qn
+    import copy
+    if len(prs.slides) < 8:
+        logging.error("T33 shablonida kamida 8 ta slayd bo'lishi kerak.")
+        return
+
+    content_templates = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
+    needed = requested_slide_count - len(content_templates)
+
+    if needed > 0:
+        for extra in range(needed):
+            src_idx = content_templates[extra % len(content_templates)]
+            src_slide = prs.slides[src_idx]
+            xml_str = src_slide._element.xml
+            from lxml import etree
+            new_el = etree.fromstring(xml_str)
+            rId = prs.slides._sldIdLst[-1].get(
+                '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+            ) or prs.slides._sldIdLst[-1].get('r:id')
+            # Oddiy duplicate — oxirgi content slaydni nusxalash
+            from pptx.util import Inches
+            slide_layout = src_slide.slide_layout
+            new_slide = prs.slides.add_slide(slide_layout)
+            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+    elif needed < 0:
+        remove_count = -needed
+        indices_to_remove = sorted(
+            content_templates[len(content_templates) - remove_count:],
+            reverse=True
+        )
+        for idx in indices_to_remove:
+            sldIdLst = prs.slides._sldIdLst
+            sld_elem = sldIdLst[idx]
+            rId = sld_elem.get(
+                '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+            ) or sld_elem.get('r:id')
+            if rId:
+                try:
+                    prs.part.drop_rel(rId)
+                except Exception:
+                    pass
+            sldIdLst.remove(sld_elem)
+
+def generate_template_33_presentation(prs, topic, requested_slide_count, language, name_surname, plan, content_data_list, user_images=None):
+    import logging
+    from utils import fetch_image, save_user_image_to_tmp
+    import os
+    build_slide_structure_33(prs, requested_slide_count)
+    fill_t33_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_t33_slide_2_plan(prs.slides[1], plan)
+    fill_funcs = [
+        fill_t33_slide_3_img_left,
+        fill_t33_slide_4_img_right,
+        fill_t33_slide_5_img_right2,
+        fill_t33_slide_6_two_col,
+        fill_t33_slide_7_three_col,
+    ]
+    img_slide_types = {0, 1, 2}  # slayd 3,4,5 da rasm bor
+    img_counter = 0
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+        slide = prs.slides[slide_index]
+        slide_type = i % len(fill_funcs)
+        func = fill_funcs[slide_type]
+        img_arg = None
+        if slide_type in img_slide_types:
+            img_query = data.get('image_query', '') if isinstance(data, dict) else ''
+            if user_images and img_counter < len(user_images):
+                raw = user_images[img_counter]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
+                img_counter += 1
+            else:
+                img_arg = fetch_image(img_query) or fetch_image(topic)
+        func(slide, data, img_arg)
+    fill_t33_slide_8_conclusion(prs.slides[-1], {})
+    import io
+    output = io.BytesIO()
+    prs.save(output)
+    return output.getvalue()
