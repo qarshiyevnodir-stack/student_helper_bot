@@ -15163,6 +15163,10 @@ def _t_oddiy2_clear_and_write(shape, text, sz=None, bold=None, algn=None, color=
         txBody.remove(p)
 
     # Matnni satrlarga bo'lib yozish
+    if isinstance(text, list):
+        text = '\n'.join(str(t) for t in text)
+    elif not isinstance(text, str):
+        text = str(text) if text else ''
     lines = text.split('\n') if text else ['']
     for line in lines:
         p = etree.SubElement(txBody, f'{{{nsA}}}p')
