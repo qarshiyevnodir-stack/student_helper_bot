@@ -14456,9 +14456,14 @@ def fill_t34_slide_2_plan(slide, plan_items):
         ])
     # [1] body — raqamlangan ro'yxat
     if len(shapes) >= 2:
+        import re
         paras = []
         for idx, item in enumerate(items, 1):
-            paras.append({'text': f"{idx}. {item}", 'sz': 2000, 'b': 0, 'color': '44546A', 'algn': 'l'})
+            item_str = str(item).strip()
+            # Agar element allaqachon raqam bilan boshlangan bo'lsa ("1. ..."), tozalab faqat matnni ol
+            clean = re.sub(r'^\d+[\.\.\)\:]\s*', '', item_str).strip()
+            text = f"{idx}. {clean}" if clean else f"{idx}. {item_str}"
+            paras.append({'text': text, 'sz': 2000, 'b': 0, 'color': '44546A', 'algn': 'l'})
         _t34_clear_and_write(shapes[1].text_frame._txBody, paras)
 
 
