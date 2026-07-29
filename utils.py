@@ -14769,10 +14769,11 @@ def _oddiy1_clear_and_write(txBody, paras_data):
 
 def fill_oddiy1_slide_1_cover(slide, title, name_surname):
     """1-slayd: Muqova — fon rasmi saqlanadi, sarlavha va muallif yoziladi"""
+    # Shape[0]: sarlavha (katta oq, markazda), Shape[1]: muallif (kichik, pastda)
     shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
     if len(shapes) >= 1:
         _oddiy1_clear_and_write(shapes[0].text_frame._txBody, [
-            {'text': title, 'sz': 5400, 'b': 1, 'color': 'FFFFFF', 'algn': 'ctr'}
+            {'text': title.upper() if title else '', 'sz': 5400, 'b': 1, 'color': 'FFFFFF', 'algn': 'ctr'}
         ])
     if len(shapes) >= 2:
         _oddiy1_clear_and_write(shapes[1].text_frame._txBody, [
@@ -14804,8 +14805,45 @@ def fill_oddiy1_slide_2_plan(slide, plan_items):
         _oddiy1_clear_and_write(shapes[1].text_frame._txBody, paras)
 
 
+def fill_oddiy1_slide_3_two_blocks(slide, title, col1_text, col2_text):
+    """3-slayd: Sarlavha + ikki alohida matn bloki (yuqori va pastda)"""
+    # Shape[0]: sarlavha (katta ko'k, markazda)
+    # Shape[1]: birinchi matn bloki (chapda yuqori)
+    # Shape[2]: ikkinchi matn bloki (chapda pastda)
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title.upper() if title else '', 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = []
+        lines = col1_text.split('\n') if isinstance(col1_text, str) else [str(col1_text)]
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0,
+                               'color': '334155', 'algn': 'l'})
+        if not paras:
+            paras = [{'text': str(col1_text), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        paras = []
+        lines = col2_text.split('\n') if isinstance(col2_text, str) else [str(col2_text)]
+        for i, line in enumerate(lines):
+            if line.strip():
+                paras.append({'text': line.strip(), 'sz': 1800, 'b': 1 if i == 0 else 0,
+                               'color': '334155', 'algn': 'l'})
+        if not paras:
+            paras = [{'text': str(col2_text), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
 def fill_oddiy1_slide_3_two_col(slide, title, col1_text, col2_text):
-    """3-slayd: Ikki matn bloki"""
+    """3-slayd alias — fill_oddiy1_slide_3_two_blocks ga yo'naltiradi"""
+    fill_oddiy1_slide_3_two_blocks(slide, title, col1_text, col2_text)
+
+
+def fill_oddiy1_slide_3_two_col_UNUSED(slide, title, col1_text, col2_text):
+    """3-slayd: Ikki matn bloki (eski, ishlatilmaydi)"""
     text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
     if len(text_shapes) >= 1:
         _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
@@ -14829,6 +14867,24 @@ def fill_oddiy1_slide_3_two_col(slide, title, col1_text, col2_text):
         if not paras:
             paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
         _oddiy1_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_4_single_body(slide, title, body_text, image_path=None):
+    """4-slayd: Sarlavha + bitta matn bloki (rasm yo'q)"""
+    # Shape[0]: sarlavha (katta ko'k, markazda)
+    # Shape[1]: asosiy matn bloki
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title.upper() if title else '', 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        body = body_text if isinstance(body_text, str) else str(body_text)
+        paras = [{'text': p.strip(), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}
+                 for p in body.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': body, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
 
 
 def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
@@ -14861,24 +14917,26 @@ def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
 
 
 def fill_oddiy1_slide_5_three_col(slide, title, col1_text, col2_text, col3_text):
-    """5-slayd: Sarlavha + 3 ustun"""
+    """5-slayd: Sarlavha + 3 ustun (kartalar)"""
+    # Shape[0]: sarlavha, Shape[1]: 1-karta, Shape[2]: 2-karta, Shape[3]: 3-karta
     text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
     if len(text_shapes) >= 1:
         _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
-            {'text': title, 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+            {'text': title.upper() if title else '', 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
         ])
     for col_idx, col_text in enumerate([col1_text, col2_text, col3_text]):
         shape_idx = col_idx + 1
         if len(text_shapes) > shape_idx:
+            col_str = col_text if isinstance(col_text, str) else str(col_text)
             paras = [{'text': p.strip(), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}
-                     for p in col_text.split('\n') if p.strip()]
+                     for p in col_str.split('\n') if p.strip()]
             if not paras:
-                paras = [{'text': col_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
+                paras = [{'text': col_str, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
             _oddiy1_clear_and_write(text_shapes[shape_idx].text_frame._txBody, paras)
 
 
 def fill_oddiy1_slide_6_two_col_bold(slide, title, col1_text, col2_text):
-    """6-slayd: Sarlavha + 2 ustun (ustun sarlavhalari qalin ko'k)"""
+    """6-slayd: Sarlavha + 2 ustun (ustun sarlavhalari qalin ko'k, birinchi qator sarlavha)"""
     text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
     if len(text_shapes) >= 1:
         _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
@@ -14904,6 +14962,23 @@ def fill_oddiy1_slide_6_two_col_bold(slide, title, col1_text, col2_text):
         if not paras:
             paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'just'}]
         _oddiy1_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_7_single_body(slide, title, body_text, image_path=None):
+    """7-slayd: Sarlavha + bitta matn bloki (rasm yo'q)"""
+    # Shape[0]: sarlavha, Shape[1]: asosiy matn bloki
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title.upper() if title else '', 'sz': 3200, 'b': 1, 'color': '003366', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        body = body_text if isinstance(body_text, str) else str(body_text)
+        paras = [{'text': p.strip(), 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}
+                 for p in body.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': body, 'sz': 1800, 'b': 0, 'color': '334155', 'algn': 'l'}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
 
 
 def fill_oddiy1_slide_7_img_center(slide, title, body_text, image_path=None):
@@ -15026,11 +15101,11 @@ def build_slide_structure_oddiy1(prs, requested_slide_count):
 
 
 SLIDE_TYPE_NAMES_ODDIY1 = {
-    0: 'two_col',
-    1: 'img_right',
-    2: 'three_col',
-    3: 'two_col',
-    4: 'img_right',
+    0: 'two_columns',
+    1: 'single_body',
+    2: 'three_columns',
+    3: 'two_columns',
+    4: 'single_body',
 }
 
 
@@ -15051,14 +15126,12 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
     fill_oddiy1_slide_2_plan(prs.slides[1], plan)
 
     fill_funcs = [
-        fill_oddiy1_slide_3_two_col,        # 0: two_col
-        fill_oddiy1_slide_4_img_right,      # 1: img_right
-        fill_oddiy1_slide_5_three_col,      # 2: three_col
-        fill_oddiy1_slide_6_two_col_bold,   # 3: two_col_bold
-        fill_oddiy1_slide_7_img_center,     # 4: img_center
+        fill_oddiy1_slide_3_two_blocks,     # 0: two_columns
+        fill_oddiy1_slide_4_single_body,    # 1: single_body
+        fill_oddiy1_slide_5_three_col,      # 2: three_columns
+        fill_oddiy1_slide_6_two_col_bold,   # 3: two_columns
+        fill_oddiy1_slide_7_single_body,    # 4: single_body
     ]
-    img_slide_types = {1, 4}  # img_right va img_center
-    img_counter = 0
 
     for i, data in enumerate(content_data_list):
         slide_index = i + 2
@@ -15067,21 +15140,6 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
         slide = prs.slides[slide_index]
         slide_type = i % len(fill_funcs)
         func = fill_funcs[slide_type]
-        img_arg = None
-
-        if slide_type in img_slide_types:
-            img_query = data.get('image_query', '') if isinstance(data, dict) else ''
-            if user_images and img_counter < len(user_images):
-                raw = user_images[img_counter]
-                if isinstance(raw, (bytes, bytearray)):
-                    img_arg = save_user_image_to_tmp(raw)
-                elif isinstance(raw, str) and os.path.exists(raw):
-                    img_arg = raw
-                else:
-                    img_arg = fetch_image(img_query) or fetch_image(topic)
-                img_counter += 1
-            else:
-                img_arg = fetch_image(img_query) or fetch_image(topic)
 
         # Data dan matn olish
         if isinstance(data, dict):
@@ -15090,6 +15148,11 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
             col2 = data.get('col2', '')
             col3 = data.get('col3', '')
             body = data.get('content', col1)
+            # col1/col2/col3 list bo'lsa string ga o'tkazish
+            if isinstance(col1, list): col1 = '\n'.join(str(x) for x in col1)
+            if isinstance(col2, list): col2 = '\n'.join(str(x) for x in col2)
+            if isinstance(col3, list): col3 = '\n'.join(str(x) for x in col3)
+            if isinstance(body, list): body = '\n'.join(str(x) for x in body)
         else:
             title = topic
             col1 = str(data)
@@ -15098,16 +15161,16 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
             body = str(data)
 
         try:
-            if slide_type == 0:   # two_col
+            if slide_type == 0:   # two_columns
                 func(slide, title, col1, col2)
-            elif slide_type == 1: # img_right
-                func(slide, title, body, img_arg)
-            elif slide_type == 2: # three_col
+            elif slide_type == 1: # single_body
+                func(slide, title, body)
+            elif slide_type == 2: # three_columns
                 func(slide, title, col1, col2, col3)
-            elif slide_type == 3: # two_col_bold
+            elif slide_type == 3: # two_columns
                 func(slide, title, col1, col2)
-            elif slide_type == 4: # img_center
-                func(slide, title, body, img_arg)
+            elif slide_type == 4: # single_body
+                func(slide, title, body)
         except Exception as e:
             logger.warning(f"oddiy1 slide {slide_index} fill xatolik: {e}")
 
