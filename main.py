@@ -1656,6 +1656,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 name_surname=name_surname,
                 plan=plan_dict,
                 content_data_list=content_data_list,
+                user_images=[],
             )
         )
         image_tasks = [fetch_one_preview(q) for q in image_queries]
