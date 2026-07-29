@@ -13849,6 +13849,20 @@ def _t33_clear_and_write(txBody, paras_data):
     SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
                      'accent1','accent2','accent3','accent4','accent5','accent6',
                      'hlink','folHlink'}
+    # lstStyle ni to'liq olib tashlab, toza yangi lstStyle qo'yish
+    # Bu barcha darajalar (lvl1pPr...lvl9pPr) dagi bullet, hanging indent,
+    # hangingPunct va boshqa meros formatlashni butunlay yo'q qiladi
+    old_lstStyle = txBody.find(f'{{{ns_a}}}lstStyle')
+    if old_lstStyle is not None:
+        txBody.remove(old_lstStyle)
+    # Toza lstStyle — barcha 9 daraja uchun marL=0, indent=0, buNone
+    new_lstStyle = etree.SubElement(txBody, f'{{{ns_a}}}lstStyle')
+    for lvl in range(1, 10):
+        lvl_pPr = etree.SubElement(new_lstStyle, f'{{{ns_a}}}lvl{lvl}pPr')
+        lvl_pPr.set('marL', '0')
+        lvl_pPr.set('indent', '0')
+        lvl_pPr.set('algn', 'l')
+        etree.SubElement(lvl_pPr, f'{{{ns_a}}}buNone')
     for p in list(txBody):
         if p.tag == f'{{{ns_a}}}p':
             txBody.remove(p)
@@ -13858,6 +13872,10 @@ def _t33_clear_and_write(txBody, paras_data):
         algn = p_data.get('algn', 'l')
         if algn:
             pPr.set('algn', algn)
+        # Barcha qatorlar bir xil chapga tekislansin — indent va margin nolga tushiriladi
+        pPr.set('marL', '0')
+        pPr.set('marR', '0')
+        pPr.set('indent', '0')
         etree.SubElement(pPr, f'{{{ns_a}}}buNone')
         for run in p_data.get('runs', []):
             r_elem = etree.SubElement(p_elem, f'{{{ns_a}}}r')
