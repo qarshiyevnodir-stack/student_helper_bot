@@ -14203,3 +14203,482 @@ def generate_template_33_presentation(prs, topic, requested_slide_count, languag
     output = io.BytesIO()
     prs.save(output)
     return output.getvalue()
+
+
+# ============================================================
+# 34-SHABLON — Architect Minitheme (oq fon, ko'k sarlavha)
+# ============================================================
+
+def build_slide_structure_34(prs, requested_slide_count):
+    import logging
+    import copy
+    if len(prs.slides) < 8:
+        logging.error("T34 shablonida kamida 8 ta slayd bo'lishi kerak.")
+        return
+
+    content_templates = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
+    needed = requested_slide_count - len(content_templates)
+
+    if needed > 0:
+        for extra in range(needed):
+            src_idx = content_templates[extra % len(content_templates)]
+            src_slide = prs.slides[src_idx]
+            slide_layout = src_slide.slide_layout
+            new_slide = prs.slides.add_slide(slide_layout)
+            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+    elif needed < 0:
+        remove_count = -needed
+        indices_to_remove = sorted(
+            content_templates[len(content_templates) - remove_count:],
+            reverse=True
+        )
+        for idx in indices_to_remove:
+            sldIdLst = prs.slides._sldIdLst
+            sld_elem = sldIdLst[idx]
+            rId = sld_elem.get(
+                '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+            ) or sld_elem.get('r:id')
+            if rId:
+                try:
+                    prs.part.drop_rel(rId)
+                except Exception:
+                    pass
+            sldIdLst.remove(sld_elem)
+
+
+SLIDE_TYPE_NAMES_T34 = {
+    0: 'two_columns',   # Slayd 3 — ikki ustun (markazda dekor rasm)
+    1: 'two_columns',   # Slayd 4 — ikki ustun
+    2: 'image_left',    # Slayd 5 — rasm chap
+    3: 'image_right',   # Slayd 6 — rasm o'ng
+    4: 'two_columns',   # Slayd 7 — ikki ustun (icons yuqorida)
+}
+
+def _t34_clear_and_write(txBody, paras_data):
+    """paras_data ichidagi 'color':
+       - 'bg1','tx1','accent1','bg2' kabi => schemeClr
+       - '0B3763','FFFFFF' kabi 6-xonali hex => srgbClr
+       - None/'' => rang yozilmaydi (shablon default)
+    """
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
+                     'accent1','accent2','accent3','accent4','accent5','accent6',
+                     'hlink','folHlink'}
+    # lstStyle ni to'liq olib tashlab, toza yangi lstStyle qo'yish
+    old_lstStyle = txBody.find(f'{{{ns_a}}}lstStyle')
+    if old_lstStyle is not None:
+        txBody.remove(old_lstStyle)
+    new_lstStyle = etree.SubElement(txBody, f'{{{ns_a}}}lstStyle')
+    for lvl in range(1, 10):
+        lvl_pPr = etree.SubElement(new_lstStyle, f'{{{ns_a}}}lvl{lvl}pPr')
+        lvl_pPr.set('marL', '0')
+        lvl_pPr.set('indent', '0')
+        lvl_pPr.set('algn', 'l')
+        etree.SubElement(lvl_pPr, f'{{{ns_a}}}buNone')
+
+    for p in list(txBody):
+        if p.tag == f'{{{ns_a}}}p':
+            txBody.remove(p)
+
+    for p_data in paras_data:
+        p_elem = etree.SubElement(txBody, f'{{{ns_a}}}p')
+        pPr = etree.SubElement(p_elem, f'{{{ns_a}}}pPr')
+        algn = p_data.get('algn', 'l')
+        pPr.set('algn', algn)
+        pPr.set('marL', '0')
+        pPr.set('marR', '0')
+        pPr.set('indent', '0')
+        etree.SubElement(pPr, f'{{{ns_a}}}buNone')
+
+        r = etree.SubElement(p_elem, f'{{{ns_a}}}r')
+        rPr = etree.SubElement(r, f'{{{ns_a}}}rPr')
+        rPr.set('lang', 'uz-UZ')
+        rPr.set('altLang', 'en-US')
+        sz = p_data.get('sz', 1800)
+        rPr.set('sz', str(sz))
+        b = p_data.get('b', 0)
+        rPr.set('b', str(b))
+        rPr.set('dirty', '0')
+
+        color = p_data.get('color', None)
+        if color:
+            solidFill = etree.SubElement(rPr, f'{{{ns_a}}}solidFill')
+            if color in SCHEME_COLORS:
+                clr = etree.SubElement(solidFill, f'{{{ns_a}}}schemeClr')
+                clr.set('val', color)
+            else:
+                clr = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
+                clr.set('val', color.lstrip('#'))
+
+        t = etree.SubElement(r, f'{{{ns_a}}}t')
+        t.text = p_data.get('text', '')
+
+
+def build_slide_structure_34(prs, requested_slide_count):
+    import logging
+    import copy
+    if len(prs.slides) < 8:
+        logging.error("T34 shablonida kamida 8 ta slayd bo'lishi kerak.")
+        return
+
+    content_templates = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
+    needed = requested_slide_count - len(content_templates)
+
+    if needed > 0:
+        for extra in range(needed):
+            src_idx = content_templates[extra % len(content_templates)]
+            src_slide = prs.slides[src_idx]
+            slide_layout = src_slide.slide_layout
+            new_slide = prs.slides.add_slide(slide_layout)
+            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+    elif needed < 0:
+        remove_count = -needed
+        indices_to_remove = sorted(
+            content_templates[len(content_templates) - remove_count:],
+            reverse=True
+        )
+        for idx in indices_to_remove:
+            sldIdLst = prs.slides._sldIdLst
+            sld_elem = sldIdLst[idx]
+            rId = sld_elem.get(
+                '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+            ) or sld_elem.get('r:id')
+            if rId:
+                try:
+                    prs.part.drop_rel(rId)
+                except Exception:
+                    pass
+            sldIdLst.remove(sld_elem)
+
+
+SLIDE_TYPE_NAMES_T34 = {
+    0: 'two_columns',   # Slayd 3 — ikki ustun (markazda dekor rasm)
+    1: 'two_columns',   # Slayd 4 — ikki ustun
+    2: 'image_left',    # Slayd 5 — rasm chap
+    3: 'image_right',   # Slayd 6 — rasm o'ng
+    4: 'two_columns',   # Slayd 7 — ikki ustun (icons yuqorida)
+}
+
+def _t34_clear_and_write(txBody, paras_data):
+    """paras_data ichidagi 'color':
+       - 'bg1','tx1','accent1','bg2' kabi => schemeClr
+       - '0B3763','FFFFFF' kabi 6-xonali hex => srgbClr
+       - None/'' => rang yozilmaydi (shablon default)
+    """
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    SCHEME_COLORS = {'bg1','bg2','dk1','dk2','lt1','lt2','tx1','tx2',
+                     'accent1','accent2','accent3','accent4','accent5','accent6',
+                     'hlink','folHlink'}
+    # lstStyle ni to'liq olib tashlab, toza yangi lstStyle qo'yish
+    old_lstStyle = txBody.find(f'{{{ns_a}}}lstStyle')
+    if old_lstStyle is not None:
+        txBody.remove(old_lstStyle)
+    new_lstStyle = etree.SubElement(txBody, f'{{{ns_a}}}lstStyle')
+    for lvl in range(1, 10):
+        lvl_pPr = etree.SubElement(new_lstStyle, f'{{{ns_a}}}lvl{lvl}pPr')
+        lvl_pPr.set('marL', '0')
+        lvl_pPr.set('indent', '0')
+        lvl_pPr.set('algn', 'l')
+        etree.SubElement(lvl_pPr, f'{{{ns_a}}}buNone')
+
+    for p in list(txBody):
+        if p.tag == f'{{{ns_a}}}p':
+            txBody.remove(p)
+
+    for p_data in paras_data:
+        p_elem = etree.SubElement(txBody, f'{{{ns_a}}}p')
+        pPr = etree.SubElement(p_elem, f'{{{ns_a}}}pPr')
+        algn = p_data.get('algn', 'l')
+        pPr.set('algn', algn)
+        pPr.set('marL', '0')
+        pPr.set('marR', '0')
+        pPr.set('indent', '0')
+        etree.SubElement(pPr, f'{{{ns_a}}}buNone')
+
+        r = etree.SubElement(p_elem, f'{{{ns_a}}}r')
+        rPr = etree.SubElement(r, f'{{{ns_a}}}rPr')
+        rPr.set('lang', 'uz-UZ')
+        rPr.set('altLang', 'en-US')
+        sz = p_data.get('sz', 1800)
+        rPr.set('sz', str(sz))
+        b = p_data.get('b', 0)
+        rPr.set('b', str(b))
+        rPr.set('dirty', '0')
+
+        color = p_data.get('color', None)
+        if color:
+            solidFill = etree.SubElement(rPr, f'{{{ns_a}}}solidFill')
+            if color in SCHEME_COLORS:
+                clr = etree.SubElement(solidFill, f'{{{ns_a}}}schemeClr')
+                clr.set('val', color)
+            else:
+                clr = etree.SubElement(solidFill, f'{{{ns_a}}}srgbClr')
+                clr.set('val', color.lstrip('#'))
+
+        t = etree.SubElement(r, f'{{{ns_a}}}t')
+        t.text = p_data.get('text', '')
+
+
+def fill_t34_slide_1_cover(slide, title, name_surname):
+    """1-slayd: Muqova — sarlavha + muallif"""
+    from pptx.util import Pt
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    # [0] sarlavha, [1] subtitle/muallif
+    if len(shapes) >= 1:
+        _t34_clear_and_write(shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 5400, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(shapes) >= 2:
+        _t34_clear_and_write(shapes[1].text_frame._txBody, [
+            {'text': name_surname, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'ctr'}
+        ])
+
+
+def fill_t34_slide_2_plan(slide, plan_items):
+    """2-slayd: Reja — sarlavha + raqamlangan ro'yxat"""
+    from lxml import etree
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    # [0] sarlavha
+    if len(shapes) >= 1:
+        _t34_clear_and_write(shapes[0].text_frame._txBody, [
+            {'text': 'REJA', 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    # [1] body — raqamlangan ro'yxat
+    if len(shapes) >= 2:
+        paras = []
+        for idx, item in enumerate(plan_items, 1):
+            paras.append({'text': f"{idx}. {item}", 'sz': 2000, 'b': 0, 'color': '44546A', 'algn': 'l'})
+        _t34_clear_and_write(shapes[1].text_frame._txBody, paras)
+
+
+def fill_t34_slide_3_two_col(slide, title, col1_text, col2_text):
+    """3-slayd: Ikki ustun (markazda dekor rasm saqlanadi)"""
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    # [0] sarlavha, [1] chap body, [2] o'ng body
+    if len(text_shapes) >= 1:
+        _t34_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col1_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col1_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col2_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_t34_slide_4_two_col(slide, title, col1_text, col2_text):
+    """4-slayd: Ikki ustun"""
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _t34_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col1_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col1_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col2_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_t34_slide_5_img_left(slide, title, body_text, image_path=None):
+    """5-slayd: Rasm chap, matn o'ng"""
+    from pptx.util import Emu
+    from PIL import Image as PILImage
+    import os
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    pic_shapes = [s for s in slide.shapes
+                  if s._element.findall(f'.//{{{ns_a}}}blip')]
+
+    if len(text_shapes) >= 1:
+        _t34_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in body_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': body_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+
+    if image_path and os.path.exists(image_path) and pic_shapes:
+        try:
+            pic_shape = pic_shapes[0]
+            left = pic_shape.left
+            top = pic_shape.top
+            width = pic_shape.width
+            height = pic_shape.height
+            sp = pic_shape._element
+            sp.getparent().remove(sp)
+            slide.shapes.add_picture(image_path, left, top, width, height)
+        except Exception:
+            pass
+
+
+def fill_t34_slide_6_img_right(slide, title, body_text, image_path=None):
+    """6-slayd: Matn chap, rasm o'ng"""
+    from pptx.util import Emu
+    import os
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    pic_shapes = [s for s in slide.shapes
+                  if s._element.findall(f'.//{{{ns_a}}}blip')]
+
+    if len(text_shapes) >= 1:
+        _t34_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in body_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': body_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+
+    if image_path and os.path.exists(image_path) and pic_shapes:
+        try:
+            pic_shape = pic_shapes[0]
+            left = pic_shape.left
+            top = pic_shape.top
+            width = pic_shape.width
+            height = pic_shape.height
+            sp = pic_shape._element
+            sp.getparent().remove(sp)
+            slide.shapes.add_picture(image_path, left, top, width, height)
+        except Exception:
+            pass
+
+
+def fill_t34_slide_7_two_col_icons(slide, title, col1_text, col2_text):
+    """7-slayd: Ikki ustun (icons yuqorida — dekor, o'zgartirilmaydi)"""
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    text_shapes = [s for s in slide.shapes if hasattr(s, 'has_text_frame') and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _t34_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {'text': title, 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+        ])
+    if len(text_shapes) >= 2:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col1_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col1_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+    if len(text_shapes) >= 3:
+        paras = [{'text': p, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}
+                 for p in col2_text.split('\n') if p.strip()]
+        if not paras:
+            paras = [{'text': col2_text, 'sz': 1800, 'b': 0, 'color': '44546A', 'algn': 'l'}]
+        _t34_clear_and_write(text_shapes[2].text_frame._txBody, paras)
+
+
+def fill_t34_slide_8_outro(slide):
+    """8-slayd: Xulosa — E'TIBORINGIZ UCHUN RAHMAT! (o'zgartirilmaydi)"""
+    pass
+
+
+def _t34_get_body_text(slide_data):
+    """slide_data dan body matnini olish"""
+    if isinstance(slide_data, dict):
+        content = slide_data.get('content') or slide_data.get('col1') or ''
+        if isinstance(content, list):
+            return '\n'.join(str(c) for c in content)
+        return str(content)
+    return str(slide_data)
+
+
+def _t34_get_col_text(slide_data, col_key):
+    """slide_data dan ustun matnini olish"""
+    if isinstance(slide_data, dict):
+        val = slide_data.get(col_key, '')
+        if isinstance(val, list):
+            return '\n'.join(str(v) for v in val)
+        return str(val)
+    return ''
+
+
+def generate_template_34_presentation(prs, topic, requested_slide_count, language,
+                                       name_surname, plan, content_data_list,
+                                       user_images=None):
+    """34-shablon asosida taqdimot yaratish — 33-shablon uslubida"""
+    import logging
+    from utils import fetch_image, save_user_image_to_tmp
+    import os
+
+    build_slide_structure_34(prs, requested_slide_count)
+    fill_t34_slide_1_cover(prs.slides[0], topic, name_surname)
+    fill_t34_slide_2_plan(prs.slides[1], plan)
+
+    fill_funcs = [
+        fill_t34_slide_3_two_col,        # 0: two_col_center
+        fill_t34_slide_4_two_col,        # 1: two_col
+        fill_t34_slide_5_img_left,       # 2: img_left
+        fill_t34_slide_6_img_right,      # 3: img_right
+        fill_t34_slide_7_two_col_icons,  # 4: two_col_icons
+    ]
+    img_slide_types = {2, 3}  # slayd 5 (img_left) va slayd 6 (img_right) da rasm bor
+    img_counter = 0
+
+    for i, data in enumerate(content_data_list):
+        slide_index = i + 2
+        if slide_index >= len(prs.slides) - 1:
+            break
+        slide = prs.slides[slide_index]
+        slide_type = i % len(fill_funcs)
+        func = fill_funcs[slide_type]
+        img_arg = None
+        if slide_type in img_slide_types:
+            img_query = data.get('image_query', '') if isinstance(data, dict) else ''
+            if user_images and img_counter < len(user_images):
+                raw = user_images[img_counter]
+                if isinstance(raw, (bytes, bytearray)):
+                    img_arg = save_user_image_to_tmp(raw)
+                elif isinstance(raw, str) and os.path.exists(raw):
+                    img_arg = raw
+                else:
+                    img_arg = fetch_image(img_query) or fetch_image(topic)
+                img_counter += 1
+            else:
+                img_arg = fetch_image(img_query) or fetch_image(topic)
+
+        # fill funksiyalarini chaqirish
+        title = data.get('title', topic) if isinstance(data, dict) else topic
+        if slide_type in {0, 1, 4}:  # two_col turlari
+            col1 = _t34_get_col_text(data, 'col1')
+            col2 = _t34_get_col_text(data, 'col2')
+            if not col1 and not col2:
+                col1 = _t34_get_body_text(data)
+            func(slide, title, col1, col2)
+        elif slide_type in {2, 3}:  # img turlari
+            body = _t34_get_body_text(data)
+            func(slide, title, body, img_arg)
+        else:
+            func(slide, data, img_arg)
+
+    fill_t34_slide_8_outro(prs.slides[-1])
+
+    import io
+    output = io.BytesIO()
+    prs.save(output)
+    return output.getvalue()
