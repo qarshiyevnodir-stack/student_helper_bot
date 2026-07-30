@@ -387,10 +387,10 @@ LANGUAGE_NAMES = {
     "ko":  "Kores tili",
     "zh":  "Xitoy tili",
     "de":  "Nemis tili",
-    "kaa": "Qoraqalpoq tili",
-    "tk":  "Turkman tili",
-    "tg":  "Tojik tili",
     "tr":  "Turk tili",
+    "tg":  "Tojik tili",
+    "kaa": "Qoraqalpoq tili",
+    "kk":  "Qozoq tili",
 }
 
 # ─────────────────────────────────────────────
@@ -415,37 +415,49 @@ def get_main_menu_keyboard():
 
 def get_language_keyboard():
     keyboard = [
-        [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="lang_uz"),
-         InlineKeyboardButton("🇷🇺 Rus",     callback_data="lang_ru")],
-        [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="lang_en"),
-         InlineKeyboardButton("🇩🇪 Nemis",   callback_data="lang_de")],
-        [InlineKeyboardButton("🇹🇯 Tojik",   callback_data="lang_tg"),
-         InlineKeyboardButton("🇹🇷 Turk",    callback_data="lang_tr")],
-        [InlineKeyboardButton("⬅️ Orqaga",  callback_data="lang_back")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",      callback_data="lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",      callback_data="lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",          callback_data="lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",        callback_data="lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",        callback_data="lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",        callback_data="lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",         callback_data="lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",        callback_data="lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq",  callback_data="lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",        callback_data="lang_kk")],
+        [InlineKeyboardButton("⬅️ Orqaga",        callback_data="lang_back")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def get_mi_language_keyboard():
     """Mustaqil ish uchun til tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("O'zbek tili",  callback_data="mi_lang_uz"),
-         InlineKeyboardButton("Ingliz tili",  callback_data="mi_lang_en")],
-        [InlineKeyboardButton("Rus tili",     callback_data="mi_lang_ru"),
-         InlineKeyboardButton("Kores tili",   callback_data="mi_lang_ko")],
-        [InlineKeyboardButton("Xitoy tili",   callback_data="mi_lang_zh"),
-         InlineKeyboardButton("Nemis tili",   callback_data="mi_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="mi_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="mi_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="mi_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="mi_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="mi_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="mi_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="mi_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="mi_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="mi_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="mi_lang_kk")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def get_rf_language_keyboard():
     """Referat uchun til tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("O'zbek tili",  callback_data="rf_lang_uz"),
-         InlineKeyboardButton("Ingliz tili",  callback_data="rf_lang_en")],
-        [InlineKeyboardButton("Rus tili",     callback_data="rf_lang_ru"),
-         InlineKeyboardButton("Kores tili",   callback_data="rf_lang_ko")],
-        [InlineKeyboardButton("Xitoy tili",   callback_data="rf_lang_zh"),
-         InlineKeyboardButton("Nemis tili",   callback_data="rf_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="rf_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="rf_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="rf_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="rf_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="rf_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="rf_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="rf_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="rf_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="rf_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="rf_lang_kk")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -464,12 +476,16 @@ def get_rf_page_count_keyboard():
 def get_li_language_keyboard():
     """Loyiha ishi uchun til tanlash klaviaturasi."""
     keyboard = [
-        [InlineKeyboardButton("O'zbek tili",  callback_data="li_lang_uz"),
-         InlineKeyboardButton("Ingliz tili",  callback_data="li_lang_en")],
-        [InlineKeyboardButton("Rus tili",     callback_data="li_lang_ru"),
-         InlineKeyboardButton("Kores tili",   callback_data="li_lang_ko")],
-        [InlineKeyboardButton("Xitoy tili",   callback_data="li_lang_zh"),
-         InlineKeyboardButton("Nemis tili",   callback_data="li_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="li_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="li_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="li_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="li_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="li_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="li_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="li_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="li_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="li_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="li_lang_kk")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -804,10 +820,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "infografika"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="ig_lang_uz"),
-             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ig_lang_en")],
-            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ig_lang_ru"),
-             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ig_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="ig_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="ig_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="ig_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="ig_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="ig_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="ig_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="ig_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="ig_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="ig_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="ig_lang_kk")],
         ])
         await update.message.reply_text(
             "📊 *Infografika* bo'limiga xush kelibsiz!\n\nQaysi tilda infografika yaratmoqchisiz?",
@@ -855,12 +877,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "maqola"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("O'zbek tili",  callback_data="mq_lang_uz"),
-             InlineKeyboardButton("Ingliz tili",  callback_data="mq_lang_en")],
-            [InlineKeyboardButton("Rus tili",     callback_data="mq_lang_ru"),
-             InlineKeyboardButton("Kores tili",   callback_data="mq_lang_ko")],
-            [InlineKeyboardButton("Xitoy tili",   callback_data="mq_lang_zh"),
-             InlineKeyboardButton("Nemis tili",   callback_data="mq_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="mq_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="mq_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="mq_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="mq_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="mq_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="mq_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="mq_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="mq_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="mq_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="mq_lang_kk")],
         ])
         await update.message.reply_text(
             "📰 *Maqola* bo'limiga xush kelibsiz!\n\nQaysi tilda maqola yozmoqchisiz?",
@@ -897,12 +923,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "krossvord"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="kr_lang_uz"),
-             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="kr_lang_en")],
-            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="kr_lang_ru"),
-             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="kr_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="kr_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="kr_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="kr_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="kr_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="kr_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="kr_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="kr_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="kr_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="kr_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="kr_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="kr_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="kr_lang_kk")],
         ])
         await update.message.reply_text(
             "🧩 *Krossvord yaratish*\n\n"
@@ -923,12 +953,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "test"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="ts_lang_uz"),
-             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="ts_lang_en")],
-            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="ts_lang_ru"),
-             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="ts_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="ts_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="ts_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="ts_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="ts_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="ts_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="ts_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="ts_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="ts_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="ts_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="ts_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="ts_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="ts_lang_kk")],
         ])
         await update.message.reply_text(
             "🔠 *Test tuzish*\n\n"
@@ -951,12 +985,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "glossary"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="gl_lang_uz"),
-             InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="gl_lang_en")],
-            [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="gl_lang_ru"),
-             InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="gl_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="gl_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="gl_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="gl_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="gl_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="gl_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="gl_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="gl_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="gl_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="gl_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="gl_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="gl_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="gl_lang_kk")],
         ])
         await update.message.reply_text(
             "💡 *Glossary (Atamalar lug'ati)*\n\n"
@@ -1040,12 +1078,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "annotatsiya"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="an_lang_uz"),
-             InlineKeyboardButton("🇷🇺 Rus",     callback_data="an_lang_ru")],
-            [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="an_lang_en"),
-             InlineKeyboardButton("🇰🇷 Kores",   callback_data="an_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="an_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis",   callback_data="an_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="an_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="an_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="an_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="an_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="an_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="an_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="an_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="an_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="an_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="an_lang_kk")],
         ])
         await update.message.reply_text(
             "📋 *Annotatsiya yaratish*\n\nNarx: *1 000 so'm*\n\nTil tanlang:",
@@ -1058,12 +1100,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data.clear()
         context.user_data["mode"] = "taqriz"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="tq_lang_uz"),
-             InlineKeyboardButton("🇷🇺 Rus",     callback_data="tq_lang_ru")],
-            [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="tq_lang_en"),
-             InlineKeyboardButton("🇰🇷 Kores",   callback_data="tq_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy",   callback_data="tq_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis",   callback_data="tq_lang_de")],
+            [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="tq_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="tq_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",         callback_data="tq_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",       callback_data="tq_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="tq_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",       callback_data="tq_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",        callback_data="tq_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",       callback_data="tq_lang_tg")],
+            [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="tq_lang_kaa"),
+             InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="tq_lang_kk")],
         ])
         await update.message.reply_text(
             "📝 *Taqriz yaratish*\n\nNarx: *2 000 so'm*\n\nTil tanlang:",
@@ -3352,12 +3398,16 @@ async def ki_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     type_name = "📚 Kurs ishi" if work_type == "kurs_ishi" else "🎓 Bitiruv malakaviy ishi (BMI)"
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("O'zbek tili",  callback_data="ki_lang_uz"),
-         InlineKeyboardButton("Ingliz tili",  callback_data="ki_lang_en")],
-        [InlineKeyboardButton("Rus tili",     callback_data="ki_lang_ru"),
-         InlineKeyboardButton("Kores tili",   callback_data="ki_lang_ko")],
-        [InlineKeyboardButton("Xitoy tili",   callback_data="ki_lang_zh"),
-         InlineKeyboardButton("Nemis tili",   callback_data="ki_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="ki_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="ki_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="ki_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="ki_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="ki_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="ki_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="ki_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="ki_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="ki_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="ki_lang_kk")],
     ])
     await query.edit_message_text(
         text=f"✅ Tur: *{type_name}*\n\nQaysi tilda yozmoqchisiz?",
@@ -3699,12 +3749,16 @@ async def tz_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     }
     type_name = type_names.get(tz_type, "Tezis")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("O'zbek tili", callback_data="tz_lang_uz"),
-         InlineKeyboardButton("Ingliz tili", callback_data="tz_lang_en")],
-        [InlineKeyboardButton("Rus tili", callback_data="tz_lang_ru"),
-         InlineKeyboardButton("Kores tili", callback_data="tz_lang_ko")],
-        [InlineKeyboardButton("Xitoy tili", callback_data="tz_lang_zh"),
-         InlineKeyboardButton("Nemis tili", callback_data="tz_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="tz_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="tz_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="tz_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="tz_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="tz_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="tz_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="tz_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="tz_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="tz_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="tz_lang_kk")],
     ])
     await query.edit_message_text(
         f"✅ *{type_name}* tanlandi.\n\nQaysi tilda yozilsin?",
@@ -4352,12 +4406,16 @@ async def in_get_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     }
     type_label = type_labels.get(insho_type, insho_type)
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇺🇿 O'zbek tili",  callback_data="in_lang_uz"),
-         InlineKeyboardButton("🇬🇧 Ingliz tili",  callback_data="in_lang_en")],
-        [InlineKeyboardButton("🇷🇺 Rus tili",     callback_data="in_lang_ru"),
-         InlineKeyboardButton("🇰🇷 Kores tili",   callback_data="in_lang_ko")],
-        [InlineKeyboardButton("🇨🇳 Xitoy tili",   callback_data="in_lang_zh"),
-         InlineKeyboardButton("🇩🇪 Nemis tili",   callback_data="in_lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="in_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="in_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus",         callback_data="in_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores",       callback_data="in_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="in_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis",       callback_data="in_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk",        callback_data="in_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik",       callback_data="in_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="in_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="in_lang_kk")],
     ])
     await query.edit_message_text(
         f"✅ Tur: {type_label}\n\nQaysi tilda insho yozmoqchisiz?",
@@ -4526,15 +4584,19 @@ async def in_get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # ─────────────────────────────────────────────
 # Handlerlar — Hujjat & Dizayn
 # ─────────────────────────────────────────────
-HJ_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+HJ_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis", "tr": "Turk", "tg": "Tojik", "kaa": "Qoraqalpoq", "kk": "Qozoq"}
 
 HJ_LANG_KEYBOARD = InlineKeyboardMarkup([
-    [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="hj_lang_uz"),
-     InlineKeyboardButton("🇧🇬 Ingliz", callback_data="hj_lang_en")],
-    [InlineKeyboardButton("🇷🇺 Rus",    callback_data="hj_lang_ru"),
-     InlineKeyboardButton("🇰🇷 Kores",  callback_data="hj_lang_ko")],
-    [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="hj_lang_zh"),
-     InlineKeyboardButton("🇩🇪 Nemis",  callback_data="hj_lang_de")],
+    [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="hj_lang_uz"),
+     InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="hj_lang_en")],
+    [InlineKeyboardButton("🇷🇺 Rus",         callback_data="hj_lang_ru"),
+     InlineKeyboardButton("🇰🇷 Kores",       callback_data="hj_lang_ko")],
+    [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="hj_lang_zh"),
+     InlineKeyboardButton("🇩🇪 Nemis",       callback_data="hj_lang_de")],
+    [InlineKeyboardButton("🇹🇷 Turk",        callback_data="hj_lang_tr"),
+     InlineKeyboardButton("🇹🇯 Tojik",       callback_data="hj_lang_tg")],
+    [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="hj_lang_kaa"),
+     InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="hj_lang_kk")],
 ])
 
 async def back_to_main_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -5638,15 +5700,19 @@ def get_ai_response_sync(messages: list) -> str:
 # ─────────────────────────────────────────────
 # Handlerlar — Rezyume / CV (yangi, to'liq)
 # ─────────────────────────────────────────────
-CV_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis"}
+CV_LANG_NAMES = {"uz": "O'zbek", "en": "Ingliz", "ru": "Rus", "ko": "Kores", "zh": "Xitoy", "de": "Nemis", "tr": "Turk", "tg": "Tojik", "kaa": "Qoraqalpoq", "kk": "Qozoq"}
 
 CV_LANG_KEYBOARD = InlineKeyboardMarkup([
-    [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="cv_lang_uz"),
-     InlineKeyboardButton("🇬🇧 Ingliz", callback_data="cv_lang_en")],
-    [InlineKeyboardButton("🇷🇺 Rus",    callback_data="cv_lang_ru"),
-     InlineKeyboardButton("🇰🇷 Kores",  callback_data="cv_lang_ko")],
-    [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="cv_lang_zh"),
-     InlineKeyboardButton("🇩🇪 Nemis",  callback_data="cv_lang_de")],
+    [InlineKeyboardButton("🇺🇿 O'zbek",     callback_data="cv_lang_uz"),
+     InlineKeyboardButton("🇬🇧 Ingliz",     callback_data="cv_lang_en")],
+    [InlineKeyboardButton("🇷🇺 Rus",         callback_data="cv_lang_ru"),
+     InlineKeyboardButton("🇰🇷 Kores",       callback_data="cv_lang_ko")],
+    [InlineKeyboardButton("🇨🇳 Xitoy",       callback_data="cv_lang_zh"),
+     InlineKeyboardButton("🇩🇪 Nemis",       callback_data="cv_lang_de")],
+    [InlineKeyboardButton("🇹🇷 Turk",        callback_data="cv_lang_tr"),
+     InlineKeyboardButton("🇹🇯 Tojik",       callback_data="cv_lang_tg")],
+    [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="cv_lang_kaa"),
+     InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="cv_lang_kk")],
 ])
 
 CV_TONE_KEYBOARD = InlineKeyboardMarkup([
