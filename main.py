@@ -7467,6 +7467,8 @@ def main() -> None:
             CommandHandler("start", start),
             CommandHandler("cancel", cancel),
             CommandHandler("chekyubor", chekyubor_command),
+            # WEB_APP_DATA — barcha state larda ishlashi uchun fallbacks da ham
+            MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
             # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
