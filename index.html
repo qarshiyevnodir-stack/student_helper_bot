@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shablon Tanlash</title>
+  <title>Stil Tanlash</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -212,16 +212,16 @@
 <body>
 
 <div class="header">
-  <h1>🎨 Shablon Tanlash</h1>
-  <p>Taqdimot uchun shablon tanlang</p>
+  <h1>🎨 Stil Tanlash</h1>
+  <p>Taqdimot uchun stil tanlang</p>
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('silver')">
-    🥈 Silver <span class="badge">2</span>
+  <button class="tab-btn active" onclick="switchTab('silver', this)">
+    🥈 Silver tarifi <span class="badge">2</span>
   </button>
-  <button class="tab-btn" onclick="switchTab('gold')">
-    🥇 Gold <span class="badge">34</span>
+  <button class="tab-btn" onclick="switchTab('gold', this)">
+    🥇 Gold tarifi <span class="badge">34</span>
   </button>
 </div>
 
@@ -230,17 +230,17 @@
   <div class="pkg-header silver">
     <span class="pkg-icon">🥈</span>
     <div>
-      <div class="pkg-title">Silver Paket</div>
-      <div class="pkg-desc">Faqat matnli shablonlar — rasm yo'q</div>
+      <div class="pkg-title">Silver tarifi</div>
+      <div class="pkg-desc">Faqat matnli stillar — rasm yo'q</div>
     </div>
   </div>
   <div class="grid">
     <div class="card" onclick="selectTemplate('oddiy1', 35)" id="card-oddiy1">
-      <img src="images/silver/oddiy1.png" alt="Oddiy1 shablon" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy1'"/>
+      <img src="images/silver/oddiy1.png" alt="Oddiy1 stil" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy1'"/>
       <div class="card-label">Oddiy 1</div>
     </div>
     <div class="card" onclick="selectTemplate('oddiy2', 36)" id="card-oddiy2">
-      <img src="images/silver/oddiy2.png" alt="Oddiy2 shablon" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy2'"/>
+      <img src="images/silver/oddiy2.png" alt="Oddiy2 stil" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy2'"/>
       <div class="card-label">Oddiy 2</div>
     </div>
   </div>
@@ -251,8 +251,8 @@
   <div class="pkg-header gold">
     <span class="pkg-icon">🥇</span>
     <div>
-      <div class="pkg-title">Gold Paket</div>
-      <div class="pkg-desc">Dizaynli shablonlar — 34 ta variant</div>
+      <div class="pkg-title">Gold tarifi</div>
+      <div class="pkg-desc">Dizaynli stillar — 34 ta variant</div>
     </div>
   </div>
   <div class="grid-4" id="gold-grid">
@@ -263,7 +263,7 @@
 <!-- ── Bottom bar ── -->
 <div class="bottom-bar">
   <button class="select-btn" id="select-btn" disabled onclick="confirmSelection()">
-    Shablon tanlang
+    Stil tanlang
   </button>
 </div>
 
@@ -284,22 +284,22 @@
     card.id = `card-${i}`;
     card.onclick = () => selectTemplate(i, i);
     card.innerHTML = `
-      <img src="images/gold/${i}.png" alt="Shablon ${i}" loading="lazy"
+      <img src="images/gold/${i}.png" alt="Stil ${i}" loading="lazy"
            onerror="this.style.background='#eee';this.style.height='80px'"/>
-      <div class="card-label">Shablon ${i}</div>
+      <div class="card-label">Stil ${i}</div>
     `;
     goldGrid.appendChild(card);
   }
 
   // ── Tab almashtirish ──
-  function switchTab(tab) {
+  function switchTab(tab, btn) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
-    event.currentTarget.classList.add('active');
+    btn.classList.add('active');
   }
 
-  // ── Shablon tanlash ──
+  // ── Stil tanlash ──
   function selectTemplate(key, num) {
     // Avvalgi tanlovni tozalash
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
@@ -316,7 +316,7 @@
     const btn = document.getElementById('select-btn');
     const label = typeof key === 'string'
       ? (key === 'oddiy1' ? 'Oddiy 1' : 'Oddiy 2')
-      : `Shablon ${key}`;
+      : `Stil ${key}`;
     btn.disabled = false;
     btn.textContent = `✅ ${label} — Tanlash`;
 
