@@ -38,89 +38,14 @@
       margin-top: 3px;
     }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex;
-      background: #fff;
-      border-bottom: 2px solid #eee;
-      position: sticky;
-      top: 70px;
-      z-index: 99;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 13px 8px;
-      border: none;
-      background: transparent;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      color: #888;
-      transition: all 0.2s;
-      position: relative;
-    }
-    .tab-btn.active {
-      color: #0f3460;
-    }
-    .tab-btn.active::after {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 0; right: 0;
-      height: 3px;
-      background: #0f3460;
-      border-radius: 3px 3px 0 0;
-    }
-    .tab-btn .badge {
-      display: inline-block;
-      background: #e8f4fd;
-      color: #0f3460;
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 10px;
-      margin-left: 4px;
-      font-weight: 700;
-    }
-    .tab-btn.active .badge {
-      background: #0f3460;
-      color: #fff;
-    }
-
-    /* ── Tab panels ── */
-    .tab-panel { display: none; padding: 16px; }
-    .tab-panel.active { display: block; }
-
-    /* ── Package header ── */
-    .pkg-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      color: #fff;
-    }
-    .pkg-header.silver {
-      background: linear-gradient(135deg, #8e9eab, #b0bec5, #90a4ae);
-    }
-    .pkg-header.gold {
-      background: linear-gradient(135deg, #f7971e, #ffd200, #f7971e);
-      color: #333;
-    }
-    .pkg-icon { font-size: 26px; }
-    .pkg-title { font-size: 17px; font-weight: 700; }
-    .pkg-desc { font-size: 11px; opacity: 0.85; }
+    /* ── Content ── */
+    .content { padding: 16px; }
 
     /* ── Grid ── */
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-    }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
     }
 
     /* ── Card ── */
@@ -199,14 +124,6 @@
       cursor: not-allowed;
     }
     .select-btn:not(:disabled):active { opacity: 0.85; }
-
-    /* ── Empty state ── */
-    .empty {
-      text-align: center;
-      padding: 40px 20px;
-      color: #aaa;
-      font-size: 14px;
-    }
   </style>
 </head>
 <body>
@@ -216,46 +133,8 @@
   <p>Taqdimot uchun stil tanlang</p>
 </div>
 
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('silver', this)">
-    🥈 Silver tarifi <span class="badge">2</span>
-  </button>
-  <button class="tab-btn" onclick="switchTab('gold', this)">
-    🥇 Gold tarifi <span class="badge">34</span>
-  </button>
-</div>
-
-<!-- ── Silver Tab ── -->
-<div id="tab-silver" class="tab-panel active">
-  <div class="pkg-header silver">
-    <span class="pkg-icon">🥈</span>
-    <div>
-      <div class="pkg-title">Silver tarifi</div>
-      <div class="pkg-desc">Faqat matnli stillar — rasm yo'q</div>
-    </div>
-  </div>
-  <div class="grid">
-    <div class="card" onclick="selectTemplate('oddiy1', 35)" id="card-oddiy1">
-      <img src="images/silver/oddiy1.png" alt="Oddiy1 stil" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy1'"/>
-      <div class="card-label">Oddiy 1</div>
-    </div>
-    <div class="card" onclick="selectTemplate('oddiy2', 36)" id="card-oddiy2">
-      <img src="images/silver/oddiy2.png" alt="Oddiy2 stil" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy2'"/>
-      <div class="card-label">Oddiy 2</div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Gold Tab ── -->
-<div id="tab-gold" class="tab-panel">
-  <div class="pkg-header gold">
-    <span class="pkg-icon">🥇</span>
-    <div>
-      <div class="pkg-title">Gold tarifi</div>
-      <div class="pkg-desc">Dizaynli stillar — 34 ta variant</div>
-    </div>
-  </div>
-  <div class="grid-4" id="gold-grid">
+<div class="content">
+  <div class="grid" id="main-grid">
     <!-- JS tomonidan to'ldiriladi -->
   </div>
 </div>
@@ -268,7 +147,6 @@
 </div>
 
 <script>
-  // ── Telegram WebApp init ──
   const tg = window.Telegram.WebApp;
   tg.ready();
   tg.expand();
@@ -276,51 +154,56 @@
   let selectedKey = null;
   let selectedNum = null;
 
-  // ── Gold grid yaratish ──
-  const goldGrid = document.getElementById('gold-grid');
-  for (let i = 1; i <= 34; i++) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.id = `card-${i}`;
-    card.onclick = () => selectTemplate(i, i);
-    card.innerHTML = `
-      <img src="images/gold/${i}.png" alt="Stil ${i}" loading="lazy"
-           onerror="this.style.background='#eee';this.style.height='80px'"/>
-      <div class="card-label">Stil ${i}</div>
-    `;
-    goldGrid.appendChild(card);
-  }
+  // URL parametrdan tab ni aniqlash
+  const urlParams = new URLSearchParams(window.location.search);
+  const tab = urlParams.get('tab') || 'silver';
 
-  // ── Tab almashtirish ──
-  function switchTab(tab, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
-    btn.classList.add('active');
+  const grid = document.getElementById('main-grid');
+
+  if (tab === 'silver') {
+    // Silver: 2 ta stil
+    const silvers = [
+      { key: 'oddiy1', num: 35, label: 'Oddiy 1', img: 'images/silver/oddiy1.png' },
+      { key: 'oddiy2', num: 36, label: 'Oddiy 2', img: 'images/silver/oddiy2.png' },
+    ];
+    silvers.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = `card-${s.key}`;
+      card.onclick = () => selectTemplate(s.key, s.num, s.label);
+      card.innerHTML = `
+        <img src="${s.img}" alt="${s.label}" loading="lazy"
+             onerror="this.style.background='#eee';this.style.height='80px'"/>
+        <div class="card-label">${s.label}</div>
+      `;
+      grid.appendChild(card);
+    });
+  } else {
+    // Gold: 34 ta stil
+    for (let i = 1; i <= 34; i++) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = `card-${i}`;
+      card.onclick = () => selectTemplate(i, i, `Stil ${i}`);
+      card.innerHTML = `
+        <img src="images/gold/${i}.png" alt="Stil ${i}" loading="lazy"
+             onerror="this.style.background='#eee';this.style.height='80px'"/>
+        <div class="card-label">Stil ${i}</div>
+      `;
+      grid.appendChild(card);
+    }
   }
 
   // ── Stil tanlash ──
-  function selectTemplate(key, num) {
-    // Avvalgi tanlovni tozalash
+  function selectTemplate(key, num, label) {
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
-
     selectedKey = key;
     selectedNum = num;
-
-    // Yangi tanlovni belgilash
-    const cardId = typeof key === 'number' ? `card-${key}` : `card-${key}`;
-    const card = document.getElementById(cardId);
+    const card = document.getElementById(`card-${key}`);
     if (card) card.classList.add('selected');
-
-    // Tugmani faollashtirish
     const btn = document.getElementById('select-btn');
-    const label = typeof key === 'string'
-      ? (key === 'oddiy1' ? 'Oddiy 1' : 'Oddiy 2')
-      : `Stil ${key}`;
     btn.disabled = false;
     btn.textContent = `✅ ${label} — Tanlash`;
-
-    // Haptic feedback
     if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
   }
 

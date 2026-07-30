@@ -1444,11 +1444,11 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(
-            "🥈 Silver tarifi",
+            "Silver stili",
             web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
         )],
         [InlineKeyboardButton(
-            "🥇 Gold tarifi",
+            "Gold stili",
             web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
         )],
     ])
