@@ -390,6 +390,7 @@ LANGUAGE_NAMES = {
     "kaa": "Qoraqalpoq tili",
     "tk":  "Turkman tili",
     "tg":  "Tojik tili",
+    "tr":  "Turk tili",
 }
 
 # ─────────────────────────────────────────────
@@ -414,12 +415,13 @@ def get_main_menu_keyboard():
 
 def get_language_keyboard():
     keyboard = [
-        [InlineKeyboardButton("O'zbek tili",  callback_data="lang_uz"),
-         InlineKeyboardButton("Ingliz tili",  callback_data="lang_en")],
-        [InlineKeyboardButton("Rus tili",     callback_data="lang_ru"),
-         InlineKeyboardButton("Kores tili",   callback_data="lang_ko")],
-        [InlineKeyboardButton("Xitoy tili",   callback_data="lang_zh"),
-         InlineKeyboardButton("Nemis tili",   callback_data="lang_de")],
+        [InlineKeyboardButton("🇺🇿 O'zbek",  callback_data="lang_uz"),
+         InlineKeyboardButton("🇷🇺 Rus",     callback_data="lang_ru")],
+        [InlineKeyboardButton("🇬🇧 Ingliz",  callback_data="lang_en"),
+         InlineKeyboardButton("🇩🇪 Nemis",   callback_data="lang_de")],
+        [InlineKeyboardButton("🇹🇯 Tojik",   callback_data="lang_tg"),
+         InlineKeyboardButton("🇹🇷 Turk",    callback_data="lang_tr")],
+        [InlineKeyboardButton("⬅️ Orqaga",  callback_data="lang_back")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -1228,6 +1230,13 @@ async def get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.answer()
 
     language_code = query.data.split("_", 1)[1]
+
+    # Orqaga tugmasi
+    if language_code == "back":
+        from telegram import ReplyKeyboardMarkup as RKM
+        await query.message.delete()
+        return ConversationHandler.END
+
     context.user_data["language"] = language_code
 
     lang_name = LANGUAGE_NAMES.get(language_code, "O'zbek tili")
@@ -1432,16 +1441,20 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Mini App orqali shablon tanlash ──
     chat_id = query.message.chat_id
-    WEBAPP_URL = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(
-            "🎨 Stil tanlash",
-            web_app=WebAppInfo(url=WEBAPP_URL)
-        )]
+            "🥈 Silver tarifi",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
+        )],
+        [InlineKeyboardButton(
+            "🥇 Gold tarifi",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
+        )],
     ])
     await context.bot.send_message(
         chat_id=chat_id,
-        text="🎨 *STIL tanlang*\n\n🥈 *Silver:* Matnli stillar\n🥇 *Gold:* Matn va tasvirli stillar\n\nQuyidagi tugmani bosib, taqdimot uchun stil tanlang:",
+        text="🎨 *STIL tanlang*",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
