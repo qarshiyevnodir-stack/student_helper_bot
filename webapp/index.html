@@ -13,7 +13,7 @@
       background: var(--tg-theme-bg-color, #f5f5f5);
       color: var(--tg-theme-text-color, #222);
       min-height: 100vh;
-      padding-bottom: 80px;
+      padding-bottom: 130px;
     }
 
     /* ── Header ── */
@@ -86,26 +86,21 @@
       object-fit: cover;
       display: block;
     }
-    .card-label {
-      padding: 7px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #333;
-      text-align: center;
-      background: #fafafa;
-      border-top: 1px solid #f0f0f0;
-    }
 
-    /* ── Bottom button ── */
+    /* ── Bottom bar ── */
     .bottom-bar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.95);
+      padding: 10px 16px 12px;
+      background: rgba(255,255,255,0.97);
       backdrop-filter: blur(8px);
       border-top: 1px solid #eee;
       z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
+
     .select-btn {
       width: 100%;
       padding: 15px;
@@ -124,6 +119,20 @@
       cursor: not-allowed;
     }
     .select-btn:not(:disabled):active { opacity: 0.85; }
+
+    .back-btn {
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      color: #555;
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .back-btn:active { background: #f0f0f0; }
   </style>
 </head>
 <body>
@@ -134,16 +143,14 @@
 </div>
 
 <div class="content">
-  <div class="grid" id="main-grid">
-    <!-- JS tomonidan to'ldiriladi -->
-  </div>
+  <div class="grid" id="main-grid"></div>
 </div>
 
-<!-- ── Bottom bar ── -->
 <div class="bottom-bar">
   <button class="select-btn" id="select-btn" disabled onclick="confirmSelection()">
     Stil tanlang
   </button>
+  <button class="back-btn" onclick="goBack()">⬅️ Orqaga</button>
 </div>
 
 <script>
@@ -154,48 +161,33 @@
   let selectedKey = null;
   let selectedNum = null;
 
-  // URL parametrdan tab ni aniqlash
   const urlParams = new URLSearchParams(window.location.search);
   const tab = urlParams.get('tab') || 'silver';
 
   const grid = document.getElementById('main-grid');
 
+  function buildCard(key, num, imgSrc) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = `card-${key}`;
+    card.onclick = () => selectTemplate(key, num);
+    card.innerHTML = `
+      <img src="${imgSrc}" alt="Stil ${num}" loading="lazy"
+           onerror="this.style.background='#ddd';this.style.height='80px'"/>
+    `;
+    grid.appendChild(card);
+  }
+
   if (tab === 'silver') {
-    // Silver: 2 ta stil
-    const silvers = [
-      { key: 'oddiy1', num: 35, label: 'Oddiy 1', img: 'images/silver/oddiy1.png' },
-      { key: 'oddiy2', num: 36, label: 'Oddiy 2', img: 'images/silver/oddiy2.png' },
-    ];
-    silvers.forEach(s => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.id = `card-${s.key}`;
-      card.onclick = () => selectTemplate(s.key, s.num, s.label);
-      card.innerHTML = `
-        <img src="${s.img}" alt="${s.label}" loading="lazy"
-             onerror="this.style.background='#eee';this.style.height='80px'"/>
-        <div class="card-label">${s.label}</div>
-      `;
-      grid.appendChild(card);
-    });
+    buildCard('oddiy1', 35, 'images/silver/oddiy1.png');
+    buildCard('oddiy2', 36, 'images/silver/oddiy2.png');
   } else {
-    // Gold: 34 ta stil
     for (let i = 1; i <= 34; i++) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.id = `card-${i}`;
-      card.onclick = () => selectTemplate(i, i, `Stil ${i}`);
-      card.innerHTML = `
-        <img src="images/gold/${i}.png" alt="Stil ${i}" loading="lazy"
-             onerror="this.style.background='#eee';this.style.height='80px'"/>
-        <div class="card-label">Stil ${i}</div>
-      `;
-      grid.appendChild(card);
+      buildCard(i, i, `images/gold/${i}.png`);
     }
   }
 
-  // ── Stil tanlash ──
-  function selectTemplate(key, num, label) {
+  function selectTemplate(key, num) {
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
     selectedKey = key;
     selectedNum = num;
@@ -203,17 +195,20 @@
     if (card) card.classList.add('selected');
     const btn = document.getElementById('select-btn');
     btn.disabled = false;
-    btn.textContent = `✅ ${label} — Tanlash`;
+    btn.textContent = `✅ Tanlash`;
     if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
   }
 
-  // ── Tasdiqlash ──
   function confirmSelection() {
     if (!selectedNum) return;
     tg.sendData(JSON.stringify({
       template_num: selectedNum,
       template_key: selectedKey
     }));
+  }
+
+  function goBack() {
+    tg.close();
   }
 </script>
 </body>
