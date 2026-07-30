@@ -738,15 +738,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     bonus_given = await asyncio.to_thread(db.give_welcome_bonus, user.id, 4000)
 
     if bonus_given:
-        # Yangi foydalanuvchi — taklif qiluvchiga 3000 so'm bonus
+        # Yangi foydalanuvchi — taklif qiluvchiga 1000 so'm bonus
         if ref_by:
-            await asyncio.to_thread(db.add_balance, ref_by, 2000)
-            logger.info(f"Referral bonus: {ref_by} ga 2000 so'm berildi (yangi user: {user.id})")
+            await asyncio.to_thread(db.add_balance, ref_by, 1000)
+            logger.info(f"Referral bonus: {ref_by} ga 1000 so'm berildi (yangi user: {user.id})")
             try:
                 await context.bot.send_message(
                     chat_id=ref_by,
                     text=f"🎉 Siz taklif qilgan do'stingiz botga qo'shildi!\n"
-                         f"💰 Balansingizga 2,000 so'm bonus qo'shildi."
+                         f"💰 Balansingizga 1,000 so'm bonus qo'shildi."
                 )
             except Exception as e:
                 logger.error(f"Referral bonus xabari yuborishda xatolik: {e}")
@@ -1212,11 +1212,11 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         ref_link = f"https://t.me/{bot_username}?start=ref_{ref_code}"
         msg = (
             f"🔗 *Referral dasturi*\n\n"
-            f"Do'stlaringizni taklif qiling va har bir yangi foydalanuvchi uchun *2 000 so'm* bonus oling!\n\n"
+            f"Do'stlaringizni taklif qiling va har bir yangi foydalanuvchi uchun *1 000 so'm* bonus oling!\n\n"
             f"📎 *Sizning referral havolangiz:*\n"
             f"`{ref_link}`\n\n"
             f"🎁 *Bonus:*\n"
-            f"• Siz: 2 000 so'm\n"
+            f"• Siz: 1 000 so'm\n"
             f"• Do'stingiz: 4 000 so'm xush kelibsiz bonusi\n\n"
             f"Havolani do'stlaringizga yuboring va bonuslar yig'ing!"
         )
