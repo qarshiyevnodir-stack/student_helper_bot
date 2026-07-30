@@ -1650,12 +1650,12 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     price        = SERVICE_PRICES['slayd']
     try:
         await query.edit_message_caption(
-            caption=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
+            caption="⏳ Taqdimot yaratilmoqda...",
         )
     except Exception:
         try:
             await query.edit_message_text(
-                text=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda...",
+                text="⏳ Taqdimot yaratilmoqda...",
             )
         except Exception:
             pass
