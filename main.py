@@ -1300,33 +1300,35 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if _tr is not None:
         return _tr
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
-    stil_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            "Silver stili",
-            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
-        )],
-        [InlineKeyboardButton(
-            "Gold stili",
-            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
-        )],
-    ])
+    # ReplyKeyboard ishlatiladi — sendData faqat KeyboardButton web_app da ishlaydi
+    stil_reply_keyboard = ReplyKeyboardMarkup(
+        [
+            [KeyboardButton("🪨 Silver stili", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
+            [KeyboardButton("🪧 Gold stili",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
     if update.callback_query:
         query = update.callback_query
         await query.answer()
         context.user_data["name_surname"] = ""
         topic = context.user_data.get("topic", "")
         await query.edit_message_text(
-            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n🎨 *STIL tanlang*",
-            reply_markup=stil_keyboard,
+            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n🎨 *STIL tanlang:*",
             parse_mode="Markdown"
+        )
+        await query.message.reply_text(
+            "👇 Quyidagi tugmalardan birini bosing:",
+            reply_markup=stil_reply_keyboard
         )
     else:
         name_surname = update.message.text.strip()
         context.user_data["name_surname"] = name_surname
         topic = context.user_data.get("topic", "")
         await update.message.reply_text(
-            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n🎨 *STIL tanlang*",
-            reply_markup=stil_keyboard,
+            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n🎨 *STIL tanlang:*",
+            reply_markup=stil_reply_keyboard,
             parse_mode="Markdown"
         )
     return TEMPLATE_SELECT
@@ -1468,13 +1470,19 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
         [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
     ])
+    from telegram import ReplyKeyboardRemove
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n🎨 *Stil:* {template_num}\n\nNechta slayd kerak?",
+        text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n🎨 *Stil tanlandi!*\n\nNechta slayd kerak?",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="Markdown"
+    )
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Slayd sonini tanlang:",
         reply_markup=InlineKeyboardMarkup(
             get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
         ),
-        parse_mode="Markdown"
     )
     return SLIDE_COUNT
 
