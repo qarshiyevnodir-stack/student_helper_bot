@@ -1441,9 +1441,16 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Mini App orqali shablon tanlash ──
     chat_id = query.message.chat_id
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Silver stili", callback_data="open_webapp_silver")],
-        [InlineKeyboardButton("Gold stili",   callback_data="open_webapp_gold")],
+        [InlineKeyboardButton(
+            "Silver stili",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
+        )],
+        [InlineKeyboardButton(
+            "Gold stili",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
+        )],
     ])
     await context.bot.send_message(
         chat_id=chat_id,
@@ -1451,24 +1458,6 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
-    return TEMPLATE_SELECT
-
-async def open_webapp_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Silver yoki Gold stili tugmasi bosilganda WebApp URL ni yuboradi."""
-    query = update.callback_query
-    await query.answer()
-    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
-    if query.data == "open_webapp_silver":
-        tab = "silver"
-        label = "Silver stili"
-    else:
-        tab = "gold"
-        label = "Gold stili"
-    webapp_url = WEBAPP_BASE + f"?tab={tab}"
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(label, web_app=WebAppInfo(url=webapp_url))],
-    ])
-    await query.edit_message_reply_markup(reply_markup=keyboard)
     return TEMPLATE_SELECT
 
 async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -6987,7 +6976,6 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             TEMPLATE_SELECT: [
-                CallbackQueryHandler(open_webapp_handler, pattern=r"^open_webapp_(silver|gold)$"),
                 CallbackQueryHandler(template_selected, pattern=r"^template_select_"),
                 MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
