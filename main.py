@@ -1299,39 +1299,37 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     _tr = await topup_message_router(update, context)
     if _tr is not None:
         return _tr
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
+    stil_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            "Silver stili",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
+        )],
+        [InlineKeyboardButton(
+            "Gold stili",
+            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
+        )],
+    ])
     if update.callback_query:
         query = update.callback_query
         await query.answer()
         context.user_data["name_surname"] = ""
         topic = context.user_data.get("topic", "")
-        edit_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
-            [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
-        ])
         await query.edit_message_text(
-            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\nNechta slayd kerak?",
-            reply_markup=InlineKeyboardMarkup(
-                get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
-            ),
+            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n🎨 *STIL tanlang*",
+            reply_markup=stil_keyboard,
             parse_mode="Markdown"
         )
     else:
         name_surname = update.message.text.strip()
         context.user_data["name_surname"] = name_surname
         topic = context.user_data.get("topic", "")
-        edit_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
-            [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
-        ])
         await update.message.reply_text(
-            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\nNechta slayd kerak?",
-            reply_markup=InlineKeyboardMarkup(
-                get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
-            ),
+            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n🎨 *STIL tanlang*",
+            reply_markup=stil_keyboard,
             parse_mode="Markdown"
         )
-        return SLIDE_COUNT
-    return SLIDE_COUNT
+    return TEMPLATE_SELECT
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Slayd sonini qabul qiladi va 1-BOSQICH ni ishga tushiradi."""
@@ -1439,26 +1437,8 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
-    # ── Mini App orqali shablon tanlash ──
-    chat_id = query.message.chat_id
-    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            "Silver stili",
-            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver")
-        )],
-        [InlineKeyboardButton(
-            "Gold stili",
-            web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold")
-        )],
-    ])
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="🎨 *STIL tanlang*",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
-    return TEMPLATE_SELECT
+    # ── Reja tasdiqlandi: taqdimot yaratish ──
+    return await webapp_data_handler_generate(update, context)
 
 async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mini App dan kelgan shablon tanlash ma'lumotlarini qayta ishlash."""
@@ -1472,13 +1452,41 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception:
         await msg.reply_text("❌ Shablon ma'lumotlari noto'g'ri. Qayta urinib ko'ring.")
         return TEMPLATE_SELECT
+    # Stilni saqlaydi va slayd soni so'raladi
+    context.user_data["template_num"] = template_num
+    topic        = context.user_data.get("topic", "")
+    name_surname = context.user_data.get("name_surname", "")
+    chat_id      = msg.chat_id
+    edit_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✏️ Mavzuni tahrirlash", callback_data="edit_topic")],
+        [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
+    ])
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n🎨 *Stil:* {template_num}\n\nNechta slayd kerak?",
+        reply_markup=InlineKeyboardMarkup(
+            get_slide_count_keyboard().inline_keyboard + edit_keyboard.inline_keyboard
+        ),
+        parse_mode="Markdown"
+    )
+    return SLIDE_COUNT
+
+async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stil tanlangandan keyin slayd soni va reja orqali taqdimot yaratadi."""
+    msg = update.message
+    query = update.callback_query
+    if msg:
+        chat_id = msg.chat_id
+        user_id = msg.from_user.id
+    else:
+        chat_id = query.message.chat_id
+        user_id = query.from_user.id
+    template_num = context.user_data.get("template_num", 35)
     topic        = context.user_data.get("topic", "")
     language     = context.user_data.get("language", "uz")
     slide_count  = context.user_data.get("slide_count", 5)
     name_surname = context.user_data.get("name_surname", "")
-    user_id      = msg.from_user.id
     price        = SERVICE_PRICES['slayd']
-    chat_id      = msg.chat_id
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda..."
@@ -6965,6 +6973,10 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, get_name_surname),
             ],
+            TEMPLATE_SELECT: [
+                MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
             SLIDE_COUNT: [
                 CallbackQueryHandler(get_slide_count, pattern=r"^slide_count_"),
                 CallbackQueryHandler(edit_topic_handler, pattern=r"^edit_topic$"),
@@ -6973,11 +6985,6 @@ def main() -> None:
             ],
             PLAN_CONFIRMATION: [
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
-                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
-            ],
-            TEMPLATE_SELECT: [
-                CallbackQueryHandler(template_selected, pattern=r"^template_select_"),
-                MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IMAGE_SOURCE_SELECT: [
