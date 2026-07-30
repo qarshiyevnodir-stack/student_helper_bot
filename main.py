@@ -1299,16 +1299,20 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     _tr = await topup_message_router(update, context)
     if _tr is not None:
         return _tr
-    # Inline tugmalar — to'liq kenglik, WebApp belgisi yo'q
-    stil_inline_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🪨 Silver stili", callback_data="open_stil_silver")],
-        [InlineKeyboardButton("🪧 Gold stili",   callback_data="open_stil_gold")],
-        [InlineKeyboardButton("⬅️ Orqaga",        callback_data="stil_back")],
-    ])
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
+    # ReplyKeyboard — to'g'ridan-to'g'ri Mini App ochiladi (sendData uchun shart)
+    stil_keyboard = ReplyKeyboardMarkup(
+        [
+            [KeyboardButton("Silver stili", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
+            [KeyboardButton("Gold stili",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
     stil_text = (
         "🎨 *STIL tanlang:*\n\n"
-        "🪨 *Silver:* Matnli stillar\n"
-        "🪧 *Gold:* Matn va tasvirli stillar"
+        "*Silver:* Matnli stillar\n"
+        "*Gold:* Matn va tasvirli stillar"
     )
     if update.callback_query:
         query = update.callback_query
@@ -1317,8 +1321,11 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         topic = context.user_data.get("topic", "")
         await query.edit_message_text(
             text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n{stil_text}",
-            reply_markup=stil_inline_keyboard,
             parse_mode="Markdown"
+        )
+        await query.message.reply_text(
+            "👇 Stilni tanlang:",
+            reply_markup=stil_keyboard
         )
     else:
         name_surname = update.message.text.strip()
@@ -1326,7 +1333,7 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         topic = context.user_data.get("topic", "")
         await update.message.reply_text(
             f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n{stil_text}",
-            reply_markup=stil_inline_keyboard,
+            reply_markup=stil_keyboard,
             parse_mode="Markdown"
         )
     return TEMPLATE_SELECT
@@ -1443,25 +1450,27 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def orqaga_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """ReplyKeyboard Orqaga tugmasi bosilganda stil tanlash xabariga qaytadi."""
     from telegram import ReplyKeyboardRemove
-    stil_inline_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🪨 Silver stili", callback_data="open_stil_silver")],
-        [InlineKeyboardButton("🪧 Gold stili",   callback_data="open_stil_gold")],
-        [InlineKeyboardButton("⬅️ Orqaga",        callback_data="stil_back")],
-    ])
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
+    stil_keyboard = ReplyKeyboardMarkup(
+        [
+            [KeyboardButton("Silver stili", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
+            [KeyboardButton("Gold stili",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
     stil_text = (
         "🎨 *STIL tanlang:*\n\n"
-        "🪨 *Silver:* Matnli stillar\n"
-        "🪧 *Gold:* Matn va tasvirli stillar"
+        "*Silver:* Matnli stillar\n"
+        "*Gold:* Matn va tasvirli stillar"
     )
     topic = context.user_data.get("topic", "")
     name_surname = context.user_data.get("name_surname", "")
     await update.message.reply_text(
         f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n\n{stil_text}",
-        reply_markup=stil_inline_keyboard,
+        reply_markup=stil_keyboard,
         parse_mode="Markdown"
     )
-    # ReplyKeyboard ni olib tashlash uchun alohida xabar kerak emas
-    # Telegram inline xabar yuborilganda ReplyKeyboard avtomatik ko'rinmaydi
     return TEMPLATE_SELECT
 
 
@@ -1484,24 +1493,7 @@ async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     tab = "silver" if data == "open_stil_silver" else "gold"
-    label = "🪨 Silver stili" if tab == "silver" else "🪧 Gold stili"
-
-    # Avvalgi inline xabarni o'chirib, ReplyKeyboard bilan yangi xabar yuboramiz
-    # Avvalgi xabardagi inline tugmalarni olib tashlaymiz
-    topic = context.user_data.get("topic", "")
-    name_surname = context.user_data.get("name_surname", "")
-    stil_text = (
-        "🎨 *STIL tanlang:*\n\n"
-        "🪨 *Silver:* Matnli stillar\n"
-        "🪧 *Gold:* Matn va tasvirli stillar"
-    )
-    # Inline tugmalarni olib tashlab, faqat matn qoldirish
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
-        pass
-
-    # ReplyKeyboard bilan yangi xabar — foydalanuvchi uchun bir marta ko'rinadigan tugma
+    label = "Silver stili" if tab == "silver" else "Gold stili"
     webapp_keyboard = ReplyKeyboardMarkup(
         [
             [KeyboardButton(label, web_app=WebAppInfo(url=WEBAPP_BASE + f"?tab={tab}"))],
@@ -1511,7 +1503,7 @@ async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         one_time_keyboard=True,
     )
     await query.message.reply_text(
-        f"👇 *{label}* ni bosib stilni tanlang:",
+        f"👇 *{label}* ni bosing:",
         reply_markup=webapp_keyboard,
         parse_mode="Markdown"
     )
