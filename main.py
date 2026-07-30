@@ -1443,13 +1443,20 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mini App dan kelgan shablon tanlash ma'lumotlarini qayta ishlash."""
     import json as _json
+    logger.info(f"webapp_data_handler chaqirildi. update type: {update}")
     msg = update.message
-    if not msg or not msg.web_app_data:
+    if not msg:
+        logger.warning("webapp_data_handler: msg yo'q")
         return TEMPLATE_SELECT
+    if not msg.web_app_data:
+        logger.warning(f"webapp_data_handler: web_app_data yo'q. msg type: {msg}")
+        return TEMPLATE_SELECT
+    logger.info(f"webapp_data_handler: web_app_data = {msg.web_app_data.data}")
     try:
         data = _json.loads(msg.web_app_data.data)
         template_num = int(data.get("template_num", 35))
-    except Exception:
+    except Exception as e:
+        logger.error(f"webapp_data_handler JSON parse xato: {e}")
         await msg.reply_text("❌ Shablon ma'lumotlari noto'g'ri. Qayta urinib ko'ring.")
         return TEMPLATE_SELECT
     # Stilni saqlaydi va slayd soni so'raladi
