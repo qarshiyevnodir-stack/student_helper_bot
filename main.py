@@ -1440,11 +1440,37 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # ── Reja tasdiqlandi: taqdimot yaratish ──
     return await webapp_data_handler_generate(update, context)
 
+async def orqaga_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """ReplyKeyboard Orqaga tugmasi bosilganda stil tanlash xabariga qaytadi."""
+    from telegram import ReplyKeyboardRemove
+    stil_inline_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🪨 Silver stili", callback_data="open_stil_silver")],
+        [InlineKeyboardButton("🪧 Gold stili",   callback_data="open_stil_gold")],
+        [InlineKeyboardButton("⬅️ Orqaga",        callback_data="stil_back")],
+    ])
+    stil_text = (
+        "🎨 *STIL tanlang:*\n\n"
+        "🪨 *Silver:* Matnli stillar\n"
+        "🪧 *Gold:* Matn va tasvirli stillar"
+    )
+    topic = context.user_data.get("topic", "")
+    name_surname = context.user_data.get("name_surname", "")
+    await update.message.reply_text(
+        f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n\n{stil_text}",
+        reply_markup=stil_inline_keyboard,
+        parse_mode="Markdown"
+    )
+    # ReplyKeyboard ni olib tashlash uchun alohida xabar kerak emas
+    # Telegram inline xabar yuborilganda ReplyKeyboard avtomatik ko'rinmaydi
+    return TEMPLATE_SELECT
+
+
 async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Silver yoki Gold tugmasi bosilganda ReplyKeyboard bilan Mini App ochadi."""
     query = update.callback_query
     await query.answer()
-    data = query.data  # open_stil_silver yoki open_stil_gold
+    data = query.data
+
     if data == "stil_back":
         # Orqaga — ism-familya qadamiga qaytish
         await query.edit_message_text(
@@ -1455,16 +1481,39 @@ async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return NAME_SURNAME
+
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     tab = "silver" if data == "open_stil_silver" else "gold"
+    label = "🪨 Silver stili" if tab == "silver" else "🪧 Gold stili"
+
+    # Avvalgi inline xabarni o'chirib, ReplyKeyboard bilan yangi xabar yuboramiz
+    # Avvalgi xabardagi inline tugmalarni olib tashlaymiz
+    topic = context.user_data.get("topic", "")
+    name_surname = context.user_data.get("name_surname", "")
+    stil_text = (
+        "🎨 *STIL tanlang:*\n\n"
+        "🪨 *Silver:* Matnli stillar\n"
+        "🪧 *Gold:* Matn va tasvirli stillar"
+    )
+    # Inline tugmalarni olib tashlab, faqat matn qoldirish
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    # ReplyKeyboard bilan yangi xabar — foydalanuvchi uchun bir marta ko'rinadigan tugma
     webapp_keyboard = ReplyKeyboardMarkup(
-        [[KeyboardButton("🎨 Stilni tanlash", web_app=WebAppInfo(url=WEBAPP_BASE + f"?tab={tab}"))]],
+        [
+            [KeyboardButton(label, web_app=WebAppInfo(url=WEBAPP_BASE + f"?tab={tab}"))],
+            [KeyboardButton("⬅️ Orqaga")],
+        ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
     await query.message.reply_text(
-        f"👇 Quyidagi tugmani bosib {'Silver' if tab == 'silver' else 'Gold'} stilni tanlang:",
-        reply_markup=webapp_keyboard
+        f"👇 *{label}* ni bosib stilni tanlang:",
+        reply_markup=webapp_keyboard,
+        parse_mode="Markdown"
     )
     return TEMPLATE_SELECT
 
@@ -7017,6 +7066,7 @@ def main() -> None:
             ],
             TEMPLATE_SELECT: [
                 MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
+                MessageHandler(filters.Regex(r"^⬅️ Orqaga$"), orqaga_stil_handler),
                 CallbackQueryHandler(open_stil_handler, pattern=r"^open_stil_(silver|gold)$|^stil_back$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
