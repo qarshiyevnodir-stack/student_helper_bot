@@ -5,7 +5,7 @@ import asyncio
 from io import BytesIO
 import random
 import db
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
     generate_presentation,
@@ -1430,31 +1430,176 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode="Markdown"
         )
         return ConversationHandler.END
-    # ── Faqat 15-shablon: to'g'ridan-to'g'ri taqdimot yaratishga o'tish ──
+    # ── Mini App orqali shablon tanlash ──
     chat_id = query.message.chat_id
-    # 28-shablon preview rasmini yuborish (agar mavjud bo'lsa)
-    previews_dir = os.path.join(os.path.dirname(__file__), "templates", "previews")
-    preview_oddiy1_path = os.path.join(previews_dir, "oddiy1.png")
+    WEBAPP_URL = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Shu shablon bilan davom etish", callback_data="template_select_35")],
+        [InlineKeyboardButton(
+            "🎨 Shablon tanlash",
+            web_app=WebAppInfo(url=WEBAPP_URL)
+        )]
     ])
-    if os.path.exists(preview_oddiy1_path):
-        with open(preview_oddiy1_path, "rb") as f:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=f,
-                caption="🎨 *Oddiy1 shablon*\n\nTaqdimot shu shablon asosida yaratiladi.",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="🎨 *Shablon tanlang*\n\nQuyidagi tugmani bosib, taqdimot uchun shablon tanlang:",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return TEMPLATE_SELECT
+
+async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mini App dan kelgan shablon tanlash ma'lumotlarini qayta ishlash."""
+    import json as _json
+    msg = update.message
+    if not msg or not msg.web_app_data:
+        return TEMPLATE_SELECT
+    try:
+        data = _json.loads(msg.web_app_data.data)
+        template_num = int(data.get("template_num", 35))
+    except Exception:
+        await msg.reply_text("❌ Shablon ma'lumotlari noto'g'ri. Qayta urinib ko'ring.")
+        return TEMPLATE_SELECT
+    topic        = context.user_data.get("topic", "")
+    language     = context.user_data.get("language", "uz")
+    slide_count  = context.user_data.get("slide_count", 5)
+    name_surname = context.user_data.get("name_surname", "")
+    user_id      = msg.from_user.id
+    price        = SERVICE_PRICES['slayd']
+    chat_id      = msg.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda..."
+    )
+    stage1 = context.user_data.get("stage1_result", {})
+    plan_items   = stage1.get("plan", [])
+    slide_titles = stage1.get("slide_titles", [])
+    plan_dict = {"title": "Reja", "content": plan_items}
+    logger.info(f"Mini App: foydalanuvchi tanlagan shablon: {template_num}")
+    # template_selected mantiqini to'liq takrorlash
+    template_slide_type_names = {
+        1: SLIDE_TYPE_NAMES, 2: SLIDE_TYPE_NAMES, 3: SLIDE_TYPE_NAMES_T3,
+        4: SLIDE_TYPE_NAMES_T4, 5: SLIDE_TYPE_NAMES_T5, 6: SLIDE_TYPE_NAMES_T6,
+        7: SLIDE_TYPE_NAMES_T7, 8: SLIDE_TYPE_NAMES_T8, 9: SLIDE_TYPE_NAMES_T9,
+        10: SLIDE_TYPE_NAMES_T10, 11: SLIDE_TYPE_NAMES_T11, 12: SLIDE_TYPE_NAMES_T12,
+        13: SLIDE_TYPE_NAMES_T13, 14: SLIDE_TYPE_NAMES_T14, 15: SLIDE_TYPE_NAMES_T15,
+        16: SLIDE_TYPE_NAMES_T16, 17: SLIDE_TYPE_NAMES_T17, 18: SLIDE_TYPE_NAMES_T18,
+        19: SLIDE_TYPE_NAMES_T19, 20: SLIDE_TYPE_NAMES_T20, 21: SLIDE_TYPE_NAMES_T21,
+        22: SLIDE_TYPE_NAMES_T22, 23: SLIDE_TYPE_NAMES_T23, 24: SLIDE_TYPE_NAMES_T24,
+        25: SLIDE_TYPE_NAMES_T25, 26: SLIDE_TYPE_NAMES_T26, 27: SLIDE_TYPE_NAMES_T27,
+        28: SLIDE_TYPE_NAMES_T28, 29: SLIDE_TYPE_NAMES_T29, 30: SLIDE_TYPE_NAMES_T30,
+        31: SLIDE_TYPE_NAMES_T31, 32: SLIDE_TYPE_NAMES_T32, 33: SLIDE_TYPE_NAMES_T33,
+        34: SLIDE_TYPE_NAMES_T34, 35: SLIDE_TYPE_NAMES_ODDIY1, 36: SLIDE_TYPE_NAMES_ODDIY2,
+    }.get(template_num, SLIDE_TYPE_NAMES)
+    template_generate_func = {
+        1: generate_template_1_presentation, 2: generate_template_2_presentation,
+        3: generate_template_3_presentation, 4: generate_template_4_presentation,
+        5: generate_template_5_presentation, 6: generate_template_6_presentation,
+        7: generate_template_7_presentation, 8: generate_template_8_presentation,
+        9: generate_template_9_presentation, 10: generate_template_10_presentation,
+        11: generate_template_11_presentation, 12: generate_template_12_presentation,
+        13: generate_template_13_presentation, 14: generate_template_14_presentation,
+        15: generate_template_15_presentation, 16: generate_template_16_presentation,
+        17: generate_template_17_presentation, 18: generate_template_18_presentation,
+        19: generate_template_19_presentation, 20: generate_template_20_presentation,
+        21: generate_template_21_presentation, 22: generate_template_22_presentation,
+        23: generate_template_23_presentation, 24: generate_template_24_presentation,
+        25: generate_template_25_presentation, 26: generate_template_26_presentation,
+        27: generate_template_27_presentation, 28: generate_template_28_presentation,
+        29: generate_template_29_presentation, 30: generate_template_30_presentation,
+        31: generate_template_31_presentation, 32: generate_template_32_presentation,
+        33: generate_template_33_presentation, 34: generate_template_34_presentation,
+        35: generate_template_oddiy1_presentation, 36: generate_template_oddiy2_presentation,
+    }.get(template_num, generate_template_1_presentation)
+    try:
+        content_data_list = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
+        )
+        if not content_data_list:
+            await asyncio.sleep(2)
+            content_data_list = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_all_content(topic, slide_count, language, slide_titles, template_slide_type_names)
             )
-    else:
+        if not content_data_list:
+            raise ValueError("generate_all_content bo'sh qaytdi")
+        TEMPLATE_IMAGE_SLIDE_TYPES_WA = {
+            1:[2,4],2:[4],3:[3,4],4:[3],5:[0,3],6:[],7:[0,4],8:[0,2],
+            9:[1,2,3,4],10:[0,1,2,3,4],11:[1,2],12:[1,4],13:[0,1,3,4],
+            14:[0,1,2,3,4],15:[0,1,2,3,4],16:[0,1,2,3,4],17:[0,1,2,3,4],
+            18:[0,2,4],19:[0,1,2,3,4],20:[3,4],21:[],22:[2,3],
+            23:[0,1,2,3,4],24:[0,2,3],25:[0,1,2,3,4],26:[0,1,2,3,4],
+            27:[0,1,2],28:[1,2,3],29:[2,3],30:[2,4],31:[2,4],
+            32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],
+        }
+        image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES_WA.get(template_num, [])
+        image_queries = []
+        if image_slide_types:
+            for i, item in enumerate(content_data_list):
+                stype = i % 5
+                if stype in image_slide_types:
+                    q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
+                    if q:
+                        image_queries.append(q)
+        template_file_names = {35: 'oddiy1.pptx', 36: 'oddiy2.pptx'}
+        template_file = template_file_names.get(template_num, f"{template_num}.pptx")
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file)
+        prs = Presentation(template_path)
+        async def fetch_one_preview_wa(q):
+            urls = await asyncio.get_event_loop().run_in_executor(
+                None, lambda qq=q: fetch_image_preview_urls(qq, count=1)
+            )
+            return (q, urls[0]) if urls else None
+        pptx_task = asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: template_generate_func(
+                prs=prs, topic=topic, requested_slide_count=slide_count,
+                language=language, name_surname=name_surname,
+                plan=plan_dict, content_data_list=content_data_list, user_images=[],
+            )
+        )
+        image_tasks = [fetch_one_preview_wa(q) for q in image_queries]
+        results = await asyncio.gather(pptx_task, *image_tasks, return_exceptions=True)
+        presentation_bytes = results[0]
+        if isinstance(presentation_bytes, Exception):
+            raise presentation_bytes
+        preview_urls = [r for r in results[1:] if r is not None and not isinstance(r, Exception)]
+        safe_topic = "".join(c for c in topic[:30] if c.isalnum() or c in " _-").strip()
+        filename = f"{safe_topic or 'taqdimot'}.pptx"
+        context.user_data["pending_presentation"] = {
+            "bytes": presentation_bytes, "filename": filename,
+            "content_data_list": content_data_list, "template_num": template_num,
+            "template_generate_func_name": template_num,
+        }
+        context.user_data["pending_image_queries"] = image_queries
+        context.user_data["pending_preview_urls"] = preview_urls
+        context.user_data["collected_user_images"] = []
+        if not image_queries:
+            await context.bot.send_message(chat_id=chat_id, text="⏳ Taqdimot yuborilmoqda...")
+            await _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename)
+            return ConversationHandler.END
+        source_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🖼 O'z rasmlarimdan foydalanish", callback_data="img_source_user")],
+            [InlineKeyboardButton("🤖 Rasmlarni avtomatik tanlash", callback_data="img_source_auto")],
+        ])
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🎨 *Oddiy1 shablon* tanlandi.\n\nDavom etish uchun tugmani bosing:",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            text=(
+                f"🖼 *Taqdimot uchun rasmlar*\n\n"
+                f"📊 Bu shablonda *{len(image_queries)} ta rasm joyi* bor.\n\n"
+                f"Qanday rasm ishlatmoqchisiz?"
+            ),
+            reply_markup=source_keyboard, parse_mode="Markdown"
         )
-    return TEMPLATE_SELECT
+        return IMAGE_SOURCE_SELECT
+    except Exception as e:
+        logger.error(f"webapp_data_handler xatolik: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Prezentatsiya yaratishda xatolik yuz berdi:\n`{str(e)}`\n\nIltimos, qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(), parse_mode="Markdown"
+        )
+        return ConversationHandler.END
 
 async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Foydalanuvchi shablonni tanladi — taqdimot yaratiladi."""
@@ -6819,6 +6964,7 @@ def main() -> None:
             ],
             TEMPLATE_SELECT: [
                 CallbackQueryHandler(template_selected, pattern=r"^template_select_"),
+                MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IMAGE_SOURCE_SELECT: [
