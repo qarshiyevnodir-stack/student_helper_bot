@@ -1299,15 +1299,16 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     _tr = await topup_message_router(update, context)
     if _tr is not None:
         return _tr
-    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
-    # ReplyKeyboard ishlatiladi — sendData faqat KeyboardButton web_app da ishlaydi
-    stil_reply_keyboard = ReplyKeyboardMarkup(
-        [
-            [KeyboardButton("🪨 Silver stili", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
-            [KeyboardButton("🪧 Gold stili",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
+    # Inline tugmalar — to'liq kenglik, WebApp belgisi yo'q
+    stil_inline_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🪨 Silver stili", callback_data="open_stil_silver")],
+        [InlineKeyboardButton("🪧 Gold stili",   callback_data="open_stil_gold")],
+        [InlineKeyboardButton("⬅️ Orqaga",        callback_data="stil_back")],
+    ])
+    stil_text = (
+        "🎨 *STIL tanlang:*\n\n"
+        "🪨 *Silver:* Matnli stillar\n"
+        "🪧 *Gold:* Matn va tasvirli stillar"
     )
     if update.callback_query:
         query = update.callback_query
@@ -1315,20 +1316,17 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         context.user_data["name_surname"] = ""
         topic = context.user_data.get("topic", "")
         await query.edit_message_text(
-            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n🎨 *STIL tanlang:*",
+            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* —\n\n{stil_text}",
+            reply_markup=stil_inline_keyboard,
             parse_mode="Markdown"
-        )
-        await query.message.reply_text(
-            "👇 Quyidagi tugmalardan birini bosing:",
-            reply_markup=stil_reply_keyboard
         )
     else:
         name_surname = update.message.text.strip()
         context.user_data["name_surname"] = name_surname
         topic = context.user_data.get("topic", "")
         await update.message.reply_text(
-            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n🎨 *STIL tanlang:*",
-            reply_markup=stil_reply_keyboard,
+            f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname)}\n\n{stil_text}",
+            reply_markup=stil_inline_keyboard,
             parse_mode="Markdown"
         )
     return TEMPLATE_SELECT
@@ -1441,6 +1439,35 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
     # ── Reja tasdiqlandi: taqdimot yaratish ──
     return await webapp_data_handler_generate(update, context)
+
+async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Silver yoki Gold tugmasi bosilganda ReplyKeyboard bilan Mini App ochadi."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data  # open_stil_silver yoki open_stil_gold
+    if data == "stil_back":
+        # Orqaga — ism-familya qadamiga qaytish
+        await query.edit_message_text(
+            text="👤 *Ism-familiyangizni kiriting:*\n\n_(O'tkazib yuborish uchun pastdagi tugmani bosing)_",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭️ O'tkazib yuborish", callback_data="skip_name_surname")]
+            ]),
+            parse_mode="Markdown"
+        )
+        return NAME_SURNAME
+    WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
+    tab = "silver" if data == "open_stil_silver" else "gold"
+    webapp_keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton("🎨 Stilni tanlash", web_app=WebAppInfo(url=WEBAPP_BASE + f"?tab={tab}"))]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    await query.message.reply_text(
+        f"👇 Quyidagi tugmani bosib {'Silver' if tab == 'silver' else 'Gold'} stilni tanlang:",
+        reply_markup=webapp_keyboard
+    )
+    return TEMPLATE_SELECT
+
 
 async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mini App dan kelgan shablon tanlash ma'lumotlarini qayta ishlash."""
@@ -6990,6 +7017,7 @@ def main() -> None:
             ],
             TEMPLATE_SELECT: [
                 MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
+                CallbackQueryHandler(open_stil_handler, pattern=r"^open_stil_(silver|gold)$|^stil_back$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             SLIDE_COUNT: [
@@ -7477,6 +7505,7 @@ def main() -> None:
             CommandHandler("chekyubor", chekyubor_command),
             # WEB_APP_DATA — barcha state larda ishlashi uchun fallbacks da ham
             MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
+            CallbackQueryHandler(open_stil_handler, pattern=r"^open_stil_(silver|gold)$|^stil_back$"),
             # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
