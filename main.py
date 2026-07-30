@@ -1435,13 +1435,13 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     WEBAPP_URL = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(
-            "🎨 Shablon tanlash",
+            "🎨 Stil tanlash",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
     await context.bot.send_message(
         chat_id=chat_id,
-        text="🎨 *Shablon tanlang*\n\nQuyidagi tugmani bosib, taqdimot uchun shablon tanlang:",
+        text="🎨 *STIL tanlang*\n\n🥈 *Silver:* Matnli stillar\n🥇 *Gold:* Matn va tasvirli stillar\n\nQuyidagi tugmani bosib, taqdimot uchun stil tanlang:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
