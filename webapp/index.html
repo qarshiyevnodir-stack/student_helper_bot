@@ -201,10 +201,20 @@
 
   function confirmSelection() {
     if (!selectedNum) return;
-    tg.sendData(JSON.stringify({
+    const payload = JSON.stringify({
       template_num: selectedNum,
       template_key: selectedKey
-    }));
+    });
+    try {
+      tg.sendData(payload);
+    } catch(e) {
+      // fallback: MainButton orqali
+      tg.MainButton.setText('\u2705 Tanlash');
+      tg.MainButton.show();
+      tg.MainButton.onClick(function() {
+        tg.sendData(payload);
+      });
+    }
   }
 
   function goBack() {
