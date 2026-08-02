@@ -921,19 +921,28 @@ def generate_all_content(topic, slide_count, language, slide_titles, slide_type_
     for i, title in enumerate(slide_titles):
         stype = slide_type_names.get(i % 5, "image_left")
         if stype == "one_column":
-            fmt = f'{{"title": "{title}", "content": ["...", "...", "...", "..."], "image_query": "..."}}'
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "...", "..."], "image_query": "..."}'
             desc = "4-6 ta paragraf, har biri 2-3 jumla, matn blokini to'liq to'ldirsin"
+        elif stype == "four_columns":
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "...", "..."], "image_query": "..."}'
+            desc = "4 ta ALOHIDA paragraf (content massivida 4 ta element - HAMMASI MAJBURIY), har biri kamida 3-5 jumla, hech biri bo'sh qolmasin"
+        elif stype == "four_blocks":
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "...", "..."], "image_query": "..."}'
+            desc = "4 ta ALOHIDA blok (content massivida 4 ta element - HAMMASI MAJBURIY), har biri kamida 3-5 jumla, hech biri bo'sh qolmasin"
+        elif stype == "single_body":
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "..."], "image_query": "..."}'
+            desc = "3 ta paragraf, har biri 3-5 jumla, image_query inglizcha"
         elif stype == "three_columns":
-            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "col3": "...", "image_query": "..."}}'
-            desc = "3 ta ALOHIDA ustun (col1, col2, col3 — UCHALA MAJBURIY), har biri kamida 4-6 jumla, hech biri bo'sh qolmasin"
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "..."], "image_query": "..."}'
+            desc = "3 ta ALOHIDA paragraf (content massivida 3 ta element - UCHALA MAJBURIY), har biri kamida 4-6 jumla, hech biri bo'sh qolmasin"
         elif stype == "two_columns":
-            fmt = f'{{"title": "{title}", "col1": "...", "col2": "...", "image_query": "..."}}'
+            fmt = '{"title": "' + title + '", "content": ["...", "..."], "image_query": "..."}'
             desc = "2 ta ustun, har biri kamida 6-8 jumla, matn blokini to'ldirsin"
         elif stype in ("image_left", "image_right"):
-            fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
-            desc = "2 ta punkt, har biri 3-5 jumla, image_query inglizcha"
+            fmt = '{"title": "' + title + '", "content": ["...", "...", "..."], "image_query": "..."}'
+            desc = "3 ta punkt, har biri 3-5 jumla, image_query inglizcha"
         else:  # quote
-            fmt = f'{{"title": "{title}", "content": ["...", "..."], "image_query": "..."}}'
+            fmt = '{"title": "' + title + '", "content": ["...", "..."], "image_query": "..."}'
             desc = "2 ta paragraf, har biri 3-5 jumla"
         slides_info.append(f"  Slayd {i+1} ('{title}', format: {desc}): {fmt}")
 
@@ -15550,8 +15559,45 @@ def _pt_body(text, max_chars=200):
     return text[:max_chars].rsplit(' ', 1)[0] + '...'
 
 
-def fill_platinum_slide_1_cover(slide, topic, name_surname):
-    """1-slayd: Muqova — sarlavha (Text 0) + muallif (Text 1)."""
+def _pt_replace_blip(shape, img_path):
+    """Shape ichidagi blip (rasm) ni yangi rasm bilan almashtirish."""
+    try:
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        blips = shape._element.findall('.//a:blip', {'a': ns_a})
+        if not blips:
+            return False
+        blip = blips[0]
+        slide_part = shape.part
+        _, new_rId = slide_part.get_or_add_image_part(img_path)
+        blip.set(f'{{{ns_r}}}embed', new_rId)
+        return True
+    except Exception as e:
+        logging.warning(f'[PT] blip almashtirish xatoligi: {e}')
+    return False
+
+
+def _pt_fetch_and_replace(slide, image_name, image_query):
+    """Pixabay dan rasm yuklab, slide dagi image_name nomli shapega joylashtirish."""
+    try:
+        img_path = fetch_image(image_query)
+        if not img_path:
+            return
+        for s in slide.shapes:
+            if s.name == image_name:
+                _pt_replace_blip(s, img_path)
+                try:
+                    import os
+                    os.remove(img_path)
+                except Exception:
+                    pass
+                return
+    except Exception as e:
+        logging.warning(f'[PT] rasm yuklash xatoligi ({image_query}): {e}')
+
+
+def fill_platinum_slide_1_cover(slide, topic, name_surname, image_query=None):
+    """1-slayd: Muqova — sarlavha (Text 0) + muallif (Text 1) + rasm (Image 0)."""
     for s in slide.shapes:
         if not s.has_text_frame:
             continue
@@ -15560,20 +15606,39 @@ def fill_platinum_slide_1_cover(slide, topic, name_surname):
         elif s.name == 'Text 1':
             desc = name_surname if name_surname else 'Taqdimot'
             _pt_clear_write(s, desc, sz=13, bold=False, color='405449')
+    if image_query:
+        _pt_fetch_and_replace(slide, 'Image 0', image_query)
 
 
 def fill_platinum_slide_2_plan(slide, plan):
     """2-slayd: Reja — Text 23 x4 (top bo'yicha saralangan) reja elementlari."""
-    plan_items = plan if isinstance(plan, list) else []
+    import re
+    # plan dict yoki list bo'lishi mumkin
+    if isinstance(plan, dict):
+        plan_items = plan.get('content', plan.get('items', []))
+        if isinstance(plan_items, str):
+            plan_items = [plan_items]
+    elif isinstance(plan, list):
+        plan_items = plan
+    else:
+        plan_items = []
+    # Raqamli prefikslarni tozalash
+    clean_items = []
+    for item in plan_items:
+        if isinstance(item, str):
+            item_clean = re.sub(r'^\s*\d+[\.)\-]\s*', '', item.strip())
+            if item_clean:
+                clean_items.append(item_clean)
+    if not clean_items:
+        clean_items = ['Reja mavjud emas']
     # Text 23 shapes ni top koordinatasi bo'yicha saralash
     text23_shapes = sorted(
         [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23'],
         key=lambda s: s.top
     )
     for i, ts in enumerate(text23_shapes):
-        if i < len(plan_items):
-            item = plan_items[i]
-            text = item.lstrip('0123456789. ').strip() if isinstance(item, str) else str(item)
+        if i < len(clean_items):
+            text = f'{i + 1}. {clean_items[i]}'
             _pt_clear_write(ts, _pt_body(text, 120), sz=13, bold=False, color='3B4540')
         else:
             _pt_clear_write(ts, '', sz=13, bold=False, color='3B4540')
@@ -15584,6 +15649,7 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
     Har ustunda: odd = sarlavha, even = tavsif.
     Shablon shape nomlari: Text 3(sarlavha), Text 4(tavsif), Text 5(sarlavha), Text 6(tavsif),
                            Text 7(sarlavha), Text 8(tavsif), Text 9(sarlavha), Text 10(tavsif).
+    Rasmlar: Image 0-3 (4 ta rasm, har ustun uchun 1 ta).
     """
     items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
@@ -15603,10 +15669,17 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 20 if s.name == 'Text 2' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Rasmlarni almashtirish
+    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    if image_query:
+        for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
+            _pt_fetch_and_replace(slide, img_name, image_query)
 
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
-    """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun."""
+    """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun.
+    Rasmlar: Image 0-2 (3 ta rasm).
+    """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
         'Text 0': title,
@@ -15623,11 +15696,18 @@ def fill_platinum_slide_4_three_col(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 22 if s.name == 'Text 0' else (13 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Rasmlarni almashtirish
+    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    if image_query:
+        for img_name in ['Image 0', 'Image 1', 'Image 2']:
+            _pt_fetch_and_replace(slide, img_name, image_query)
 
 
 def fill_platinum_slide_5_image_left(slide, title, content_data):
     """5-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
-    (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band."""
+    (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band.
+    Rasmlar: Image 0 (asosiy chap rasm), Image 1-3 (kichik rasmlar).
+    """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
         'Text 0': title,
@@ -15644,10 +15724,17 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Rasmlarni almashtirish
+    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    if image_query:
+        for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
+            _pt_fetch_and_replace(slide, img_name, image_query)
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
-    """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok."""
+    """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok.
+    Rasmlar: Image 0-3 (4 ta rasm).
+    """
     items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
         'Text 0': title,
@@ -15666,12 +15753,19 @@ def fill_platinum_slide_6_four_blocks(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Rasmlarni almashtirish
+    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    if image_query:
+        for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
+            _pt_fetch_and_replace(slide, img_name, image_query)
 
 
 def fill_platinum_slide_7_conclusion(slide, title, content_data):
     """7-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
     (Text 2+Text 3), (Text 5+Text 6) — 2 ta karta blok;
-    (Text 8+Text 9) — keng pastki blok; Text 11 — xulosa matni."""
+    (Text 8+Text 9) — keng pastki blok; Text 11 — xulosa matni.
+    Rasmlar: Image 0 (asosiy chap rasm).
+    """
     items = _pt_extract_items_pairs(content_data, 3)
     # xulosa matni
     if isinstance(content_data, dict):
@@ -15700,13 +15794,19 @@ def fill_platinum_slide_7_conclusion(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 22 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Rasmlarni almashtirish
+    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    if image_query:
+        _pt_fetch_and_replace(slide, 'Image 0', image_query)
 
 
-def fill_platinum_slide_8_outro(slide):
-    """8-slayd: Outro — Text 1 ga E'tiboringiz uchun rahmat."""
+def fill_platinum_slide_8_outro(slide, topic=None):
+    """8-slayd: Outro — Text 1 ga E'tiboringiz uchun rahmat. Rasm: Image 0."""
     for s in slide.shapes:
         if s.has_text_frame and s.name == 'Text 1':
             _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
+    if topic:
+        _pt_fetch_and_replace(slide, 'Image 0', topic)
 
 
 def _pt_extract_items_pairs(content_data, count):
@@ -15795,9 +15895,10 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
     slides = prs.slides
     n = len(slides)
 
-    # 1-slayd: Muqova
+    # 1-slayd: Muqova (rasm ham yuklanadi)
     if n > 0:
-        fill_platinum_slide_1_cover(slides[0], topic, name_surname)
+        cover_image_query = topic  # muqova rasmi mavzu bo'yicha
+        fill_platinum_slide_1_cover(slides[0], topic, name_surname, image_query=cover_image_query)
 
     # 2-slayd: Reja
     if n > 1:
@@ -15824,9 +15925,9 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
         except Exception as e:
             logger.warning(f"platinum slide {slide_idx} fill xatolik: {e}")
 
-    # 8-slayd: Outro
+    # 8-slayd: Outro (rasm ham yuklanadi)
     if n > 0:
-        fill_platinum_slide_8_outro(slides[-1])
+        fill_platinum_slide_8_outro(slides[-1], topic=topic)
 
     buf = io.BytesIO()
     prs.save(buf)
