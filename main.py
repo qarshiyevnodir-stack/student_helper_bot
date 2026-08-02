@@ -1624,7 +1624,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
     price        = SERVICE_PRICES['slayd']
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"⏳ Shablon {template_num} tanlandi! Kontent yaratilmoqda..."
+        text="⏳ Taqdimot yaratilmoqda..."
     )
     stage1 = context.user_data.get("stage1_result", {})
     plan_items   = stage1.get("plan", [])
