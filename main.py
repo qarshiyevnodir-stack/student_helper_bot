@@ -46,6 +46,7 @@ from utils import (
     generate_template_oddiy1_presentation,
     generate_template_oddiy2_presentation,
     generate_template_platinum_presentation,
+    generate_template_gamma2_presentation,
     generate_plan_with_titles,
     generate_all_content,
     fetch_image_preview_urls,
@@ -86,6 +87,7 @@ from utils import (
     SLIDE_TYPE_NAMES_ODDIY1,
     SLIDE_TYPE_NAMES_ODDIY2,
     SLIDE_TYPE_NAMES_PLATINUM,
+    SLIDE_TYPE_NAMES_GAMMA2,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -1646,6 +1648,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
         31: SLIDE_TYPE_NAMES_T31, 32: SLIDE_TYPE_NAMES_T32, 33: SLIDE_TYPE_NAMES_T33,
         34: SLIDE_TYPE_NAMES_T34, 35: SLIDE_TYPE_NAMES_ODDIY1, 36: SLIDE_TYPE_NAMES_ODDIY2,
         37: SLIDE_TYPE_NAMES_PLATINUM,
+        38: SLIDE_TYPE_NAMES_GAMMA2,
     }.get(template_num, SLIDE_TYPE_NAMES)
     template_generate_func = {
         1: generate_template_1_presentation, 2: generate_template_2_presentation,
@@ -1667,6 +1670,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
         33: generate_template_33_presentation, 34: generate_template_34_presentation,
         35: generate_template_oddiy1_presentation, 36: generate_template_oddiy2_presentation,
         37: generate_template_platinum_presentation,
+        38: generate_template_gamma2_presentation,
     }.get(template_num, generate_template_1_presentation)
     try:
         content_data_list = await asyncio.get_event_loop().run_in_executor(
@@ -1688,7 +1692,9 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
             18:[0,2,4],19:[0,1,2,3,4],20:[3,4],21:[],22:[2,3],
             23:[0,1,2,3,4],24:[0,2,3],25:[0,1,2,3,4],26:[0,1,2,3,4],
             27:[0,1,2],28:[1,2,3],29:[2,3],30:[2,4],31:[2,4],
-            32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],37:[],  # platinum: rasm funksiya ichida yuklanadi
+            32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],
+            37:[],  # platinum: rasm funksiya ichida yuklanadi
+            38:[],  # gamma2: rasm funksiya ichida yuklanadi
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES_WA.get(template_num, [])
         image_queries = []
@@ -1699,7 +1705,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
                     q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
                     if q:
                         image_queries.append(q)
-        template_file_names = {35: 'oddiy1.pptx', 36: 'oddiy2.pptx', 37: 'platinum.pptx'}
+        template_file_names = {35: 'oddiy1.pptx', 36: 'oddiy2.pptx', 37: 'platinum.pptx', 38: 'gamma2.pptx'}
         template_file = template_file_names.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file)
         prs = Presentation(template_path)
@@ -1825,6 +1831,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         35: SLIDE_TYPE_NAMES_ODDIY1,
         36: SLIDE_TYPE_NAMES_ODDIY2,
         37: SLIDE_TYPE_NAMES_PLATINUM,
+        38: SLIDE_TYPE_NAMES_GAMMA2,
     }.get(template_num, SLIDE_TYPE_NAMES)
     template_generate_func = {
         1: generate_template_1_presentation,
@@ -1864,6 +1871,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         35: generate_template_oddiy1_presentation,
         36: generate_template_oddiy2_presentation,
         37: generate_template_platinum_presentation,
+        38: generate_template_gamma2_presentation,
     }.get(template_num, generate_template_1_presentation)
     logger.info(f"Foydalanuvchi tanlagan shablon: {template_num}")
     try:
@@ -1941,6 +1949,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             35: 'oddiy1.pptx',
             36: 'oddiy2.pptx',
             37: 'platinum.pptx',
+            38: 'gamma2.pptx',
         }
         template_file = template_file_names.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file)
@@ -2251,12 +2260,14 @@ async def _rebuild_and_send_presentation_with_user_images(
         35: generate_template_oddiy1_presentation,
         36: generate_template_oddiy2_presentation,
         37: generate_template_platinum_presentation,
+        38: generate_template_gamma2_presentation,
     }.get(template_num, generate_template_16_presentation)
     try:
         template_file_names2 = {
             35: 'oddiy1.pptx',
             36: 'oddiy2.pptx',
             37: 'platinum.pptx',
+            38: 'gamma2.pptx',
         }
         template_file2 = template_file_names2.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file2)
