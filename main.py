@@ -1688,7 +1688,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
             18:[0,2,4],19:[0,1,2,3,4],20:[3,4],21:[],22:[2,3],
             23:[0,1,2,3,4],24:[0,2,3],25:[0,1,2,3,4],26:[0,1,2,3,4],
             27:[0,1,2],28:[1,2,3],29:[2,3],30:[2,4],31:[2,4],
-            32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],37:[2],
+            32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],37:[],  # platinum: rasm funksiya ichida yuklanadi
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES_WA.get(template_num, [])
         image_queries = []
@@ -1922,7 +1922,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             34: [2, 3],    # T34: slayd5 img_left (idx 2), slayd6 img_right (idx 3) da rasm bor
             35: [],        # oddiy1: rasm joylari yo'q (faqat matnlar)
             36: [],        # oddiy2: rasm joylari yo'q (faqat fon rasmlari)
-            37: [2],       # platinum: 5-slayd (idx 2) da rasm bor
+            37: [],        # platinum: rasm funksiya ichida yuklanadi
         }
         image_slide_types = TEMPLATE_IMAGE_SLIDE_TYPES.get(template_num, [])
         image_queries = []
