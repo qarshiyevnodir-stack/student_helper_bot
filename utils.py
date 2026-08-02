@@ -15495,9 +15495,6 @@ SLIDE_TYPE_NAMES_PLATINUM = {
 def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
     """Platinum shablon uchun shape ga matn yozish."""
     from lxml import etree
-    from pptx.util import Pt
-    from pptx.dml.color import RGBColor
-    from pptx.enum.text import PP_ALIGN
 
     if not shape.has_text_frame:
         return
@@ -15521,7 +15518,7 @@ def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
         rPr.set('b', '1' if bold else '0')
     if color:
         solidFill = etree.SubElement(rPr, f'{{{nsA}}}solidFill')
-        srgbClr = etree.SubElement(solidFill, f'{{{nsA}}}srgbClr', attrib={'val': color.replace('#', '')})
+        etree.SubElement(solidFill, f'{{{nsA}}}srgbClr', attrib={'val': color.replace('#', '')})
 
     t_elem = etree.SubElement(r_elem, f'{{{nsA}}}t')
     t_elem.text = str(text) if text else ''
@@ -15533,132 +15530,175 @@ def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
         p_elem.insert(0, pPr)
 
 
-def _pt_get_text_shapes(slide):
-    """Slayddagi matn shakllari ro'yxatini qaytaradi (rasm va bo'sh shapes dan tashqari)."""
-    return [s for s in slide.shapes if s.has_text_frame]
+def _pt_short(text, max_chars=45):
+    """Matnni qisqartirish — sarlavha uchun."""
+    if not text:
+        return ''
+    text = str(text).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(' ', 1)[0] + '...'
+
+
+def _pt_body(text, max_chars=200):
+    """Matnni qisqartirish — body uchun."""
+    if not text:
+        return ''
+    text = str(text).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(' ', 1)[0] + '...'
 
 
 def fill_platinum_slide_1_cover(slide, topic, name_surname):
-    """1-slayd: Muqova — sarlavha (Text 0) + tavsif (Text 1)."""
+    """1-slayd: Muqova — sarlavha (Text 0) + muallif (Text 1)."""
     for s in slide.shapes:
         if not s.has_text_frame:
             continue
         if s.name == 'Text 0':
-            _pt_clear_write(s, topic, sz=32, bold=True, color='3B4540')
+            _pt_clear_write(s, topic, sz=30, bold=True, color='3B4540')
         elif s.name == 'Text 1':
-            desc = f"Taqdimot muallifi: {name_surname}" if name_surname else "Taqdimot"
-            _pt_clear_write(s, desc, sz=14, bold=False, color='405449')
+            desc = name_surname if name_surname else 'Taqdimot'
+            _pt_clear_write(s, desc, sz=13, bold=False, color='405449')
 
 
 def fill_platinum_slide_2_plan(slide, plan):
-    """2-slayd: Reja — Text 2 sarlavha, Text 23 x4 reja elementlari."""
+    """2-slayd: Reja — Text 23 x4 (top bo'yicha saralangan) reja elementlari."""
     plan_items = plan if isinstance(plan, list) else []
-    text23_shapes = [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23']
+    # Text 23 shapes ni top koordinatasi bo'yicha saralash
+    text23_shapes = sorted(
+        [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23'],
+        key=lambda s: s.top
+    )
     for i, ts in enumerate(text23_shapes):
         if i < len(plan_items):
             item = plan_items[i]
             text = item.lstrip('0123456789. ').strip() if isinstance(item, str) else str(item)
-            _pt_clear_write(ts, text, sz=13, bold=True, color='3B4540')
+            _pt_clear_write(ts, _pt_body(text, 120), sz=13, bold=False, color='3B4540')
+        else:
+            _pt_clear_write(ts, '', sz=13, bold=False, color='3B4540')
 
 
 def fill_platinum_slide_3_four_col(slide, title, content_data):
-    """3-slayd: Text 2 sarlavha; Text 3/4, Text 5/6, Text 7/8, Text 9/10 — 4 ta blok."""
-    items = _pt_extract_items(content_data, 4)
-    # Shape nomlari bo'yicha to'g'ridan-to'g'ri yozish
+    """3-slayd: Text 2 sarlavha; (Text 3+Text 4), (Text 5+Text 6), (Text 7+Text 8), (Text 9+Text 10) — 4 ta ustun.
+    Har ustunda: odd = sarlavha, even = tavsif.
+    Shablon shape nomlari: Text 3(sarlavha), Text 4(tavsif), Text 5(sarlavha), Text 6(tavsif),
+                           Text 7(sarlavha), Text 8(tavsif), Text 9(sarlavha), Text 10(tavsif).
+    """
+    items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
         'Text 2': title,
-        'Text 3': items[0][:40] if len(items) > 0 else '',
-        'Text 4': items[0] if len(items) > 0 else '',
-        'Text 5': items[1][:40] if len(items) > 1 else '',
-        'Text 6': items[1] if len(items) > 1 else '',
-        'Text 7': items[2][:40] if len(items) > 2 else '',
-        'Text 8': items[2] if len(items) > 2 else '',
-        'Text 9': items[3][:40] if len(items) > 3 else '',
-        'Text 10': items[3] if len(items) > 3 else '',
+        'Text 3': _pt_short(items[0][0], 35),
+        'Text 4': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 7': _pt_short(items[2][0], 35),
+        'Text 8': _pt_body(items[2][1], 150),
+        'Text 9': _pt_short(items[3][0], 35),
+        'Text 10': _pt_body(items[3][1], 150),
     }
+    title_shapes = {'Text 2', 'Text 3', 'Text 5', 'Text 7', 'Text 9'}
     for s in slide.shapes:
         if s.has_text_frame and s.name in name_map:
-            bold = s.name in ('Text 2', 'Text 3', 'Text 5', 'Text 7', 'Text 9')
-            sz = 22 if s.name == 'Text 2' else (12 if bold else 11)
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 2' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
 
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
-    """4-slayd: Text 0 sarlavha; Text 2/3, Text 4/5, Text 6/7 — 3 ta blok."""
-    items = _pt_extract_items(content_data, 3)
+    """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun."""
+    items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
         'Text 0': title,
-        'Text 2': items[0][:40] if len(items) > 0 else '',
-        'Text 3': items[0] if len(items) > 0 else '',
-        'Text 4': items[1][:40] if len(items) > 1 else '',
-        'Text 5': items[1] if len(items) > 1 else '',
-        'Text 6': items[2][:40] if len(items) > 2 else '',
-        'Text 7': items[2] if len(items) > 2 else '',
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 180),
+        'Text 4': _pt_short(items[1][0], 35),
+        'Text 5': _pt_body(items[1][1], 180),
+        'Text 6': _pt_short(items[2][0], 35),
+        'Text 7': _pt_body(items[2][1], 180),
     }
+    title_shapes = {'Text 0', 'Text 2', 'Text 4', 'Text 6'}
     for s in slide.shapes:
         if s.has_text_frame and s.name in name_map:
-            bold = s.name in ('Text 0', 'Text 2', 'Text 4', 'Text 6')
-            sz = 24 if s.name == 'Text 0' else (13 if bold else 11)
+            bold = s.name in title_shapes
+            sz = 22 if s.name == 'Text 0' else (13 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
 
 
 def fill_platinum_slide_5_image_left(slide, title, content_data):
-    """5-slayd: Image 0 (rasm), Text 0 sarlavha; Text 2/3, Text 4/5, Text 6/7 — 3 ta blok."""
-    items = _pt_extract_items(content_data, 3)
+    """5-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
+    (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band."""
+    items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
         'Text 0': title,
-        'Text 2': items[0][:40] if len(items) > 0 else '',
-        'Text 3': items[0] if len(items) > 0 else '',
-        'Text 4': items[1][:40] if len(items) > 1 else '',
-        'Text 5': items[1] if len(items) > 1 else '',
-        'Text 6': items[2][:40] if len(items) > 2 else '',
-        'Text 7': items[2] if len(items) > 2 else '',
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 120),
+        'Text 4': _pt_short(items[1][0], 35),
+        'Text 5': _pt_body(items[1][1], 120),
+        'Text 6': _pt_short(items[2][0], 35),
+        'Text 7': _pt_body(items[2][1], 120),
     }
+    title_shapes = {'Text 0', 'Text 2', 'Text 4', 'Text 6'}
     for s in slide.shapes:
         if s.has_text_frame and s.name in name_map:
-            bold = s.name in ('Text 0', 'Text 2', 'Text 4', 'Text 6')
-            sz = 22 if s.name == 'Text 0' else (12 if bold else 11)
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
-    """6-slayd: Text 0 sarlavha; Text 2/3, Text 5/6, Text 8/9, Text 11/12 — 4 ta blok."""
-    items = _pt_extract_items(content_data, 4)
+    """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok."""
+    items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
         'Text 0': title,
-        'Text 2': items[0][:40] if len(items) > 0 else '',
-        'Text 3': items[0] if len(items) > 0 else '',
-        'Text 5': items[1][:40] if len(items) > 1 else '',
-        'Text 6': items[1] if len(items) > 1 else '',
-        'Text 8': items[2][:40] if len(items) > 2 else '',
-        'Text 9': items[2] if len(items) > 2 else '',
-        'Text 11': items[3][:40] if len(items) > 3 else '',
-        'Text 12': items[3] if len(items) > 3 else '',
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 8': _pt_short(items[2][0], 35),
+        'Text 9': _pt_body(items[2][1], 150),
+        'Text 11': _pt_short(items[3][0], 35),
+        'Text 12': _pt_body(items[3][1], 150),
     }
+    title_shapes = {'Text 0', 'Text 2', 'Text 5', 'Text 8', 'Text 11'}
     for s in slide.shapes:
         if s.has_text_frame and s.name in name_map:
-            bold = s.name in ('Text 0', 'Text 2', 'Text 5', 'Text 8', 'Text 11')
-            sz = 22 if s.name == 'Text 0' else (12 if bold else 11)
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
 
 
 def fill_platinum_slide_7_conclusion(slide, title, content_data):
-    """7-slayd: Image 0 (rasm), Text 0 sarlavha; Text 2/3, Text 5/6, Text 8/9 — 3 ta blok + Text 11 xulosa."""
-    items = _pt_extract_items(content_data, 3)
+    """7-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
+    (Text 2+Text 3), (Text 5+Text 6) — 2 ta karta blok;
+    (Text 8+Text 9) — keng pastki blok; Text 11 — xulosa matni."""
+    items = _pt_extract_items_pairs(content_data, 3)
+    # xulosa matni
+    if isinstance(content_data, dict):
+        conclusion = content_data.get('conclusion', content_data.get('content', ''))
+        if isinstance(conclusion, list):
+            conclusion = ' '.join(str(x) for x in conclusion)
+        conclusion = _pt_body(str(conclusion), 200)
+    elif isinstance(content_data, str):
+        conclusion = _pt_body(content_data, 200)
+    else:
+        conclusion = title
+
     name_map = {
         'Text 0': title,
-        'Text 2': items[0][:40] if len(items) > 0 else '',
-        'Text 3': items[0] if len(items) > 0 else '',
-        'Text 5': items[1][:40] if len(items) > 1 else '',
-        'Text 6': items[1] if len(items) > 1 else '',
-        'Text 8': items[2][:40] if len(items) > 2 else '',
-        'Text 9': items[2] if len(items) > 2 else '',
-        'Text 11': title,
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 8': _pt_short(items[2][0], 35),
+        'Text 9': _pt_body(items[2][1], 150),
+        'Text 11': conclusion,
     }
+    title_shapes = {'Text 0', 'Text 2', 'Text 5', 'Text 8'}
     for s in slide.shapes:
         if s.has_text_frame and s.name in name_map:
-            bold = s.name in ('Text 0', 'Text 2', 'Text 5', 'Text 8')
-            sz = 24 if s.name == 'Text 0' else (13 if bold else 11)
+            bold = s.name in title_shapes
+            sz = 22 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
 
 
@@ -15669,8 +15709,65 @@ def fill_platinum_slide_8_outro(slide):
             _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
 
 
+def _pt_extract_items_pairs(content_data, count):
+    """content_data dan count ta (sarlavha, tavsif) juftligi ro'yxatini olish.
+    Sarlavha: matnning birinchi 3-4 so'zi (max 30 belgi).
+    Body: to'liq matn (max 150 belgi).
+    """
+    raw = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', content_data.get('col1', ''))
+        if isinstance(content, list):
+            raw = [str(x) for x in content]
+        elif isinstance(content, str):
+            raw = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+    elif isinstance(content_data, str):
+        raw = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+
+    pairs = []
+    for i in range(count):
+        if i < len(raw):
+            text = raw[i]
+            # Sarlavha: birinchi nuqtaga qadar yoki max 30 belgi
+            # Agar matnda nuqta bo'lsa, nuqtadan oldingi qism sarlavha
+            if '. ' in text:
+                first_sentence = text.split('. ')[0].strip()
+                if len(first_sentence) <= 25:
+                    title_part = first_sentence
+                else:
+                    # Birinchi 2-3 so'z, max 25 belgi
+                    words = first_sentence.split()
+                    title_part = ''
+                    for w in words[:4]:
+                        candidate = (title_part + ' ' + w).strip()
+                        if len(candidate) <= 25:
+                            title_part = candidate
+                        else:
+                            break
+                    if not title_part:
+                        title_part = words[0][:25]
+            else:
+                # Birinchi 2-3 so'z, max 25 belgi
+                words = text.split()
+                title_part = ''
+                for w in words[:4]:
+                    candidate = (title_part + ' ' + w).strip()
+                    if len(candidate) <= 25:
+                        title_part = candidate
+                    else:
+                        break
+                if not title_part:
+                    title_part = words[0][:25]
+            # Body: to'liq matn, max 160 belgi
+            body_part = text[:160] if len(text) > 160 else text
+            pairs.append((title_part, body_part))
+        else:
+            pairs.append(('', ''))
+    return pairs
+
+
 def _pt_extract_items(content_data, count):
-    """content_data dan count ta element ro'yxatini olish."""
+    """content_data dan count ta element ro'yxatini olish (legacy)."""
     items = []
     if isinstance(content_data, dict):
         content = content_data.get('content', content_data.get('col1', ''))
@@ -15682,7 +15779,6 @@ def _pt_extract_items(content_data, count):
     elif isinstance(content_data, str):
         sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
         items = sentences[:count]
-    # Yetarli element bo'lmasa bo'sh string bilan to'ldirish
     while len(items) < count:
         items.append('')
     return items
