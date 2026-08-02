@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shablon Tanlash</title>
+  <title>Stil Tanlash</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,10 +13,9 @@
       background: var(--tg-theme-bg-color, #f5f5f5);
       color: var(--tg-theme-text-color, #222);
       min-height: 100vh;
-      padding-bottom: 80px;
+      padding-bottom: 140px;
     }
 
-    /* ── Header ── */
     .header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       color: #fff;
@@ -27,103 +26,17 @@
       z-index: 100;
       box-shadow: 0 2px 12px rgba(0,0,0,0.3);
     }
-    .header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-    .header p {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 3px;
-    }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header p  { font-size: 12px; opacity: 0.75; margin-top: 3px; }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex;
-      background: #fff;
-      border-bottom: 2px solid #eee;
-      position: sticky;
-      top: 70px;
-      z-index: 99;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 13px 8px;
-      border: none;
-      background: transparent;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      color: #888;
-      transition: all 0.2s;
-      position: relative;
-    }
-    .tab-btn.active {
-      color: #0f3460;
-    }
-    .tab-btn.active::after {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 0; right: 0;
-      height: 3px;
-      background: #0f3460;
-      border-radius: 3px 3px 0 0;
-    }
-    .tab-btn .badge {
-      display: inline-block;
-      background: #e8f4fd;
-      color: #0f3460;
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 10px;
-      margin-left: 4px;
-      font-weight: 700;
-    }
-    .tab-btn.active .badge {
-      background: #0f3460;
-      color: #fff;
-    }
+    .content { padding: 16px; }
 
-    /* ── Tab panels ── */
-    .tab-panel { display: none; padding: 16px; }
-    .tab-panel.active { display: block; }
-
-    /* ── Package header ── */
-    .pkg-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      color: #fff;
-    }
-    .pkg-header.silver {
-      background: linear-gradient(135deg, #8e9eab, #b0bec5, #90a4ae);
-    }
-    .pkg-header.gold {
-      background: linear-gradient(135deg, #f7971e, #ffd200, #f7971e);
-      color: #333;
-    }
-    .pkg-icon { font-size: 26px; }
-    .pkg-title { font-size: 17px; font-weight: 700; }
-    .pkg-desc { font-size: 11px; opacity: 0.85; }
-
-    /* ── Grid ── */
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
 
-    /* ── Card ── */
     .card {
       background: #fff;
       border-radius: 12px;
@@ -147,9 +60,6 @@
       background: #0f3460;
       color: #fff;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 13px;
       font-weight: 700;
       line-height: 22px;
@@ -161,26 +71,20 @@
       object-fit: cover;
       display: block;
     }
-    .card-label {
-      padding: 7px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #333;
-      text-align: center;
-      background: #fafafa;
-      border-top: 1px solid #f0f0f0;
-    }
 
-    /* ── Bottom button ── */
     .bottom-bar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.95);
+      padding: 10px 16px 16px;
+      background: rgba(255,255,255,0.97);
       backdrop-filter: blur(8px);
       border-top: 1px solid #eee;
       z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
+
     .select-btn {
       width: 100%;
       padding: 15px;
@@ -192,7 +96,6 @@
       font-weight: 700;
       cursor: pointer;
       transition: opacity 0.2s;
-      letter-spacing: 0.3px;
     }
     .select-btn:disabled {
       background: #ccc;
@@ -200,137 +103,127 @@
     }
     .select-btn:not(:disabled):active { opacity: 0.85; }
 
-    /* ── Empty state ── */
-    .empty {
-      text-align: center;
-      padding: 40px 20px;
-      color: #aaa;
-      font-size: 14px;
+    .back-btn {
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      color: #555;
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .back-btn:active { background: #f0f0f0; }
+
+    #debug-info {
+      position: fixed;
+      top: 60px; left: 0; right: 0;
+      background: rgba(0,0,0,0.7);
+      color: #0f0;
+      font-size: 10px;
+      padding: 4px 8px;
+      z-index: 999;
+      display: none;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
 
+<div id="debug-info"></div>
+
 <div class="header">
-  <h1>🎨 Shablon Tanlash</h1>
-  <p>Taqdimot uchun shablon tanlang</p>
+  <h1>🎨 Stil Tanlash</h1>
+  <p>Taqdimot uchun stil tanlang</p>
 </div>
 
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('silver')">
-    🥈 Silver <span class="badge">2</span>
-  </button>
-  <button class="tab-btn" onclick="switchTab('gold')">
-    🥇 Gold <span class="badge">34</span>
-  </button>
+<div class="content">
+  <div class="grid" id="main-grid"></div>
 </div>
 
-<!-- ── Silver Tab ── -->
-<div id="tab-silver" class="tab-panel active">
-  <div class="pkg-header silver">
-    <span class="pkg-icon">🥈</span>
-    <div>
-      <div class="pkg-title">Silver Paket</div>
-      <div class="pkg-desc">Faqat matnli shablonlar — rasm yo'q</div>
-    </div>
-  </div>
-  <div class="grid">
-    <div class="card" onclick="selectTemplate('oddiy1', 35)" id="card-oddiy1">
-      <img src="images/silver/oddiy1.png" alt="Oddiy1 shablon" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy1'"/>
-      <div class="card-label">Oddiy 1</div>
-    </div>
-    <div class="card" onclick="selectTemplate('oddiy2', 36)" id="card-oddiy2">
-      <img src="images/silver/oddiy2.png" alt="Oddiy2 shablon" loading="lazy" onerror="this.style.background='#eee';this.alt='Oddiy2'"/>
-      <div class="card-label">Oddiy 2</div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Gold Tab ── -->
-<div id="tab-gold" class="tab-panel">
-  <div class="pkg-header gold">
-    <span class="pkg-icon">🥇</span>
-    <div>
-      <div class="pkg-title">Gold Paket</div>
-      <div class="pkg-desc">Dizaynli shablonlar — 34 ta variant</div>
-    </div>
-  </div>
-  <div class="grid-4" id="gold-grid">
-    <!-- JS tomonidan to'ldiriladi -->
-  </div>
-</div>
-
-<!-- ── Bottom bar ── -->
 <div class="bottom-bar">
   <button class="select-btn" id="select-btn" disabled onclick="confirmSelection()">
-    Shablon tanlang
+    Stil tanlang
   </button>
+  <button class="back-btn" onclick="goBack()">⬅️ Orqaga</button>
 </div>
 
 <script>
-  // ── Telegram WebApp init ──
   const tg = window.Telegram.WebApp;
   tg.ready();
   tg.expand();
 
+  // Debug
+  function dbg(msg) {
+    const el = document.getElementById('debug-info');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+
   let selectedKey = null;
   let selectedNum = null;
 
-  // ── Gold grid yaratish ──
-  const goldGrid = document.getElementById('gold-grid');
-  for (let i = 1; i <= 34; i++) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tab = urlParams.get('tab') || 'silver';
+
+  const grid = document.getElementById('main-grid');
+
+  function buildCard(key, num, imgSrc) {
     const card = document.createElement('div');
     card.className = 'card';
-    card.id = `card-${i}`;
-    card.onclick = () => selectTemplate(i, i);
-    card.innerHTML = `
-      <img src="images/gold/${i}.png" alt="Shablon ${i}" loading="lazy"
-           onerror="this.style.background='#eee';this.style.height='80px'"/>
-      <div class="card-label">Shablon ${i}</div>
-    `;
-    goldGrid.appendChild(card);
+    card.id = 'card-' + key;
+    card.onclick = function() { selectTemplate(key, num); };
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.alt = 'Stil ' + num;
+    img.loading = 'lazy';
+    img.onerror = function() {
+      this.style.background = '#ddd';
+      this.style.height = '80px';
+    };
+    card.appendChild(img);
+    grid.appendChild(card);
   }
 
-  // ── Tab almashtirish ──
-  function switchTab(tab) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
-    event.currentTarget.classList.add('active');
+  if (tab === 'silver') {
+    buildCard('oddiy1', 35, 'images/silver/oddiy1.png');
+    buildCard('oddiy2', 36, 'images/silver/oddiy2.png');
+  } else if (tab === 'platinum') {
+    buildCard('platinum1', 37, 'images/platinum/platinum1.png');
+  } else {
+    for (var i = 1; i <= 34; i++) {
+      buildCard(i, i, 'images/gold/' + i + '.png');
+    }
   }
 
-  // ── Shablon tanlash ──
   function selectTemplate(key, num) {
-    // Avvalgi tanlovni tozalash
-    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
-
+    var cards = document.querySelectorAll('.card');
+    for (var c = 0; c < cards.length; c++) {
+      cards[c].classList.remove('selected');
+    }
     selectedKey = key;
     selectedNum = num;
-
-    // Yangi tanlovni belgilash
-    const cardId = typeof key === 'number' ? `card-${key}` : `card-${key}`;
-    const card = document.getElementById(cardId);
+    var card = document.getElementById('card-' + key);
     if (card) card.classList.add('selected');
-
-    // Tugmani faollashtirish
-    const btn = document.getElementById('select-btn');
-    const label = typeof key === 'string'
-      ? (key === 'oddiy1' ? 'Oddiy 1' : 'Oddiy 2')
-      : `Shablon ${key}`;
+    var btn = document.getElementById('select-btn');
     btn.disabled = false;
-    btn.textContent = `✅ ${label} — Tanlash`;
-
-    // Haptic feedback
+    btn.textContent = '✅ Tanlash';
     if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
   }
 
-  // ── Tasdiqlash ──
   function confirmSelection() {
     if (!selectedNum) return;
-    tg.sendData(JSON.stringify({
+    var payload = JSON.stringify({
       template_num: selectedNum,
-      template_key: selectedKey
-    }));
+      template_key: String(selectedKey)
+    });
+    dbg('Sending: ' + payload);
+    tg.sendData(payload);
+  }
+
+  function goBack() {
+    tg.close();
   }
 </script>
 </body>
