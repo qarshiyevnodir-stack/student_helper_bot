@@ -15611,8 +15611,14 @@ def fill_platinum_slide_1_cover(slide, topic, name_surname, image_query=None):
 
 
 def fill_platinum_slide_2_plan(slide, plan):
-    """2-slayd: Reja — Text 23 x4 (top bo'yicha saralangan) reja elementlari."""
+    """2-slayd: Reja.
+    - Text 23 x4: reja matni (raqamsiz, faqat matn)
+    - Text 6 (=1), Text 11 (=2), Text 16 (=3), Text 21 (=4): yashil raqam bloklari
+    - Shape 3/4/5, Shape 9/10, Shape 14/15, Shape 19/20: bezak shakllari
+    Reja soni < 4 bo'lsa, ortiqcha yashil raqam bloklari va bezak shakllari yashiriladi.
+    """
     import re
+    from lxml import etree
     # plan dict yoki list bo'lishi mumkin
     if isinstance(plan, dict):
         plan_items = plan.get('content', plan.get('items', []))
@@ -15631,17 +15637,47 @@ def fill_platinum_slide_2_plan(slide, plan):
                 clean_items.append(item_clean)
     if not clean_items:
         clean_items = ['Reja mavjud emas']
+    plan_count = len(clean_items)
+
     # Text 23 shapes ni top koordinatasi bo'yicha saralash
     text23_shapes = sorted(
         [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23'],
         key=lambda s: s.top
     )
     for i, ts in enumerate(text23_shapes):
-        if i < len(clean_items):
-            text = f'{i + 1}. {clean_items[i]}'
-            _pt_clear_write(ts, _pt_body(text, 120), sz=13, bold=False, color='3B4540')
+        if i < plan_count:
+            # Faqat matn yoz, raqam qo'shma (yashil raqam bloki allaqachon shablon ichida bor)
+            _pt_clear_write(ts, _pt_body(clean_items[i], 120), sz=13, bold=False, color='3B4540')
         else:
+            # Bo'sh qil
             _pt_clear_write(ts, '', sz=13, bold=False, color='3B4540')
+
+    # Yashil raqam bloklari va bezak shakllarini reja soniga moslashtirish
+    # Har bir reja elementi uchun shape guruhlari:
+    # 1-element: Text 6, Shape 3, Shape 4, Shape 5
+    # 2-element: Text 11, Shape 9, Shape 10
+    # 3-element: Text 16, Shape 14, Shape 15
+    # 4-element: Text 21, Shape 19, Shape 20
+    plan_shape_groups = [
+        ['Text 6', 'Shape 3', 'Shape 4', 'Shape 5'],
+        ['Text 11', 'Shape 9', 'Shape 10'],
+        ['Text 16', 'Shape 14', 'Shape 15'],
+        ['Text 21', 'Shape 19', 'Shape 20'],
+    ]
+    # Reja sonidan ortiqcha shape larni XML dan o'chirish
+    shapes_to_remove = []
+    for group_idx, group_names in enumerate(plan_shape_groups):
+        if group_idx >= plan_count:
+            for shape in slide.shapes:
+                if shape.name in group_names:
+                    shapes_to_remove.append(shape)
+    for shape in shapes_to_remove:
+        try:
+            sp = shape._element
+            sp.getparent().remove(sp)
+        except Exception as e:
+            import logging
+            logging.warning(f'[PT plan] shape o\'chirish xatoligi {shape.name}: {e}')
 
 
 def fill_platinum_slide_3_four_col(slide, title, content_data):
@@ -15862,7 +15898,19 @@ def _pt_extract_items_pairs(content_data, count):
             body_part = text[:160] if len(text) > 160 else text
             pairs.append((title_part, body_part))
         else:
-            pairs.append(('', ''))
+            # Agar element yo'q bo'lsa, mavjud elementlardan birini qayta ishlatish
+            if pairs:
+                # Oxirgi mavjud elementni qayta ishlatish
+                pairs.append(pairs[-1])
+            elif raw:
+                # raw dan birinchi elementni ishlatish
+                text = raw[0]
+                words = text.split()
+                title_part = ' '.join(words[:3])[:25] if words else 'Ma\'lumot'
+                body_part = text[:160]
+                pairs.append((title_part, body_part))
+            else:
+                pairs.append(('', ''))
     return pairs
 
 
@@ -15879,8 +15927,12 @@ def _pt_extract_items(content_data, count):
     elif isinstance(content_data, str):
         sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
         items = sentences[:count]
+    # Bo'sh elementlar uchun fallback: oxirgi mavjud elementni qayta ishlatish
     while len(items) < count:
-        items.append('')
+        if items:
+            items.append(items[-1])
+        else:
+            items.append('Ma\'lumot mavjud emas')
     return items
 
 
