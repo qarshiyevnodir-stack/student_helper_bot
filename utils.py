@@ -15475,3 +15475,310 @@ def generate_template_oddiy2_presentation(prs, topic, requested_slide_count, lan
     output = io.BytesIO()
     prs.save(output)
     return output.getvalue()
+
+
+# ============================================================
+# PLATINUM SHABLON (template_num=37) — Gamma Premium uslubi
+# Slaydlar: 1-muqova, 2-reja, 3-4-ustunli, 4-3-ustunli,
+#           5-chap rasm+o'ng matn, 6-4-blokli, 7-xulosa, 8-outro
+# ============================================================
+
+SLIDE_TYPE_NAMES_PLATINUM = {
+    0: 'single_body',
+    1: 'four_columns',
+    2: 'three_columns',
+    3: 'image_left',
+    4: 'four_blocks',
+}
+
+
+def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
+    """Platinum shablon uchun shape ga matn yozish."""
+    from lxml import etree
+    from pptx.util import Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+
+    if not shape.has_text_frame:
+        return
+    tf = shape.text_frame
+    tf.word_wrap = True
+    txBody = tf._txBody
+    nsA = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    # Barcha paragraflarni tozalash
+    for p in txBody.findall(f'{{{nsA}}}p'):
+        txBody.remove(p)
+
+    # Yangi paragraf yaratish
+    p_elem = etree.SubElement(txBody, f'{{{nsA}}}p')
+    r_elem = etree.SubElement(p_elem, f'{{{nsA}}}r')
+    rPr = etree.SubElement(r_elem, f'{{{nsA}}}rPr', attrib={'lang': 'uz-UZ', 'dirty': '0'})
+
+    if sz:
+        rPr.set('sz', str(int(sz * 100)))
+    if bold is not None:
+        rPr.set('b', '1' if bold else '0')
+    if color:
+        solidFill = etree.SubElement(rPr, f'{{{nsA}}}solidFill')
+        srgbClr = etree.SubElement(solidFill, f'{{{nsA}}}srgbClr', attrib={'val': color.replace('#', '')})
+
+    t_elem = etree.SubElement(r_elem, f'{{{nsA}}}t')
+    t_elem.text = str(text) if text else ''
+
+    if align:
+        pPr = etree.Element(f'{{{nsA}}}pPr')
+        algn_map = {'center': 'ctr', 'left': 'l', 'right': 'r', 'ctr': 'ctr', 'l': 'l'}
+        pPr.set('algn', algn_map.get(align, 'l'))
+        p_elem.insert(0, pPr)
+
+
+def _pt_get_text_shapes(slide):
+    """Slayddagi matn shakllari ro'yxatini qaytaradi (rasm va bo'sh shapes dan tashqari)."""
+    return [s for s in slide.shapes if s.has_text_frame]
+
+
+def fill_platinum_slide_1_cover(slide, topic, name_surname):
+    """1-slayd: Muqova — sarlavha + tavsif."""
+    shapes = _pt_get_text_shapes(slide)
+    if len(shapes) >= 1:
+        _pt_clear_write(shapes[0], topic, sz=32, bold=True, color='3B4540')
+    if len(shapes) >= 2:
+        desc = f"Taqdimot muallifi: {name_surname}" if name_surname else "Taqdimot"
+        _pt_clear_write(shapes[1], desc, sz=14, bold=False, color='405449')
+
+
+def fill_platinum_slide_2_plan(slide, plan):
+    """2-slayd: Reja — numbered list."""
+    shapes = _pt_get_text_shapes(slide)
+    # 1-shape: "Reja" sarlavhasi
+    if shapes:
+        _pt_clear_write(shapes[0], "Reja", sz=28, bold=True, color='3B4540', align='center')
+
+    # Numbered items — 4 ta alohida shape (index 5,8,11,14 — Text 23 shapes)
+    # Gamma da reja elementlari alohida Text 23 shapelarda
+    plan_items = plan if isinstance(plan, list) else []
+    # Reja matn shapelari — "1","2","3","4" raqamlaridan keyingi katta matn shapelari
+    text_shapes = [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23']
+    for i, ts in enumerate(text_shapes):
+        if i < len(plan_items):
+            item = plan_items[i]
+            if isinstance(item, str):
+                # "1. Sarlavha" formatidan sarlavhani olish
+                text = item.lstrip('0123456789. ').strip()
+            else:
+                text = str(item)
+            _pt_clear_write(ts, text, sz=13, bold=True, color='3B4540')
+
+
+def fill_platinum_slide_3_four_col(slide, title, content_data):
+    """3-slayd: 4-ustunli karta — sarlavha + 4 ta kichik blok."""
+    shapes = _pt_get_text_shapes(slide)
+    if not shapes:
+        return
+
+    # 1-shape: sarlavha
+    _pt_clear_write(shapes[0], title, sz=22, bold=True, color='3B4540')
+
+    # Kontent — 4 ta ustun uchun
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', content_data.get('col1', ''))
+        if isinstance(content, list):
+            items = content[:4]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:4]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:4]
+
+    # Sarlavhalar va tavsiflar — juft shapes (sarlavha + matn)
+    content_shapes = shapes[1:]
+    for i in range(0, min(len(content_shapes) - 1, 8), 2):
+        idx = i // 2
+        if idx < len(items):
+            item_text = str(items[idx])
+            # Sarlavha
+            _pt_clear_write(content_shapes[i], item_text[:40], sz=12, bold=True, color='3B4540')
+            # Tavsif
+            if i + 1 < len(content_shapes):
+                _pt_clear_write(content_shapes[i + 1], item_text, sz=11, bold=False, color='405449')
+
+
+def fill_platinum_slide_4_three_col(slide, title, content_data):
+    """4-slayd: 3-ustunli — sarlavha + 3 ta blok."""
+    shapes = _pt_get_text_shapes(slide)
+    if not shapes:
+        return
+
+    _pt_clear_write(shapes[0], title, sz=24, bold=True, color='3B4540')
+
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', '')
+        if isinstance(content, list):
+            items = content[:3]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:3]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:3]
+
+    content_shapes = shapes[1:]
+    for i in range(0, min(len(content_shapes) - 1, 6), 2):
+        idx = i // 2
+        if idx < len(items):
+            item_text = str(items[idx])
+            _pt_clear_write(content_shapes[i], item_text[:35], sz=13, bold=True, color='3B4540')
+            if i + 1 < len(content_shapes):
+                _pt_clear_write(content_shapes[i + 1], item_text, sz=11, bold=False, color='405449')
+
+
+def fill_platinum_slide_5_image_left(slide, title, content_data):
+    """5-slayd: Chap rasm + o'ng matn — 3 ta matn bloki."""
+    shapes = _pt_get_text_shapes(slide)
+    if not shapes:
+        return
+
+    _pt_clear_write(shapes[0], title, sz=22, bold=True, color='3B4540')
+
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', '')
+        if isinstance(content, list):
+            items = content[:3]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:3]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:3]
+
+    # 3 ta blok: har biri sarlavha + matn
+    content_shapes = shapes[1:]
+    for i in range(0, min(len(content_shapes) - 1, 6), 2):
+        idx = i // 2
+        if idx < len(items):
+            item_text = str(items[idx])
+            _pt_clear_write(content_shapes[i], item_text[:35], sz=12, bold=True, color='3B4540')
+            if i + 1 < len(content_shapes):
+                _pt_clear_write(content_shapes[i + 1], item_text, sz=11, bold=False, color='405449')
+
+
+def fill_platinum_slide_6_four_blocks(slide, title, content_data):
+    """6-slayd: 4-blokli grid — sarlavha + 4 ta kichik blok."""
+    shapes = _pt_get_text_shapes(slide)
+    if not shapes:
+        return
+
+    _pt_clear_write(shapes[0], title, sz=22, bold=True, color='3B4540')
+
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', '')
+        if isinstance(content, list):
+            items = content[:4]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:4]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:4]
+
+    content_shapes = shapes[1:]
+    for i in range(0, min(len(content_shapes) - 1, 8), 2):
+        idx = i // 2
+        if idx < len(items):
+            item_text = str(items[idx])
+            _pt_clear_write(content_shapes[i], item_text[:35], sz=12, bold=True, color='3B4540')
+            if i + 1 < len(content_shapes):
+                _pt_clear_write(content_shapes[i + 1], item_text, sz=11, bold=False, color='405449')
+
+
+def fill_platinum_slide_7_conclusion(slide, title, content_data):
+    """7-slayd: Xulosa — sarlavha + 2-3 ta blok."""
+    shapes = _pt_get_text_shapes(slide)
+    if not shapes:
+        return
+
+    _pt_clear_write(shapes[0], title, sz=24, bold=True, color='3B4540')
+
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', '')
+        if isinstance(content, list):
+            items = content[:3]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:3]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:3]
+
+    content_shapes = shapes[1:]
+    for i in range(0, min(len(content_shapes) - 1, 6), 2):
+        idx = i // 2
+        if idx < len(items):
+            item_text = str(items[idx])
+            _pt_clear_write(content_shapes[i], item_text[:40], sz=13, bold=True, color='3B4540')
+            if i + 1 < len(content_shapes):
+                _pt_clear_write(content_shapes[i + 1], item_text, sz=11, bold=False, color='405449')
+
+
+def fill_platinum_slide_8_outro(slide):
+    """8-slayd: Outro — E'tiboringiz uchun rahmat."""
+    shapes = _pt_get_text_shapes(slide)
+    for s in shapes:
+        _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
+
+
+def generate_template_platinum_presentation(prs, topic, requested_slide_count, language,
+                                             name_surname, plan, content_data_list,
+                                             user_images=None):
+    """Platinum (Gamma uslubi) shablon asosida taqdimot yaratish."""
+    import io
+    import logging
+    logger = logging.getLogger(__name__)
+
+    slides = prs.slides
+    n = len(slides)
+
+    # 1-slayd: Muqova
+    if n > 0:
+        fill_platinum_slide_1_cover(slides[0], topic, name_surname)
+
+    # 2-slayd: Reja
+    if n > 1:
+        fill_platinum_slide_2_plan(slides[1], plan)
+
+    # Kontent slaydlari (3-7, index 2-6)
+    fill_funcs = [
+        fill_platinum_slide_3_four_col,    # 0
+        fill_platinum_slide_4_three_col,   # 1
+        fill_platinum_slide_5_image_left,  # 2
+        fill_platinum_slide_6_four_blocks, # 3
+        fill_platinum_slide_7_conclusion,  # 4
+    ]
+
+    for i, data in enumerate(content_data_list):
+        slide_idx = i + 2
+        if slide_idx >= n - 1:
+            break
+        slide = slides[slide_idx]
+        func = fill_funcs[i % len(fill_funcs)]
+        title = data.get('title', topic) if isinstance(data, dict) else topic
+        try:
+            func(slide, title, data)
+        except Exception as e:
+            logger.warning(f"platinum slide {slide_idx} fill xatolik: {e}")
+
+    # 8-slayd: Outro
+    if n > 0:
+        fill_platinum_slide_8_outro(slides[-1])
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
