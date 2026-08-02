@@ -1351,17 +1351,17 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # ReplyKeyboard — to'g'ridan-to'g'ri Mini App ochiladi (sendData uchun shart)
     stil_keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton("🥈 SILVER", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
-            [KeyboardButton("🥇 GOLD",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
-            [KeyboardButton("💎 PLATINUM", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
+            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
+            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
+            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
     )
     stil_text = (
         "🎨 *STIL tanlang:*\n\n"
-        "🥈 *SILVER:* Matnli stillar\n"
-        "🥇 *GOLD:* Matn va tasvirli stillar\n"
+        "💎 *SILVER:* Matnli stillar\n"
+        "💎 *GOLD:* Matn va tasvirli stillar\n"
         "💎 *PLATINUM:* Premium Gamma uslubi"
     )
     if update.callback_query:
@@ -1503,17 +1503,17 @@ async def orqaga_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     stil_keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton("🥈 SILVER", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
-            [KeyboardButton("🥇 GOLD",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
-            [KeyboardButton("💎 PLATINUM", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
+            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
+            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
+            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
     stil_text = (
         "🎨 *STIL tanlang:*\n\n"
-        "🥈 *SILVER:* Matnli stillar\n"
-        "🥇 *GOLD:* Matn va tasvirli stillar\n"
+        "💎 *SILVER:* Matnli stillar\n"
+        "💎 *GOLD:* Matn va tasvirli stillar\n"
         "💎 *PLATINUM:* Premium Gamma uslubi"
     )
     topic = context.user_data.get("topic", "")
