@@ -1353,9 +1353,9 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # ReplyKeyboard — to'g'ridan-to'g'ri Mini App ochiladi (sendData uchun shart)
     stil_keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
-            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
-            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
+            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=silver"))],
+            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=gold"))],
+            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=platinum"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -1505,9 +1505,9 @@ async def orqaga_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     WEBAPP_BASE = "https://qarshiyevnodir-stack.github.io/student_helper_bot/"
     stil_keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=silver"))],
-            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=gold"))],
-            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?tab=platinum"))],
+            [KeyboardButton("💎 SILVER 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=silver"))],
+            [KeyboardButton("💎 GOLD 💎",   web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=gold"))],
+            [KeyboardButton("💎 PLATINUM 💎", web_app=WebAppInfo(url=WEBAPP_BASE + "?v=2&tab=platinum"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
@@ -1550,7 +1550,7 @@ async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     label = "Silver stili" if tab == "silver" else "Gold stili"
     webapp_keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton(label, web_app=WebAppInfo(url=WEBAPP_BASE + f"?tab={tab}"))],
+            [KeyboardButton(label, web_app=WebAppInfo(url=WEBAPP_BASE + f"?v=2&tab={tab}"))],
             [KeyboardButton("⬅️ Orqaga")],
         ],
         resize_keyboard=True,
