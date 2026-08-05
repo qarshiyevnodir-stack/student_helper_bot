@@ -1031,37 +1031,51 @@ def generate_all_content(topic, slide_count, language, slide_titles, slide_type_
         f"{{\"slides\": [{{...}}, {{...}}, ...]}}"
     )
 
-    # Slayd soniga qarab max_tokens hisoblash
-    max_tok_map = {5: 2000, 10: 3500, 15: 5000, 20: 6500, 25: 8000, 30: 10000}
-    max_tok = max_tok_map.get(len(slide_titles), 4000)
+    # Slayd soniga qarab max_tokens hisoblash (oshirildi)
+    max_tok_map = {5: 3000, 10: 6000, 15: 9000, 20: 12000, 25: 15000, 30: 16000}
+    max_tok = max_tok_map.get(len(slide_titles), max(6000, len(slide_titles) * 600))
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            max_tokens=max_tok,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Siz taqdimot slaydlari uchun kontent yaratuvchi mutaxasssissiz. "
-                        "Faqat JSON formatida javob bering. "
-                        "Har bir slayd uchun batafsil, ma'lumotli, to'liq matn yozing — "
-                        "matnlarni qisqartirma, har bir ustun/paragraf uchun kamida 3-5 jumla yoz. "
-                        "image_query har doim ingliz tilida bo'lsin."
-                    )
-                },
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        result = json.loads(response.choices[0].message.content)
-        slides = result.get("slides", [])
-        logging.info(f"2-bosqich tayyor: {len(slides)} slayd kontent")
-        return slides
-    except Exception as e:
-        logging.error(f"generate_all_content xatolik: {type(e).__name__}: {e}")
-        logging.error(traceback.format_exc())
-        return None
+    for _attempt in range(2):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4.1-mini",
+                max_tokens=max_tok,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Siz taqdimot slaydlari uchun kontent yaratuvchi mutaxasssissiz. "
+                            "Faqat JSON formatida javob bering. "
+                            "Har bir slayd uchun batafsil, ma'lumotli, to'liq matn yozing. "
+                            "image_query har doim ingliz tilida bo'lsin. "
+                            "JSON ni to'liq yozing, oxirida }]} bilan yoping."
+                        )
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            raw = response.choices[0].message.content
+            # finish_reason tekshirish
+            finish = response.choices[0].finish_reason
+            if finish == 'length':
+                logging.warning(f"generate_all_content: finish_reason=length, max_tok={max_tok}, urinish={_attempt+1}")
+                max_tok = min(max_tok + 4000, 16000)
+                continue
+            result = json.loads(raw)
+            slides = result.get("slides", [])
+            logging.info(f"2-bosqich tayyor: {len(slides)} slayd kontent")
+            return slides
+        except json.JSONDecodeError as e:
+            logging.warning(f"generate_all_content JSON xatolik (urinish {_attempt+1}): {e}")
+            max_tok = min(max_tok + 4000, 16000)
+            continue
+        except Exception as e:
+            logging.error(f"generate_all_content xatolik: {type(e).__name__}: {e}")
+            logging.error(traceback.format_exc())
+            return None
+    logging.error("generate_all_content: 2 urinishdan keyin ham muvaffaqiyatsiz")
+    return None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -15819,7 +15833,7 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
     """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun.
-    Rasmlar: Image 0-2 (3 ta SVG ikonka) — FON sifatida o'zgarishsiz qoladi, almastirilmaydi.
+    Yangi shablonda rasm yo'q — faqat matn yoziladi.
     """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
@@ -15843,8 +15857,7 @@ def fill_platinum_slide_4_three_col(slide, title, content_data):
 def fill_platinum_slide_5_image_left(slide, title, content_data):
     """5-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
     (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band.
-    Rasmlar: Image 0 (asosiy chap JPEG rasm — almastiriladi),
-             Image 1-3 (SVG fon belgilar — o'zgarishsiz qoladi).
+    Yangi shablonda faqat Image 0 (asosiy chap JPEG rasm) almastiriladi.
     """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
@@ -15871,7 +15884,7 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
     """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok.
-    Rasmlar: Image 0-3 (4 ta kichik SVG ikonka) — FON sifatida o'zgarishsiz qoladi, almastirilmaydi.
+    Yangi shablonda rasm yo'q — faqat matn yoziladi.
     """
     items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
