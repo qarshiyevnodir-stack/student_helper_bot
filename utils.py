@@ -15819,7 +15819,7 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
     """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun.
-    Rasmlar: Image 0-2 (3 ta rasm).
+    Rasmlar: Image 0-2 (3 ta SVG ikonka) — FON sifatida o'zgarishsiz qoladi, almastirilmaydi.
     """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
@@ -15837,17 +15837,14 @@ def fill_platinum_slide_4_three_col(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 22 if s.name == 'Text 0' else (13 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
-    # Rasmlarni almashtirish
-    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
-    if image_query:
-        for img_name in ['Image 0', 'Image 1', 'Image 2']:
-            _pt_fetch_and_replace(slide, img_name, image_query)
+    # Image 0-2 SVG ikonkalar — fon sifatida o'zgarishsiz qoladi (almastirilmaydi)
 
 
 def fill_platinum_slide_5_image_left(slide, title, content_data):
     """5-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
     (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band.
-    Rasmlar: Image 0 (asosiy chap rasm), Image 1-3 (kichik rasmlar).
+    Rasmlar: Image 0 (asosiy chap JPEG rasm — almastiriladi),
+             Image 1-3 (SVG fon belgilar — o'zgarishsiz qoladi).
     """
     items = _pt_extract_items_pairs(content_data, 3)
     name_map = {
@@ -15865,16 +15862,16 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
-    # Rasmlarni almashtirish
+    # Faqat Image 0 (asosiy chap JPEG rasm) almastiriladi
+    # Image 1-3 SVG fon belgilar — o'zgarishsiz qoladi
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     if image_query:
-        for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
-            _pt_fetch_and_replace(slide, img_name, image_query)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query)
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
     """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok.
-    Rasmlar: Image 0-3 (4 ta rasm).
+    Rasmlar: Image 0-3 (4 ta kichik SVG ikonka) — FON sifatida o'zgarishsiz qoladi, almastirilmaydi.
     """
     items = _pt_extract_items_pairs(content_data, 4)
     name_map = {
@@ -15894,11 +15891,7 @@ def fill_platinum_slide_6_four_blocks(slide, title, content_data):
             bold = s.name in title_shapes
             sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
-    # Rasmlarni almashtirish
-    image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
-    if image_query:
-        for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
-            _pt_fetch_and_replace(slide, img_name, image_query)
+    # Image 0-3 kichik SVG ikonkalar — fon sifatida o'zgarishsiz qoladi (almastirilmaydi)
 
 
 def fill_platinum_slide_7_conclusion(slide, title, content_data):
