@@ -128,6 +128,60 @@ def duplicate_slide(prs, template_slide_index):
     return new_slide
 
 
+def duplicate_slide_with_rels(prs, template_slide_index):
+    """Slaydni relationship lari bilan birga nusxalaydi.
+    Rasmlar va boshqa media fayllar to'g'ri ko'chiriladi.
+    """
+    import copy as _copy
+
+    tmpl_slide = prs.slides[template_slide_index]
+    slide_layout = tmpl_slide.slide_layout
+    ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+    # Yangi bo'sh slayd qo'shish
+    new_slide = prs.slides.add_slide(slide_layout)
+
+    # Yangi slayddagi standart shakllarni o'chirish
+    for shape in list(new_slide.shapes):
+        shape._element.getparent().remove(shape._element)
+
+    # Shablon slayddagi relationship larni yangi slaydga ko'chirish
+    rId_map = {}  # eski rId -> yangi rId
+    for rId, rel in tmpl_slide.part.rels.items():
+        if rel.is_external:
+            try:
+                new_rId = new_slide.part.relate_to(rel.target_ref, rel.reltype, is_external=True)
+            except Exception:
+                new_rId = rId
+        else:
+            try:
+                new_rId = new_slide.part.relate_to(rel.target_part, rel.reltype)
+            except Exception:
+                # Mavjud rel ni topish
+                new_rId = rId
+                for existing_rId, existing_rel in new_slide.part.rels.items():
+                    if (not existing_rel.is_external and
+                            existing_rel.reltype == rel.reltype and
+                            existing_rel.target_part == rel.target_part):
+                        new_rId = existing_rId
+                        break
+        rId_map[rId] = new_rId
+
+    # rId map bilan shapes nusxalash
+    for shape in tmpl_slide.shapes:
+        shape_xml = _copy.deepcopy(shape._element)
+        # shape XML dagi r:embed, r:id, r:link larni yangilash
+        for elem in shape_xml.iter():
+            for attr_name in list(elem.attrib.keys()):
+                if attr_name in (f'{{{ns_r}}}embed', f'{{{ns_r}}}id', f'{{{ns_r}}}link'):
+                    old_rId = elem.get(attr_name)
+                    if old_rId in rId_map:
+                        elem.set(attr_name, rId_map[old_rId])
+        new_slide.shapes._spTree.append(shape_xml)
+
+    return new_slide
+
+
 def move_slide(prs, old_index, new_index):
     """Slaydni old_index dan new_index ga ko'chiradi."""
     xml_slides = prs.slides._sldIdLst
@@ -16069,7 +16123,7 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
     extra_sets_needed = full_repeats - 1
     for set_num in range(extra_sets_needed):
         for slide_template_idx in PLATINUM_CONTENT_INDICES:
-            duplicate_slide(prs, slide_template_idx)
+            duplicate_slide_with_rels(prs, slide_template_idx)
         logger.info(f"  [Platinum] {set_num + 2}-to'plam qo'shildi. Jami: {len(prs.slides)}")
 
     # Xulosa slaydini (index 7) oxiriga ko'chirish
