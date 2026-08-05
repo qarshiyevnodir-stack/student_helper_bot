@@ -1407,11 +1407,11 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown"
     )
 
+    template_num_for_plan = context.user_data.get("template_num", None)
     try:
         result = await asyncio.get_event_loop().run_in_executor(
             None,
-            generate_plan_with_titles,
-            topic, slide_count, language
+            lambda: generate_plan_with_titles(topic, slide_count, language, template_num=template_num_for_plan)
         )
     except Exception as e:
         logger.error(f"generate_plan_with_titles xatolik: {e}")
@@ -1422,8 +1422,11 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "plan": [f"1. {esc_md(topic)} haqida umumiy ma'lumot",
                      f"2. {esc_md(topic)} ning asosiy jihatlari",
                      f"3. {esc_md(topic)} ning ahamiyati"],
-            "slide_titles": [f"{esc_md(topic)} — {i+1}" for i in range(slide_count)]
+            "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
         }
+    # slide_titles bo'sh bo'lsa fallback
+    if not result.get("slide_titles"):
+        result["slide_titles"] = [f"{topic} — {i+1}" for i in range(slide_count)]
 
     context.user_data["stage1_result"] = result
     plan_items = result.get("plan", [])
@@ -1449,11 +1452,11 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     if query.data == "plan_confirm_no":
         await query.edit_message_text(text="🔄 Reja qayta tuzilmoqda...")
+        template_num_for_plan = context.user_data.get("template_num", None)
         try:
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
-                generate_plan_with_titles,
-                topic, slide_count, language
+                lambda: generate_plan_with_titles(topic, slide_count, language, template_num=template_num_for_plan)
             )
         except Exception as e:
             logger.error(f"Qayta generate_plan_with_titles xatolik: {e}")
@@ -1464,8 +1467,11 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 "plan": [f"1. {esc_md(topic)} haqida umumiy ma'lumot",
                          f"2. {esc_md(topic)} ning asosiy jihatlari",
                          f"3. {esc_md(topic)} ning ahamiyati"],
-                "slide_titles": [f"{esc_md(topic)} — {i+1}" for i in range(slide_count)]
+                "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
             }
+        # slide_titles bo'sh bo'lsa fallback
+        if not result.get("slide_titles"):
+            result["slide_titles"] = [f"{topic} — {i+1}" for i in range(slide_count)]
 
         context.user_data["stage1_result"] = result
         plan_items = result.get("plan", [])
