@@ -16058,7 +16058,7 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max
         spcPct = lnSpc.find(qn('a:spcPct'))
         if spcPct is None:
             spcPct = etree.SubElement(lnSpc, qn('a:spcPct'))
-        spcPct.set('val', str(int(line_spacing * 1000)))
+        spcPct.set('val', str(int(line_spacing * 100000)))
     run = p.add_run()
     run.text = text
     if sz:
@@ -16333,9 +16333,9 @@ def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
         for shape in slide.shapes:
             if shape.has_text_frame:
                 if shape.name == title_name:
-                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=50, line_spacing=0.85)
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=50, line_spacing=1.0)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=130, line_spacing=0.85)
+                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=130, line_spacing=1.0)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _g2_fetch_and_replace(slide, 'Image 0', image_query)
