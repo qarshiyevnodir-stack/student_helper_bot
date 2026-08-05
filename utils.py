@@ -16012,11 +16012,16 @@ SLIDE_TYPE_NAMES_GAMMA2 = {
 }
 
 
-def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
+def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max_chars=None, line_spacing=None):
     """Gamma2 shablon uchun shape ga matn yozish."""
     from pptx.util import Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN
+    from pptx.oxml.ns import qn
+    from lxml import etree
+    # Matn uzunligini cheklash
+    if max_chars and text and len(text) > max_chars:
+        text = text[:max_chars].rsplit(' ', 1)[0] + '...'
     tf = shape.text_frame
     tf.word_wrap = True
     for para in tf.paragraphs:
@@ -16026,8 +16031,6 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
         p = tf.paragraphs[0]
         p.clear()
     else:
-        from pptx.oxml.ns import qn
-        from lxml import etree
         p_elem = etree.SubElement(tf._txBody, qn('a:p'))
         p = tf.paragraphs[0]
     p = tf.paragraphs[0]
@@ -16038,6 +16041,18 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
         p.alignment = PP_ALIGN.RIGHT
     else:
         p.alignment = PP_ALIGN.LEFT
+    # Line spacing (qatorlar orasidagi interval)
+    if line_spacing is not None:
+        pPr = p._pPr
+        if pPr is None:
+            pPr = etree.SubElement(p._p, qn('a:pPr'))
+        lnSpc = pPr.find(qn('a:lnSpc'))
+        if lnSpc is None:
+            lnSpc = etree.SubElement(pPr, qn('a:lnSpc'))
+        spcPct = lnSpc.find(qn('a:spcPct'))
+        if spcPct is None:
+            spcPct = etree.SubElement(lnSpc, qn('a:spcPct'))
+        spcPct.set('val', str(int(line_spacing * 1000)))
     run = p.add_run()
     run.text = text
     if sz:
@@ -16186,9 +16201,9 @@ def fill_gamma2_slide_3_four_blocks(slide, title, content_data):
         for shape in slide.shapes:
             if shape.has_text_frame:
                 if shape.name == title_name:
-                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF')
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=40)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
+                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=110)
 
     # Rasm almashtirish
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
@@ -16255,9 +16270,9 @@ def fill_gamma2_slide_5_icon_list(slide, title, content_data):
         for shape in slide.shapes:
             if shape.has_text_frame:
                 if shape.name == title_name:
-                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF')
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=45)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
+                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _g2_fetch_and_replace(slide, 'Image 0', image_query)
@@ -16281,9 +16296,9 @@ def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
         for shape in slide.shapes:
             if shape.has_text_frame:
                 if shape.name == title_name:
-                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF')
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=45)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
+                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _g2_fetch_and_replace(slide, 'Image 0', image_query)
@@ -16310,9 +16325,9 @@ def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
         for shape in slide.shapes:
             if shape.has_text_frame:
                 if shape.name == title_name:
-                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF')
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=50, line_spacing=0.85)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
+                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=130, line_spacing=0.85)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _g2_fetch_and_replace(slide, 'Image 0', image_query)
