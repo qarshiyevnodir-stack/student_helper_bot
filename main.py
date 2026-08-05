@@ -1637,6 +1637,25 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
     stage1 = context.user_data.get("stage1_result", {})
     plan_items   = stage1.get("plan", [])
     slide_titles = stage1.get("slide_titles", [])
+    # slide_titles bo'sh bo'lsa — qayta generate_plan_with_titles chaqirish
+    if not slide_titles:
+        logger.warning(f"[WA] slide_titles bo'sh, qayta generate_plan_with_titles chaqirilmoqda...")
+        try:
+            _tmp = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_plan_with_titles(topic, slide_count, language, template_num=template_num)
+            )
+            if _tmp and _tmp.get("slide_titles"):
+                slide_titles = _tmp["slide_titles"]
+                plan_items = _tmp.get("plan", plan_items)
+                context.user_data["stage1_result"] = _tmp
+                logger.info(f"[WA] slide_titles qayta yaratildi: {len(slide_titles)} ta")
+        except Exception as _e:
+            logger.error(f"[WA] generate_plan_with_titles qayta xatolik: {_e}")
+    # Hali ham bo'sh bo'lsa — fallback sarlavhalar
+    if not slide_titles:
+        slide_titles = [f"{topic} — {i+1}" for i in range(slide_count)]
+        logger.warning(f"[WA] Fallback slide_titles ishlatilmoqda: {len(slide_titles)} ta")
     plan_dict = {"title": "Reja", "content": plan_items}
     logger.info(f"Mini App: foydalanuvchi tanlagan shablon: {template_num}")
     # template_selected mantiqini to'liq takrorlash
