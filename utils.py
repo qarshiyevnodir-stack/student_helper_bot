@@ -15653,11 +15653,9 @@ def fill_platinum_slide_2_plan(slide, plan):
                 clean_items.append(item_clean)
     if not clean_items:
         clean_items = ['Reja mavjud emas']
-    # Doim aynan 3 ta element bo'lishi kerak
-    while len(clean_items) < 3:
-        clean_items.append(clean_items[-1])  # oxirgi elementni takrorlash
-    clean_items = clean_items[:3]  # 3 tadan ortiq bo'lsa qisqartirish
-    plan_count = 3
+    # Maksimal 3 ta element (3 tadan ortiq bo'lsa qisqartirish)
+    clean_items = clean_items[:3]
+    plan_count = len(clean_items)
 
     # Text 23 shapes ni top koordinatasi bo'yicha saralash
     text23_shapes = sorted(
@@ -16149,11 +16147,9 @@ def fill_gamma2_slide_2_plan(slide, plan):
                 clean_items.append(item_clean)
     if not clean_items:
         clean_items = ['Reja mavjud emas']
-    # Doim aynan 3 ta element bo'lishi kerak
-    while len(clean_items) < 3:
-        clean_items.append(clean_items[-1])  # oxirgi elementni takrorlash
-    clean_items = clean_items[:3]  # 3 tadan ortiq bo'lsa qisqartirish
-    plan_count = 3
+    # Maksimal 3 ta element (3 tadan ortiq bo'lsa qisqartirish)
+    clean_items = clean_items[:3]
+    plan_count = len(clean_items)
 
     # Reja matni shape lari: Text 4, Text 8, Text 12 (top bo'yicha saralangan)
     plan_text_shapes = sorted(
