@@ -24,6 +24,66 @@ client = OpenAI(
 
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
+# Together.ai API kalitlari (round-robin parallel)
+import itertools
+_TOGETHER_KEYS_RAW = [
+    os.getenv("TOGETHER_API_KEY_1", ""),
+    os.getenv("TOGETHER_API_KEY_2", ""),
+]
+TOGETHER_API_KEYS = [k for k in _TOGETHER_KEYS_RAW if k]
+_together_key_cycle = itertools.cycle(TOGETHER_API_KEYS) if TOGETHER_API_KEYS else None
+_together_key_lock = __import__('threading').Lock()
+
+def _get_next_together_key():
+    """Round-robin: har safar keyingi kalitni qaytaradi."""
+    if not _together_key_cycle:
+        return None
+    with _together_key_lock:
+        return next(_together_key_cycle)
+
+
+def fetch_image_together(image_query, width=1024, height=768):
+    """
+    Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
+    Ikkala kalit round-robin rejimda ishlatiladi.
+    Qaytaradi: lokal fayl yo'li (bytes) yoki None.
+    """
+    import base64
+    key = _get_next_together_key()
+    if not key:
+        logging.warning("TOGETHER_API_KEY yo'q. Rasm o'tkazib yuborildi.")
+        return None
+    try:
+        url = 'https://api.together.xyz/v1/images/generations'
+        headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+        # Inglizcha prompt — Flux.1 uchun eng yaxshi natija
+        prompt = (
+            f"{image_query}, professional high quality photo, "
+            f"clean background, modern style, 4k, sharp focus"
+        )
+        data = {
+            'model': 'black-forest-labs/FLUX.1-schnell',
+            'prompt': prompt,
+            'width': width,
+            'height': height,
+            'steps': 4,
+            'n': 1,
+            'response_format': 'b64_json'
+        }
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        resp.raise_for_status()
+        result = resp.json()
+        b64 = result['data'][0]['b64_json']
+        img_bytes = base64.b64decode(b64)
+        img_path = f"/tmp/together_img_{random.randint(0, 999999)}.jpg"
+        with open(img_path, 'wb') as f:
+            f.write(img_bytes)
+        logging.info(f"[Together.ai] Rasm generatsiya qilindi: {image_query}")
+        return img_path
+    except Exception as e:
+        logging.error(f"[Together.ai] Rasm generatsiya xatoligi ({image_query}): {e}")
+        return None
+
 # ─────────────────────────────────────────────
 # Template slide structure (1.pptx):
 #   Index 0  → Slide 1: TITLE            (sarlavha)
@@ -300,13 +360,18 @@ def split_text_into_blocks(body_text, n):
 
 def fetch_image(image_query):
     """
-    Pixabay orqali rasm yuklab oladi.
-    CDN previewURL dan _640.jpg o'lchamli rasm oladi (rate limit yo'q).
+    Rasm olish: Together.ai (primary) -> Pixabay (fallback).
     Qaytaradi: lokal fayl yo'li yoki None.
     """
+    # 1. Together.ai (primary)
+    img_path = fetch_image_together(image_query)
+    if img_path:
+        return img_path
+
+    # 2. Pixabay (fallback)
     import re
     if not PIXABAY_API_KEY:
-        logging.warning("PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
+        logging.warning("[fetch_image] PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
         return None
     try:
         url = (f"https://pixabay.com/api/"
@@ -318,7 +383,7 @@ def fetch_image(image_query):
         resp.raise_for_status()
         hits = resp.json().get("hits", [])
         if not hits:
-            logging.warning(f"Rasm topilmadi: {image_query}")
+            logging.warning(f"[Pixabay] Rasm topilmadi: {image_query}")
             return None
 
         img_data = None
@@ -328,27 +393,20 @@ def fetch_image(image_query):
             preview_url = hit.get("previewURL", "")
             if not preview_url:
                 continue
-
-            # Faqat .jpg previewURL larni ishlatamiz (PNG uchun 640px ishlamaydi)
             if not preview_url.lower().endswith(".jpg"):
                 continue
-
-            # _150.jpg -> _640.jpg (CDN URL, rate limit yo'q)
             cdn_url = re.sub(r'_\d+\.jpg$', '_640.jpg', preview_url)
             img_resp = requests.get(cdn_url, timeout=15)
             if img_resp.status_code == 200 and "image" in img_resp.headers.get("Content-Type", ""):
                 img_data = img_resp.content
-                logging.info(f"Rasm yuklandi (640px): {image_query}")
+                logging.info(f"[Pixabay] Rasm yuklandi (640px): {image_query}")
                 break
-
-            # Fallback: previewURL (150px)
             img_resp2 = requests.get(preview_url, timeout=15)
             if img_resp2.status_code == 200 and "image" in img_resp2.headers.get("Content-Type", ""):
                 img_data = img_resp2.content
-                logging.info(f"Rasm yuklandi (150px fallback): {image_query}")
+                logging.info(f"[Pixabay] Rasm yuklandi (150px fallback): {image_query}")
                 break
 
-        # Agar .jpg topilmasa, istalgan previewURL dan yuklab olish
         if not img_data:
             for hit in hits:
                 preview_url = hit.get("previewURL", "")
@@ -359,20 +417,20 @@ def fetch_image(image_query):
                     img_data = img_resp.content
                     ct = img_resp.headers.get("Content-Type", "")
                     img_ext = "png" if "png" in ct else "jpg"
-                    logging.info(f"Rasm yuklandi (preview fallback): {image_query}")
+                    logging.info(f"[Pixabay] Rasm yuklandi (preview fallback): {image_query}")
                     break
 
         if not img_data:
-            logging.warning(f"Rasm yuklab bo'lmadi: {image_query}")
+            logging.warning(f"[Pixabay] Rasm yuklab bo'lmadi: {image_query}")
             return None
 
         img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.{img_ext}"
         with open(img_path, "wb") as f:
             f.write(img_data)
-        logging.info(f"Rasm saqlandi: {img_path}")
+        logging.info(f"[Pixabay] Rasm saqlandi: {img_path}")
         return img_path
     except Exception as e:
-        logging.error(f"Rasm yuklashda xatolik ({image_query}): {e}")
+        logging.error(f"[Pixabay] Rasm yuklashda xatolik ({image_query}): {e}")
         return None
 
 
@@ -15594,9 +15652,9 @@ def _pt_replace_blip(shape, img_path):
 
 
 def _pt_fetch_and_replace(slide, image_name, image_query):
-    """Pixabay dan rasm yuklab, slide dagi image_name nomli shapega joylashtirish."""
+    """Together.ai dan rasm generatsiya qilib, slide dagi image_name nomli shapega joylashtirish."""
     try:
-        img_path = fetch_image(image_query)
+        img_path = fetch_image_together(image_query)
         if not img_path:
             return
         for s in slide.shapes:
@@ -16073,24 +16131,23 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max
 
 
 def _g2_fetch_and_replace(slide, shape_name, query):
-    """Gamma2 shablon uchun shape dagi rasmni Pixabay dan yuklab almashtirish."""
+    """Gamma2 shablon uchun shape dagi rasmni Together.ai dan generatsiya qilib almashtirish."""
     import logging
-    import io
-    from pptx.util import Emu
     logger = logging.getLogger(__name__)
-    pixabay_key = os.environ.get('PIXABAY_API_KEY', '')
-    if not pixabay_key:
-        logger.warning("PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
-        return
     try:
-        img_data = fetch_image(query)
-        if not img_data:
+        img_path = fetch_image_together(query)
+        if not img_path:
             logger.warning(f"[G2] Rasm yuklanmadi: {query!r}")
             return
+        with open(img_path, 'rb') as f:
+            img_data = f.read()
+        try:
+            os.remove(img_path)
+        except Exception:
+            pass
         for shape in slide.shapes:
             if shape.name == shape_name:
                 pic = shape._element
-                ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
                 blip = pic.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
                 if blip is None:
                     blip = pic.find('.//{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}blip')
