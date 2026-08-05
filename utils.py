@@ -15634,16 +15634,38 @@ def _pt_body(text, max_chars=200):
 
 
 def _pt_replace_blip(shape, img_path):
-    """Shape ichidagi blip (rasm) ni yangi rasm bilan almashtirish."""
+    """Shape ichidagi blip (rasm) ni yangi rasm bilan almashtirish.
+    JPEG va SVG-only bliplarni ham qo'llab-quvvatlaydi.
+    """
     try:
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        ns_svg = 'http://schemas.microsoft.com/office/drawing/2016/SVG/main'
         blips = shape._element.findall('.//a:blip', {'a': ns_a})
         if not blips:
             return False
         blip = blips[0]
         slide_part = shape.part
         _, new_rId = slide_part.get_or_add_image_part(img_path)
+
+        # 1) Agar oddiy r:embed bo'lsa — yangilash
+        if blip.get(f'{{{ns_r}}}embed'):
+            blip.set(f'{{{ns_r}}}embed', new_rId)
+            return True
+
+        # 2) SVG-only blip — asvg:svgBlip ni o'chirib, r:embed qo'shish
+        svg_blips = blip.findall(f'.//{{{ns_svg}}}svgBlip')
+        if svg_blips:
+            # extLst ni o'chirish (SVG extension)
+            from lxml import etree
+            ext_lst = blip.find(f'{{{ns_a}}}extLst')
+            if ext_lst is not None:
+                blip.remove(ext_lst)
+            # r:embed ni qo'shish
+            blip.set(f'{{{ns_r}}}embed', new_rId)
+            return True
+
+        # 3) Hech narsa topilmasa — r:embed qo'shib ko'rish
         blip.set(f'{{{ns_r}}}embed', new_rId)
         return True
     except Exception as e:
@@ -15652,10 +15674,17 @@ def _pt_replace_blip(shape, img_path):
 
 
 def _pt_fetch_and_replace(slide, image_name, image_query):
-    """Together.ai dan rasm generatsiya qilib, slide dagi image_name nomli shapega joylashtirish."""
+    """Together.ai dan rasm generatsiya qilib, slide dagi image_name nomli shapega joylashtirish.
+    Xatolikda fetch_image (Pixabay fallback) ishlatiladi.
+    """
     try:
+        # 1. Together.ai (primary)
         img_path = fetch_image_together(image_query)
+        # 2. Pixabay fallback
         if not img_path:
+            img_path = fetch_image(image_query)
+        if not img_path:
+            logging.warning(f'[PT] Rasm topilmadi: {image_query}')
             return
         for s in slide.shapes:
             if s.name == image_name:
@@ -16155,11 +16184,17 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max
 
 
 def _g2_fetch_and_replace(slide, shape_name, query):
-    """Gamma2 shablon uchun shape dagi rasmni Together.ai dan generatsiya qilib almashtirish."""
+    """Gamma2 shablon uchun shape dagi rasmni Together.ai dan generatsiya qilib almashtirish.
+    Xatolikda Pixabay fallback ishlatiladi. SVG bliplarni ham qo'llab-quvvatlaydi.
+    """
     import logging
     logger = logging.getLogger(__name__)
     try:
+        # 1. Together.ai (primary)
         img_path = fetch_image_together(query)
+        # 2. Pixabay fallback
+        if not img_path:
+            img_path = fetch_image(query)
         if not img_path:
             logger.warning(f"[G2] Rasm yuklanmadi: {query!r}")
             return
@@ -16169,24 +16204,48 @@ def _g2_fetch_and_replace(slide, shape_name, query):
             os.remove(img_path)
         except Exception:
             pass
+        ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        ns_svg = 'http://schemas.microsoft.com/office/drawing/2016/SVG/main'
         for shape in slide.shapes:
             if shape.name == shape_name:
                 pic = shape._element
-                blip = pic.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
-                if blip is None:
-                    blip = pic.find('.//{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}blip')
+                blip = pic.find(f'.//{{{ns_a}}}blip')
                 if blip is None:
                     logger.warning(f"[G2] blip topilmadi: {shape_name}")
                     return
-                rId = blip.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
-                if not rId:
-                    logger.warning(f"[G2] rId topilmadi: {shape_name}")
+                rId = blip.get(f'{{{ns_r}}}embed')
+                if rId:
+                    # Oddiy embed — blob ni yangilash
+                    part = slide.part
+                    img_part = part.related_parts[rId]
+                    img_part._blob = img_data
+                    logger.info(f"[G2] Rasm almashtirildi (embed): {shape_name}")
                     return
-                part = slide.part
-                img_part = part.related_parts[rId]
-                img_part._blob = img_data
-                logger.info(f"[G2] Rasm almashtirildi: {shape_name}")
-                return
+                # SVG-only blip — extLst ni o'chirib, yangi embed qo'shish
+                svg_blips = blip.findall(f'.//{{{ns_svg}}}svgBlip')
+                if svg_blips:
+                    from lxml import etree
+                    ext_lst = blip.find(f'{{{ns_a}}}extLst')
+                    if ext_lst is not None:
+                        blip.remove(ext_lst)
+                    # Vaqtinchalik fayl sifatida saqlash va get_or_add_image_part
+                    import tempfile
+                    suffix = '.jpg'
+                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                        tmp.write(img_data)
+                        tmp_path = tmp.name
+                    try:
+                        _, new_rId = slide.part.get_or_add_image_part(tmp_path)
+                        blip.set(f'{{{ns_r}}}embed', new_rId)
+                        logger.info(f"[G2] SVG rasm almashtirildi: {shape_name}")
+                    finally:
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
+                    return
+                logger.warning(f"[G2] rId va SVG topilmadi: {shape_name}")
     except Exception as e:
         logger.warning(f"[G2] Rasm almashtirish xatoligi {shape_name}: {e}")
 
