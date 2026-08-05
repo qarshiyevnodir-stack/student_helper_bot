@@ -26,20 +26,22 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 # Together.ai API kalitlari (round-robin parallel)
 import itertools
-_TOGETHER_KEYS_RAW = [
-    os.getenv("TOGETHER_API_KEY_1", ""),
-    os.getenv("TOGETHER_API_KEY_2", ""),
-]
-TOGETHER_API_KEYS = [k for k in _TOGETHER_KEYS_RAW if k]
-_together_key_cycle = itertools.cycle(TOGETHER_API_KEYS) if TOGETHER_API_KEYS else None
 _together_key_lock = __import__('threading').Lock()
+_together_key_idx = [0]  # mutable list — thread-safe index
 
 def _get_next_together_key():
-    """Round-robin: har safar keyingi kalitni qaytaradi."""
-    if not _together_key_cycle:
+    """Round-robin: har safar os.getenv dan qayta o'qib keyingi kalitni qaytaradi."""
+    keys = [k for k in [
+        os.getenv("TOGETHER_API_KEY_1", ""),
+        os.getenv("TOGETHER_API_KEY_2", ""),
+    ] if k]
+    if not keys:
+        logging.warning("[Together] TOGETHER_API_KEY_1/2 env variables topilmadi!")
         return None
     with _together_key_lock:
-        return next(_together_key_cycle)
+        idx = _together_key_idx[0] % len(keys)
+        _together_key_idx[0] = idx + 1
+        return keys[idx]
 
 
 def fetch_image_together(image_query, width=1024, height=768):
