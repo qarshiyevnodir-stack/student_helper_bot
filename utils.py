@@ -16015,24 +16015,46 @@ def _pt_extract_items(content_data, count):
 def generate_template_platinum_presentation(prs, topic, requested_slide_count, language,
                                              name_surname, plan, content_data_list,
                                              user_images=None):
-    """Platinum (Gamma uslubi) shablon asosida taqdimot yaratish."""
+    """Platinum (Gamma uslubi) shablon asosida taqdimot yaratish.
+    Formula: muqova + reja + (5 kontent × N takror) + xulosa
+    5 so'rasa 8 ta, 10 so'rasa 13 ta, 15 so'rasa 18 ta, ...
+    """
     import io
     import logging
     logger = logging.getLogger(__name__)
+
+    # Takrorlash soni hisoblash (Gold stilidagi kabi)
+    full_repeats = max(1, round(requested_slide_count / 5))
+    total_content_slides = full_repeats * 5
+    logger.info(f"[Platinum] {requested_slide_count} so'raldi, {full_repeats} takror, {total_content_slides} kontent slayd")
+
+    # Kontent slaydlarini takrorlash (3-7 indekslar, index 2-6)
+    # Shablon 8 slaydli: index 0=muqova, 1=reja, 2-6=kontent(5ta), 7=xulosa
+    PLATINUM_CONTENT_INDICES = [2, 3, 4, 5, 6]  # 3-7 slaydlar
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in PLATINUM_CONTENT_INDICES:
+            duplicate_slide(prs, slide_template_idx)
+        logger.info(f"  [Platinum] {set_num + 2}-to'plam qo'shildi. Jami: {len(prs.slides)}")
+
+    # Xulosa slaydini (index 7) oxiriga ko'chirish
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logger.info(f"[Platinum] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
 
     slides = prs.slides
     n = len(slides)
 
     # 1-slayd: Muqova (rasm ham yuklanadi)
     if n > 0:
-        cover_image_query = topic  # muqova rasmi mavzu bo'yicha
-        fill_platinum_slide_1_cover(slides[0], topic, name_surname, image_query=cover_image_query)
+        fill_platinum_slide_1_cover(slides[0], topic, name_surname, image_query=topic)
 
     # 2-slayd: Reja
     if n > 1:
         fill_platinum_slide_2_plan(slides[1], plan)
 
-    # Kontent slaydlari (3-7, index 2-6)
+    # Kontent slaydlari (index 2 dan n-2 gacha)
     fill_funcs = [
         fill_platinum_slide_3_four_col,    # 0
         fill_platinum_slide_4_three_col,   # 1
@@ -16041,19 +16063,21 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
         fill_platinum_slide_7_conclusion,  # 4
     ]
 
-    for i, data in enumerate(content_data_list):
+    content_count = n - 3  # muqova + reja + xulosa = 3 ta, qolganlar kontent
+    for i in range(content_count):
         slide_idx = i + 2
         if slide_idx >= n - 1:
             break
         slide = slides[slide_idx]
         func = fill_funcs[i % len(fill_funcs)]
+        data = content_data_list[i % len(content_data_list)] if content_data_list else {}
         title = data.get('title', topic) if isinstance(data, dict) else topic
         try:
             func(slide, title, data)
         except Exception as e:
-            logger.warning(f"platinum slide {slide_idx} fill xatolik: {e}")
+            logger.warning(f"[Platinum] slide {slide_idx} fill xatolik: {e}")
 
-    # 8-slayd: Outro (rasm ham yuklanadi)
+    # Xulosa slayd (oxirgi)
     if n > 0:
         fill_platinum_slide_8_outro(slides[-1], topic=topic)
 
@@ -16438,10 +16462,32 @@ def fill_gamma2_slide_8_outro(slide, topic=None):
 def generate_template_gamma2_presentation(prs, topic, requested_slide_count, language,
                                           name_surname, plan, content_data_list,
                                           user_images=None):
-    """Gamma2 (Stil_gamma2) shablon asosida taqdimot yaratish."""
+    """Gamma2 (Stil_gamma2) shablon asosida taqdimot yaratish.
+    Formula: muqova + reja + (5 kontent × N takror) + xulosa
+    5 so'rasa 8 ta, 10 so'rasa 13 ta, 15 so'rasa 18 ta, ...
+    """
     import io
     import logging
     logger = logging.getLogger(__name__)
+
+    # Takrorlash soni hisoblash (Gold stilidagi kabi)
+    full_repeats = max(1, round(requested_slide_count / 5))
+    total_content_slides = full_repeats * 5
+    logger.info(f"[Gamma2] {requested_slide_count} so'raldi, {full_repeats} takror, {total_content_slides} kontent slayd")
+
+    # Kontent slaydlarini takrorlash (3-7 indekslar, index 2-6)
+    GAMMA2_CONTENT_INDICES = [2, 3, 4, 5, 6]  # 3-7 slaydlar
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in GAMMA2_CONTENT_INDICES:
+            duplicate_slide(prs, slide_template_idx)
+        logger.info(f"  [Gamma2] {set_num + 2}-to'plam qo'shildi. Jami: {len(prs.slides)}")
+
+    # Xulosa slaydini (index 7) oxiriga ko'chirish
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logger.info(f"[Gamma2] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
 
     slides = prs.slides
     n = len(slides)
@@ -16454,7 +16500,7 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
     if n > 1:
         fill_gamma2_slide_2_plan(slides[1], plan)
 
-    # Kontent slaydlari (3-7, index 2-6)
+    # Kontent slaydlari (index 2 dan n-2 gacha)
     fill_funcs = [
         fill_gamma2_slide_3_four_blocks,    # 0
         fill_gamma2_slide_4_numbered_list,  # 1
@@ -16463,19 +16509,21 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
         fill_gamma2_slide_7_two_plus_one,   # 4
     ]
 
-    for i, data in enumerate(content_data_list):
+    content_count = n - 3  # muqova + reja + xulosa = 3 ta, qolganlar kontent
+    for i in range(content_count):
         slide_idx = i + 2
         if slide_idx >= n - 1:
             break
         slide = slides[slide_idx]
         func = fill_funcs[i % len(fill_funcs)]
+        data = content_data_list[i % len(content_data_list)] if content_data_list else {}
         title = data.get('title', topic) if isinstance(data, dict) else topic
         try:
             func(slide, title, data)
         except Exception as e:
-            logger.warning(f"gamma2 slide {slide_idx} fill xatolik: {e}")
+            logger.warning(f"[Gamma2] slide {slide_idx} fill xatolik: {e}")
 
-    # 8-slayd: Outro
+    # Xulosa slayd (oxirgi)
     if n > 0:
         fill_gamma2_slide_8_outro(slides[-1], topic=topic)
 

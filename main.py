@@ -1599,45 +1599,6 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("✏️ Ism/familiyani tahrirlash", callback_data="edit_name")],
     ])
     from telegram import ReplyKeyboardRemove
-    # Platinum (37) va Gamma2 (38) uchun slayd soni doim 8 ta (shablon 8 slaydli)
-    if template_num in (37, 38):
-        context.user_data["slide_count"] = 8
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n🎨 *Stil tanlandi!*\n\n📊 Bu stil 8 sahifali taqdimot yaratadi.",
-            reply_markup=ReplyKeyboardRemove(),
-            parse_mode="Markdown"
-        )
-        # Reja tuzish uchun to'g'ridan-to'g'ri slide_count_handler ga o'tish
-        template_num_for_plan = template_num
-        try:
-            result = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: generate_plan_with_titles(topic, 8, language, template_num=template_num_for_plan)
-            )
-        except Exception as e:
-            logger.error(f"generate_plan_with_titles xatolik: {e}")
-            result = None
-        if not result or not result.get("plan"):
-            result = {
-                "plan": [f"1. {topic} haqida umumiy ma'lumot",
-                         f"2. {topic} ning asosiy jihatlari",
-                         f"3. {topic} ning ahamiyati"],
-                "slide_titles": [f"{topic} — {i+1}" for i in range(8)]
-            }
-        if not result.get("slide_titles"):
-            result["slide_titles"] = [f"{topic} — {i+1}" for i in range(8)]
-        context.user_data["stage1_result"] = result
-        plan_items = result.get("plan", [])
-        lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
-        plan_text = format_plan_message(topic, 8, lang_name, plan_items)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=plan_text,
-            reply_markup=get_plan_confirmation_keyboard(),
-            parse_mode="Markdown"
-        )
-        return PLAN_CONFIRMATION
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"📌 *Mavzu:* {esc_md(topic)}\n👤 *Ism:* {esc_md(name_surname) if name_surname else '—'}\n🎨 *Stil tanlandi!*\n\nNechta slayd kerak?",
