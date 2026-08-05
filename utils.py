@@ -833,7 +833,7 @@ SLIDE_TYPE_NAMES_T3 = {
 }
 
 
-def generate_plan_with_titles(topic, slide_count, language):
+def generate_plan_with_titles(topic, slide_count, language, template_num=None):
     """
     1-BOSQICH: Mavzu bo'yicha reja va har bir kontent slayd sarlavhasini yaratadi.
 
@@ -845,7 +845,11 @@ def generate_plan_with_titles(topic, slide_count, language):
     """
     # Slayd soniga mos reja punktlari soni
     plan_count_map = {5: 3, 10: 4, 15: 4, 20: 5, 25: 5, 30: 5}
-    plan_count = plan_count_map.get(slide_count, 4)
+    # Platinum1 (37) va Gamma2 (38) uchun doim 3 ta reja
+    if template_num in (37, 38):
+        plan_count = 3
+    else:
+        plan_count = plan_count_map.get(slide_count, 4)
 
     # Kontent slaydlar soni (5 ta shablon × takrorlash)
     content_count = slide_count  # 5, 10, 15, 20, 25, 30
@@ -15649,7 +15653,11 @@ def fill_platinum_slide_2_plan(slide, plan):
                 clean_items.append(item_clean)
     if not clean_items:
         clean_items = ['Reja mavjud emas']
-    plan_count = len(clean_items)
+    # Doim aynan 3 ta element bo'lishi kerak
+    while len(clean_items) < 3:
+        clean_items.append(clean_items[-1])  # oxirgi elementni takrorlash
+    clean_items = clean_items[:3]  # 3 tadan ortiq bo'lsa qisqartirish
+    plan_count = 3
 
     # Text 23 shapes ni top koordinatasi bo'yicha saralash
     text23_shapes = sorted(
@@ -16141,7 +16149,11 @@ def fill_gamma2_slide_2_plan(slide, plan):
                 clean_items.append(item_clean)
     if not clean_items:
         clean_items = ['Reja mavjud emas']
-    plan_count = len(clean_items)
+    # Doim aynan 3 ta element bo'lishi kerak
+    while len(clean_items) < 3:
+        clean_items.append(clean_items[-1])  # oxirgi elementni takrorlash
+    clean_items = clean_items[:3]  # 3 tadan ortiq bo'lsa qisqartirish
+    plan_count = 3
 
     # Reja matni shape lari: Text 4, Text 8, Text 12 (top bo'yicha saralangan)
     plan_text_shapes = sorted(
