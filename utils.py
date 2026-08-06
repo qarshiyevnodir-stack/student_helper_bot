@@ -16471,7 +16471,7 @@ def fill_gamma2_slide_3_four_blocks(slide, title, content_data):
                 if shape.name == title_name:
                     _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=40)
                 elif shape.name == body_name:
-                    _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=110)
+                    _g2_clear_write(shape, b, sz=10, bold=False, color='D6E5EF', max_chars=110)
 
     # Rasm almashtirish — kontent so'zlari bilan boyitilgan prompt
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
