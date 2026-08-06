@@ -139,6 +139,7 @@ def duplicate_slide_with_rels(prs, template_slide_index):
     tmpl_slide = prs.slides[template_slide_index]
     slide_layout = tmpl_slide.slide_layout
     ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    NS_PML = 'http://schemas.openxmlformats.org/presentationml/2006/main'
 
     # Yangi bo'sh slayd qo'shish
     new_slide = prs.slides.add_slide(slide_layout)
@@ -148,7 +149,6 @@ def duplicate_slide_with_rels(prs, template_slide_index):
         shape._element.getparent().remove(shape._element)
 
     # Shablon slayddagi BARCHA relationship larni yangi slaydga ko'chirish
-    # (rasmlar, background PNG, media fayllar)
     rId_map = {}  # eski rId -> yangi rId
     for rId, rel in tmpl_slide.part.rels.items():
         if rel.is_external:
@@ -160,7 +160,6 @@ def duplicate_slide_with_rels(prs, template_slide_index):
             try:
                 new_rId = new_slide.part.relate_to(rel.target_part, rel.reltype)
             except Exception:
-                # Mavjud rel ni topish
                 new_rId = rId
                 for existing_rId, existing_rel in new_slide.part.rels.items():
                     if (not existing_rel.is_external and
@@ -170,42 +169,37 @@ def duplicate_slide_with_rels(prs, template_slide_index):
                         break
         rId_map[rId] = new_rId
 
-    # Shablon slayd XML ni to'liq nusxalash (background + shapes + barcha elementlar)
-    tmpl_spTree = tmpl_slide._element.find(
-        '{http://schemas.openxmlformats.org/presentationml/2006/main}cSld'
-    )
-    if tmpl_spTree is None:
-        # Fallback: faqat shapes nusxalash
-        for shape in tmpl_slide.shapes:
-            shape_xml = _copy.deepcopy(shape._element)
-            for elem in shape_xml.iter():
+    # Background (bg) ni nusxalash — cSld ichidagi bg element
+    tmpl_cSld = tmpl_slide._element.find(f'{{{NS_PML}}}cSld')
+    new_cSld = new_slide._element.find(f'{{{NS_PML}}}cSld')
+    if tmpl_cSld is not None and new_cSld is not None:
+        # Background elementini nusxalash
+        tmpl_bg = tmpl_cSld.find(f'{{{NS_PML}}}bg')
+        if tmpl_bg is not None:
+            bg_copy = _copy.deepcopy(tmpl_bg)
+            # rId larni yangilash
+            for elem in bg_copy.iter():
                 for attr_name in list(elem.attrib.keys()):
                     if attr_name in (f'{{{ns_r}}}embed', f'{{{ns_r}}}id', f'{{{ns_r}}}link'):
                         old_rId = elem.get(attr_name)
                         if old_rId in rId_map:
                             elem.set(attr_name, rId_map[old_rId])
-            new_slide.shapes._spTree.append(shape_xml)
-        return new_slide
+            # Mavjud bg ni o'chirib yangi bg qo'shish
+            existing_bg = new_cSld.find(f'{{{NS_PML}}}bg')
+            if existing_bg is not None:
+                new_cSld.remove(existing_bg)
+            new_cSld.insert(0, bg_copy)
 
-    # cSld elementini (background + spTree) to'liq nusxalash
-    new_cSld = new_slide._element.find(
-        '{http://schemas.openxmlformats.org/presentationml/2006/main}cSld'
-    )
-    tmpl_cSld_copy = _copy.deepcopy(tmpl_spTree)
-
-    # Barcha r:embed, r:id, r:link larni yangilash
-    for elem in tmpl_cSld_copy.iter():
-        for attr_name in list(elem.attrib.keys()):
-            if attr_name in (f'{{{ns_r}}}embed', f'{{{ns_r}}}id', f'{{{ns_r}}}link'):
-                old_rId = elem.get(attr_name)
-                if old_rId in rId_map:
-                    elem.set(attr_name, rId_map[old_rId])
-
-    # Yangi slayddagi cSld ni shablon cSld bilan almashtirish
-    if new_cSld is not None:
-        new_slide._element.replace(new_cSld, tmpl_cSld_copy)
-    else:
-        new_slide._element.append(tmpl_cSld_copy)
+    # Shapes nusxalash (rId map bilan)
+    for shape in tmpl_slide.shapes:
+        shape_xml = _copy.deepcopy(shape._element)
+        for elem in shape_xml.iter():
+            for attr_name in list(elem.attrib.keys()):
+                if attr_name in (f'{{{ns_r}}}embed', f'{{{ns_r}}}id', f'{{{ns_r}}}link'):
+                    old_rId = elem.get(attr_name)
+                    if old_rId in rId_map:
+                        elem.set(attr_name, rId_map[old_rId])
+        new_slide.shapes._spTree.append(shape_xml)
 
     return new_slide
 
