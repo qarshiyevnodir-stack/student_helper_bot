@@ -16627,7 +16627,7 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
     extra_sets_needed = full_repeats - 1
     for set_num in range(extra_sets_needed):
         for slide_template_idx in GAMMA2_CONTENT_INDICES:
-            duplicate_slide(prs, slide_template_idx)
+            duplicate_slide_with_rels(prs, slide_template_idx)
         logger.info(f"  [Gamma2] {set_num + 2}-to'plam qo'shildi. Jami: {len(prs.slides)}")
 
     # Xulosa slaydini (index 7) oxiriga ko'chirish
