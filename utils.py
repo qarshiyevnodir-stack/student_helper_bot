@@ -16334,7 +16334,11 @@ def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywo
                 if rId:
                     # Oddiy embed — blob ni yangilash
                     part = slide.part
-                    img_part = part.related_parts[rId]
+                    try:
+                        img_part = part.related_part(rId)
+                    except AttributeError:
+                        # Fallback: eski usul
+                        img_part = part.rels[rId].target_part
                     img_part._blob = img_data
                     logger.info(f"[G2] Rasm almashtirildi (embed): {shape_name}")
                     return
