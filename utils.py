@@ -15839,7 +15839,7 @@ def fill_platinum_slide_1_cover(slide, topic, name_surname, image_query=None):
             desc = name_surname if name_surname else 'Taqdimot'
             _pt_clear_write(s, desc, sz=13, bold=False, color='405449')
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', topic=topic)
 
 
 def fill_platinum_slide_2_plan(slide, plan):
@@ -15997,7 +15997,7 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw, topic=title)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
@@ -16072,7 +16072,7 @@ def fill_platinum_slide_8_outro(slide, topic=None):
         if s.has_text_frame and s.name == 'Text 1':
             _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
     if topic:
-        _pt_fetch_and_replace(slide, 'Image 0', topic, style='cinematic', topic=topic)
+        _pt_fetch_and_replace(slide, 'Image 0', topic, style='3d', topic=topic)
 
 
 def _pt_extract_items_pairs(content_data, count):
@@ -16392,7 +16392,7 @@ def fill_gamma2_slide_1_cover(slide, topic, name_surname, image_query=None):
                 subtitle = name_surname if name_surname else topic
                 _g2_clear_write(shape, subtitle, sz=14, bold=False, color='D6E5EF')
     if image_query:
-        _g2_fetch_and_replace(slide, 'Image 0', image_query, style='cinematic', topic=topic)
+        _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', topic=topic)
 
 
 def fill_gamma2_slide_2_plan(slide, plan):
@@ -16558,7 +16558,7 @@ def fill_gamma2_slide_5_icon_list(slide, title, content_data):
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
@@ -16652,7 +16652,7 @@ def fill_gamma2_slide_8_outro(slide, topic=None):
             r1.font.bold = True
             r1.font.color.rgb = RGBColor.from_string('76B9FF')
     if topic:
-        _g2_fetch_and_replace(slide, 'Image 0', topic, style='cinematic', topic=topic)
+        _g2_fetch_and_replace(slide, 'Image 0', topic, style='3d', topic=topic)
 
 
 def generate_template_gamma2_presentation(prs, topic, requested_slide_count, language,
