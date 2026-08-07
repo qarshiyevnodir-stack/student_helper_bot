@@ -69,15 +69,19 @@ def _build_together_prompt(image_query, style='photo', content_keywords=None, to
 
     style_suffixes = {
         'photo': 'professional high quality photography, cinematic lighting, sharp focus, 4k, highly realistic, corporate style',
-        'illustration': 'modern flat illustration, vector art style, clean corporate design, vibrant colors, professional presentation graphic',
-        '3d': '3D isometric illustration, modern render, clean solid background, professional corporate design, highly detailed',
-        'vector': 'minimal vector illustration, flat icon style, clean lines, professional infographic, colorful',
+        'illustration': 'flat 2D illustration, digital art, vector-style, clean lines, bold colors, NO photography, NO realistic rendering, NO 3D, cartoon-like infographic style, presentation slide art',
+        '3d': '3D isometric illustration, low-poly 3D art, clean geometric shapes, pastel colors, NO photography, NO realistic photo, isometric view, professional infographic',
+        'vector': 'flat vector icon illustration, SVG-style, minimal clean design, bold outlines, solid colors, NO photography, NO realistic rendering, icon art style',
         'cinematic': 'epic cinematic photography, dramatic lighting, professional corporate, high quality, 4k, sharp focus',
     }
-    suffix = style_suffixes.get(style, style_suffixes['photo'])
+    suffix = style_suffixes.get(style, style_suffixes['illustration'])
     
-    # Promptni xavfsiz va aniq qilish
-    final_prompt = f"Visual concept representing: {base}. Style: {suffix}. No text, no words."
+    # Gamma uslublari uchun foto-realistikni qat'iy taqiqlash
+    no_photo_note = ''
+    if style in ('illustration', '3d', 'vector'):
+        no_photo_note = ' NOT a photograph. NOT photorealistic. Digital art only.'
+    
+    final_prompt = f"Digital art illustration: {base}. {suffix}.{no_photo_note} No text, no words, no letters."
     return final_prompt
 
 
@@ -95,33 +99,41 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
     if not key:
         logging.warning("TOGETHER_API_KEY yo'q. Rasm o'tkazib yuborildi.")
         return None
-    try:
-        url = 'https://api.together.xyz/v1/images/generations'
-        headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-        prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords, topic=topic)
-        data = {
-            'model': 'black-forest-labs/FLUX.1-schnell',
-            'prompt': prompt,
-            'width': width,
-            'height': height,
-            'steps': 4,
-            'n': 1,
-            'seed': random.randint(1, 2147483647),  # Har safar unikal rasm
-            'response_format': 'b64_json'
-        }
-        resp = requests.post(url, headers=headers, json=data, timeout=60)
-        resp.raise_for_status()
-        result = resp.json()
-        b64 = result['data'][0]['b64_json']
-        img_bytes = base64.b64decode(b64)
-        img_path = f"/tmp/together_img_{random.randint(0, 999999)}.jpg"
-        with open(img_path, 'wb') as f:
-            f.write(img_bytes)
-        logging.info(f"[Together.ai] Rasm generatsiya qilindi ({style}): {image_query}")
-        return img_path
-    except Exception as e:
-        logging.error(f"[Together.ai] Rasm generatsiya xatoligi ({image_query}): {e}")
-        return None
+    url = 'https://api.together.xyz/v1/images/generations'
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+    prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords, topic=topic)
+    data = {
+        'model': 'black-forest-labs/FLUX.1-schnell',
+        'prompt': prompt,
+        'width': width,
+        'height': height,
+        'steps': 4,
+        'n': 1,
+        'seed': random.randint(1, 2147483647),
+        'response_format': 'b64_json'
+    }
+    # 3 marta urinish — timeout yoki server xatoligida qayta urinish
+    for attempt in range(3):
+        try:
+            resp = requests.post(url, headers=headers, json=data, timeout=90)
+            resp.raise_for_status()
+            result = resp.json()
+            b64 = result['data'][0]['b64_json']
+            img_bytes = base64.b64decode(b64)
+            img_path = f"/tmp/together_img_{random.randint(0, 9999999)}.jpg"
+            with open(img_path, 'wb') as f:
+                f.write(img_bytes)
+            logging.info(f"[Together.ai] Rasm generatsiya qilindi ({style}): {image_query}")
+            return img_path
+        except Exception as e:
+            logging.warning(f"[Together.ai] Urinish {attempt+1}/3 xatolik ({image_query}): {e}")
+            if attempt < 2:
+                # Keyingi kalitni ishlatib qayta urinish
+                key = _get_next_together_key() or key
+                headers['Authorization'] = f'Bearer {key}'
+                data['seed'] = random.randint(1, 2147483647)
+    logging.error(f"[Together.ai] 3 urinishdan so'ng ham xatolik: {image_query}")
+    return None
 
 # ─────────────────────────────────────────────
 # Template slide structure (1.pptx):
@@ -15763,7 +15775,9 @@ def _pt_body(text, max_chars=200):
 def _pt_replace_blip(shape, img_path):
     """Shape ichidagi blip (rasm) ni yangi rasm bilan almashtirish.
     JPEG va SVG-only bliplarni ham qo'llab-quvvatlaydi.
+    Har chaqiruvda unikal fayl nomi ishlatiladi (kesh muammosini oldini olish).
     """
+    import uuid, shutil, tempfile, os as _os
     try:
         ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -15773,7 +15787,15 @@ def _pt_replace_blip(shape, img_path):
             return False
         blip = blips[0]
         slide_part = shape.part
-        _, new_rId = slide_part.get_or_add_image_part(img_path)
+        # Unikal fayl nomi yaratish — get_or_add_image_part keshini chetlab o'tish
+        ext = _os.path.splitext(img_path)[1] or '.jpg'
+        unique_path = _os.path.join(tempfile.gettempdir(), f'pptx_img_{uuid.uuid4().hex}{ext}')
+        shutil.copy2(img_path, unique_path)
+        try:
+            _, new_rId = slide_part.get_or_add_image_part(unique_path)
+        finally:
+            try: _os.remove(unique_path)
+            except: pass
 
         # 1) Agar oddiy r:embed bo'lsa — yangilash
         if blip.get(f'{{{ns_r}}}embed'):
@@ -16375,12 +16397,13 @@ def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywo
                 rId = blip.get(f'{{{ns_r}}}embed')
                 # shape.part ishlatish (slide.part emas) — nusxalangan slaydlarda ham ishlaydi
                 slide_part = shape.part
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-                    tmp.write(img_data)
-                    tmp_path = tmp.name
+                import tempfile, uuid as _uuid, os as _os2
+                # Unikal fayl nomi — get_or_add_image_part keshini chetlab o'tish
+                unique_path = _os2.path.join(tempfile.gettempdir(), f'g2_img_{_uuid.uuid4().hex}.jpg')
+                with open(unique_path, 'wb') as _f:
+                    _f.write(img_data)
                 try:
-                    _, new_rId = slide_part.get_or_add_image_part(tmp_path)
+                    _, new_rId = slide_part.get_or_add_image_part(unique_path)
                     if rId:
                         blip.set(f'{{{ns_r}}}embed', new_rId)
                         logger.info(f"[G2] Rasm almashtirildi: {shape_name}")
@@ -16396,11 +16419,10 @@ def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywo
                         logger.info(f"[G2] SVG rasm almashtirildi: {shape_name}")
                 finally:
                     try:
-                        os.remove(tmp_path)
+                        _os2.remove(unique_path)
                     except Exception:
                         pass
                 return
-                logger.warning(f"[G2] rId va SVG topilmadi: {shape_name}")
     except Exception as e:
         logger.warning(f"[G2] Rasm almashtirish xatoligi {shape_name}: {e}")
 
