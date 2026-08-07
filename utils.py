@@ -44,40 +44,50 @@ def _get_next_together_key():
         return keys[idx]
 
 
-def _build_together_prompt(image_query, style='photo', content_keywords=None):
+def _build_together_prompt(image_query, style='photo', content_keywords=None, topic=None):
     """
     Slayd sarlavhasi va kontent so'zlaridan kelib chiqib boyitilgan prompt yaratadi.
+    Asosiy mavzuni (topic) saqlab qoladi.
     style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
     """
-    # Kontent so'zlarini qo'shish
+    # Kontent so'zlarini qo'shish (faqat mavzuga aloqadorroq qilib)
     extra = ''
     if content_keywords:
-        # Faqat eng muhim so'zlarni olish (maksimal 8 ta so'z)
-        words = [w.strip() for w in str(content_keywords).split() if len(w.strip()) > 3][:8]
+        words = [w.strip() for w in str(content_keywords).split() if len(w.strip()) > 4][:6]
         if words:
             extra = ', '.join(words)
 
-    base = image_query
+    # Asosiy kontekst yaratish
+    base = ""
+    if topic and topic.lower() not in str(image_query).lower():
+        base = f"{topic}, {image_query}"
+    else:
+        base = str(image_query)
+
     if extra:
-        base = f"{image_query}, {extra}"
+        base = f"{base}, related to {extra}"
 
     style_suffixes = {
-        'photo': 'professional high quality photography, cinematic lighting, sharp focus, 4k, realistic',
-        'illustration': 'flat illustration, vector art style, clean modern design, vibrant colors, professional',
-        '3d': '3D isometric illustration, modern render, clean background, professional design, detailed',
-        'vector': 'minimal vector illustration, icon style, clean lines, professional, colorful',
-        'cinematic': 'cinematic photography, dramatic lighting, professional, high quality, 4k, sharp',
+        'photo': 'professional high quality photography, cinematic lighting, sharp focus, 4k, highly realistic, corporate style',
+        'illustration': 'modern flat illustration, vector art style, clean corporate design, vibrant colors, professional presentation graphic',
+        '3d': '3D isometric illustration, modern render, clean solid background, professional corporate design, highly detailed',
+        'vector': 'minimal vector illustration, flat icon style, clean lines, professional infographic, colorful',
+        'cinematic': 'epic cinematic photography, dramatic lighting, professional corporate, high quality, 4k, sharp focus',
     }
     suffix = style_suffixes.get(style, style_suffixes['photo'])
-    return f"{base}, {suffix}"
+    
+    # Promptni xavfsiz va aniq qilish
+    final_prompt = f"Visual concept representing: {base}. Style: {suffix}. No text, no words."
+    return final_prompt
 
 
-def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None):
+def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None, topic=None):
     """
     Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
     Ikkala kalit round-robin rejimda ishlatiladi.
     style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
     content_keywords: slayd kontent so'zlari (prompt boyitish uchun)
+    topic: asosiy mavzu (promptdan adashib ketmaslik uchun)
     Qaytaradi: lokal fayl yo'li yoki None.
     """
     import base64
@@ -88,7 +98,7 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
     try:
         url = 'https://api.together.xyz/v1/images/generations'
         headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-        prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords)
+        prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords, topic=topic)
         data = {
             'model': 'black-forest-labs/FLUX.1-schnell',
             'prompt': prompt,
@@ -15789,15 +15799,16 @@ def _pt_replace_blip(shape, img_path):
     return False
 
 
-def _pt_fetch_and_replace(slide, image_name, image_query, style='photo', content_keywords=None):
+def _pt_fetch_and_replace(slide, image_name, image_query, style='photo', content_keywords=None, topic=None):
     """Together.ai dan rasm generatsiya qilib, slide dagi image_name nomli shapega joylashtirish.
     style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
     content_keywords: slayd kontent so'zlari (prompt boyitish uchun)
+    topic: Asosiy mavzu
     Xatolikda fetch_image (Pixabay fallback) ishlatiladi.
     """
     try:
         # 1. Together.ai (primary) — kontent so'zlari bilan boyitilgan prompt
-        img_path = fetch_image_together(image_query, style=style, content_keywords=content_keywords)
+        img_path = fetch_image_together(image_query, style=style, content_keywords=content_keywords, topic=topic)
         # 2. Pixabay fallback
         if not img_path:
             img_path = fetch_image(image_query)
@@ -15934,7 +15945,7 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
         for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
-            _pt_fetch_and_replace(slide, img_name, image_query, style='illustration', content_keywords=_kw)
+            _pt_fetch_and_replace(slide, img_name, image_query, style='illustration', content_keywords=_kw, topic=title)
 
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
@@ -15986,7 +15997,7 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw, topic=title)
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
@@ -16052,7 +16063,7 @@ def fill_platinum_slide_7_conclusion(slide, title, content_data):
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw, topic=title)
 
 
 def fill_platinum_slide_8_outro(slide, topic=None):
@@ -16061,7 +16072,7 @@ def fill_platinum_slide_8_outro(slide, topic=None):
         if s.has_text_frame and s.name == 'Text 1':
             _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
     if topic:
-        _pt_fetch_and_replace(slide, 'Image 0', topic, style='cinematic')
+        _pt_fetch_and_replace(slide, 'Image 0', topic, style='cinematic', topic=topic)
 
 
 def _pt_extract_items_pairs(content_data, count):
@@ -16297,17 +16308,18 @@ def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max
             pass
 
 
-def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywords=None):
+def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywords=None, topic=None):
     """Gamma2 shablon uchun shape dagi rasmni Together.ai dan generatsiya qilib almashtirish.
     style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
     content_keywords: slayd kontent so'zlari (prompt boyitish uchun)
+    topic: Asosiy mavzu
     Xatolikda Pixabay fallback ishlatiladi. SVG bliplarni ham qo'llab-quvvatlaydi.
     """
     import logging
     logger = logging.getLogger(__name__)
     try:
         # 1. Together.ai (primary) — kontent so'zlari bilan boyitilgan prompt
-        img_path = fetch_image_together(query, style=style, content_keywords=content_keywords)
+        img_path = fetch_image_together(query, style=style, content_keywords=content_keywords, topic=topic)
         # 2. Pixabay fallback
         if not img_path:
             img_path = fetch_image(query)
@@ -16380,7 +16392,7 @@ def fill_gamma2_slide_1_cover(slide, topic, name_surname, image_query=None):
                 subtitle = name_surname if name_surname else topic
                 _g2_clear_write(shape, subtitle, sz=14, bold=False, color='D6E5EF')
     if image_query:
-        _g2_fetch_and_replace(slide, 'Image 0', image_query, style='cinematic')
+        _g2_fetch_and_replace(slide, 'Image 0', image_query, style='cinematic', topic=topic)
 
 
 def fill_gamma2_slide_2_plan(slide, plan):
@@ -16476,7 +16488,7 @@ def fill_gamma2_slide_3_four_blocks(slide, title, content_data):
     # Rasm almashtirish — kontent so'zlari bilan boyitilgan prompt
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
@@ -16519,7 +16531,7 @@ def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_5_icon_list(slide, title, content_data):
@@ -16546,7 +16558,7 @@ def fill_gamma2_slide_5_icon_list(slide, title, content_data):
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='photo', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
@@ -16573,7 +16585,7 @@ def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='vector', content_keywords=_kw)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='vector', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
@@ -16603,7 +16615,7 @@ def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
 
 
 def fill_gamma2_slide_8_outro(slide, topic=None):
@@ -16640,7 +16652,7 @@ def fill_gamma2_slide_8_outro(slide, topic=None):
             r1.font.bold = True
             r1.font.color.rgb = RGBColor.from_string('76B9FF')
     if topic:
-        _g2_fetch_and_replace(slide, 'Image 0', topic, style='cinematic')
+        _g2_fetch_and_replace(slide, 'Image 0', topic, style='cinematic', topic=topic)
 
 
 def generate_template_gamma2_presentation(prs, topic, requested_slide_count, language,
