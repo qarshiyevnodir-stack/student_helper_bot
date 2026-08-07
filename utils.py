@@ -16373,45 +16373,33 @@ def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywo
                     logger.warning(f"[G2] blip topilmadi: {shape_name}")
                     return
                 rId = blip.get(f'{{{ns_r}}}embed')
-                if rId:
-                    # Yangi image part qo'shish (blob yangilash emas — takrorlanmaslik uchun)
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-                        tmp.write(img_data)
-                        tmp_path = tmp.name
-                    try:
-                        _, new_rId = slide.part.get_or_add_image_part(tmp_path)
+                # shape.part ishlatish (slide.part emas) — nusxalangan slaydlarda ham ishlaydi
+                slide_part = shape.part
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+                    tmp.write(img_data)
+                    tmp_path = tmp.name
+                try:
+                    _, new_rId = slide_part.get_or_add_image_part(tmp_path)
+                    if rId:
                         blip.set(f'{{{ns_r}}}embed', new_rId)
-                        logger.info(f"[G2] Rasm almashtirildi (yangi part): {shape_name}")
-                    finally:
-                        try:
-                            os.remove(tmp_path)
-                        except Exception:
-                            pass
-                    return
-                # SVG-only blip — extLst ni o'chirib, yangi embed qo'shish
-                svg_blips = blip.findall(f'.//{{{ns_svg}}}svgBlip')
-                if svg_blips:
-                    from lxml import etree
-                    ext_lst = blip.find(f'{{{ns_a}}}extLst')
-                    if ext_lst is not None:
-                        blip.remove(ext_lst)
-                    # Vaqtinchalik fayl sifatida saqlash va get_or_add_image_part
-                    import tempfile
-                    suffix = '.jpg'
-                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                        tmp.write(img_data)
-                        tmp_path = tmp.name
-                    try:
-                        _, new_rId = slide.part.get_or_add_image_part(tmp_path)
+                        logger.info(f"[G2] Rasm almashtirildi: {shape_name}")
+                    else:
+                        # SVG-only blip — extLst ni o'chirib, yangi embed qo'shish
+                        svg_blips = blip.findall(f'.//{{{ns_svg}}}svgBlip')
+                        if svg_blips:
+                            from lxml import etree
+                            ext_lst = blip.find(f'{{{ns_a}}}extLst')
+                            if ext_lst is not None:
+                                blip.remove(ext_lst)
                         blip.set(f'{{{ns_r}}}embed', new_rId)
                         logger.info(f"[G2] SVG rasm almashtirildi: {shape_name}")
-                    finally:
-                        try:
-                            os.remove(tmp_path)
-                        except Exception:
-                            pass
-                    return
+                finally:
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+                return
                 logger.warning(f"[G2] rId va SVG topilmadi: {shape_name}")
     except Exception as e:
         logger.warning(f"[G2] Rasm almashtirish xatoligi {shape_name}: {e}")
