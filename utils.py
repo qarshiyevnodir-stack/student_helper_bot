@@ -106,6 +106,7 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
             'height': height,
             'steps': 4,
             'n': 1,
+            'seed': random.randint(1, 2147483647),  # Har safar unikal rasm
             'response_format': 'b64_json'
         }
         resp = requests.post(url, headers=headers, json=data, timeout=60)
@@ -15942,10 +15943,12 @@ def fill_platinum_slide_3_four_col(slide, title, content_data):
     # Rasmlarni almashtirish — kontent so'zlari bilan boyitilgan prompt
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
     # Kontent so'zlarini ajratish
+    _style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
         for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
-            _pt_fetch_and_replace(slide, img_name, image_query, style='illustration', content_keywords=_kw, topic=title)
+            _pt_fetch_and_replace(slide, img_name, image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_platinum_slide_4_three_col(slide, title, content_data):
@@ -15995,9 +15998,11 @@ def fill_platinum_slide_5_image_left(slide, title, content_data):
     # Faqat Image 0 (asosiy chap JPEG rasm) almastiriladi
     # Image 1-3 SVG fon belgilar — o'zgarishsiz qoladi
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_platinum_slide_6_four_blocks(slide, title, content_data):
@@ -16061,9 +16066,11 @@ def fill_platinum_slide_7_conclusion(slide, title, content_data):
             _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
     # Rasmlarni almashtirish — kontent so'zlari bilan boyitilgan prompt
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', '3d') if isinstance(content_data, dict) else '3d'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([items[i][0] + ' ' + items[i][1] for i in range(min(2, len(items)))])
     if image_query:
-        _pt_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw, topic=title)
+        _pt_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_platinum_slide_8_outro(slide, topic=None):
@@ -16217,15 +16224,38 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
         fill_platinum_slide_7_conclusion,  # 4
     ]
 
+    # Slayd turi uchun uslublar — faqat illustration/3d/vector
+    PLATINUM_STYLES = ['illustration', 'illustration', 'illustration', '3d', 'vector']
+    # Slayd turi uchun kontekst so'zlari
+    PLATINUM_SLIDE_CONTEXTS = [
+        'overview, four columns, concept',   # 3-slayd: 4 ustun
+        'three sections, categories',        # 4-slayd: 3 ustun
+        'main topic, visual, left image',    # 5-slayd: chap rasm
+        'four blocks, details, grid',        # 6-slayd: 4 blok
+        'conclusion, summary, analysis',     # 7-slayd: xulosa
+    ]
+
     content_count = n - 3  # muqova + reja + xulosa = 3 ta, qolganlar kontent
     for i in range(content_count):
         slide_idx = i + 2
         if slide_idx >= n - 1:
             break
         slide = slides[slide_idx]
-        func = fill_funcs[i % len(fill_funcs)]
+        func_idx = i % len(fill_funcs)
+        func = fill_funcs[func_idx]
         data = content_data_list[i % len(content_data_list)] if content_data_list else {}
         title = data.get('title', topic) if isinstance(data, dict) else topic
+        # Har slayd uchun unikal image_query yaratish (slayd sarlavhasi + kontekst)
+        slide_context = PLATINUM_SLIDE_CONTEXTS[func_idx]
+        slide_style = PLATINUM_STYLES[func_idx]
+        # title allaqachon unikal (har slayd uchun boshqacha sarlavha)
+        unique_image_query = f"{topic}, {title}"  # title o'zi unikal, context style da
+        # data ni yangilash — unikal image_query va style bilan
+        if isinstance(data, dict):
+            data = dict(data)  # nusxa olish
+            data['image_query'] = unique_image_query
+            data['_style'] = slide_style
+            data['_topic'] = topic
         try:
             func(slide, title, data)
         except Exception as e:
@@ -16344,15 +16374,20 @@ def _g2_fetch_and_replace(slide, shape_name, query, style='photo', content_keywo
                     return
                 rId = blip.get(f'{{{ns_r}}}embed')
                 if rId:
-                    # Oddiy embed — blob ni yangilash
-                    part = slide.part
+                    # Yangi image part qo'shish (blob yangilash emas — takrorlanmaslik uchun)
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+                        tmp.write(img_data)
+                        tmp_path = tmp.name
                     try:
-                        img_part = part.related_part(rId)
-                    except AttributeError:
-                        # Fallback: eski usul
-                        img_part = part.rels[rId].target_part
-                    img_part._blob = img_data
-                    logger.info(f"[G2] Rasm almashtirildi (embed): {shape_name}")
+                        _, new_rId = slide.part.get_or_add_image_part(tmp_path)
+                        blip.set(f'{{{ns_r}}}embed', new_rId)
+                        logger.info(f"[G2] Rasm almashtirildi (yangi part): {shape_name}")
+                    finally:
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
                     return
                 # SVG-only blip — extLst ni o'chirib, yangi embed qo'shish
                 svg_blips = blip.findall(f'.//{{{ns_svg}}}svgBlip')
@@ -16487,8 +16522,10 @@ def fill_gamma2_slide_3_four_blocks(slide, title, content_data):
 
     # Rasm almashtirish — kontent so'zlari bilan boyitilgan prompt
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
@@ -16530,8 +16567,10 @@ def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', '3d') if isinstance(content_data, dict) else '3d'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='3d', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_gamma2_slide_5_icon_list(slide, title, content_data):
@@ -16557,8 +16596,10 @@ def fill_gamma2_slide_5_icon_list(slide, title, content_data):
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
@@ -16584,8 +16625,10 @@ def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', 'vector') if isinstance(content_data, dict) else 'vector'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='vector', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
@@ -16614,8 +16657,10 @@ def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=130, line_spacing=1.0)
 
     image_query = content_data.get('image_query', title) if isinstance(content_data, dict) else title
+    _style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
     _kw = ' '.join([pairs[i][0] + ' ' + pairs[i][1] for i in range(min(2, len(pairs)))])
-    _g2_fetch_and_replace(slide, 'Image 0', image_query, style='illustration', content_keywords=_kw, topic=title)
+    _g2_fetch_and_replace(slide, 'Image 0', image_query, style=_style, content_keywords=_kw, topic=_topic)
 
 
 def fill_gamma2_slide_8_outro(slide, topic=None):
@@ -16705,15 +16750,38 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
         fill_gamma2_slide_7_two_plus_one,   # 4
     ]
 
+    # Slayd turi uchun uslublar — faqat illustration/3d/vector
+    GAMMA2_STYLES = ['illustration', '3d', 'vector', 'illustration', '3d']
+    # Slayd turi uchun kontekst so'zlari
+    GAMMA2_SLIDE_CONTEXTS = [
+        'overview, concept, diagram',      # 3-slayd: 4 blok
+        'process, steps, numbered',        # 4-slayd: raqamli ro'yxat
+        'features, icons, highlights',     # 5-slayd: ikonali ro'yxat
+        'details, categories, sections',   # 6-slayd: katta ikonali
+        'analysis, comparison, summary',   # 7-slayd: 2+1 blok
+    ]
+
     content_count = n - 3  # muqova + reja + xulosa = 3 ta, qolganlar kontent
     for i in range(content_count):
         slide_idx = i + 2
         if slide_idx >= n - 1:
             break
         slide = slides[slide_idx]
-        func = fill_funcs[i % len(fill_funcs)]
+        func_idx = i % len(fill_funcs)
+        func = fill_funcs[func_idx]
         data = content_data_list[i % len(content_data_list)] if content_data_list else {}
         title = data.get('title', topic) if isinstance(data, dict) else topic
+        # Har slayd uchun unikal image_query yaratish (slayd sarlavhasi + kontekst)
+        slide_context = GAMMA2_SLIDE_CONTEXTS[func_idx]
+        slide_style = GAMMA2_STYLES[func_idx]
+        # title allaqachon unikal (har slayd uchun boshqacha sarlavha)
+        unique_image_query = f"{topic}, {title}"  # title o'zi unikal, context style da
+        # data ni yangilash — unikal image_query va style bilan
+        if isinstance(data, dict):
+            data = dict(data)  # nusxa olish
+            data['image_query'] = unique_image_query
+            data['_style'] = slide_style
+            data['_topic'] = topic
         try:
             func(slide, title, data)
         except Exception as e:
