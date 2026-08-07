@@ -15132,6 +15132,709 @@ def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
     # Rasm joylashtirishni keyinroq qo'shamiz
 
 
+
+
+def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustration'):
+    """
+    Gamma1/Gamma2 shabloni uchun universal rasm joylashtirishchi.
+    - topic: asosiy mavzu (masalan 'Puma firmasi')
+    - slide_title: slayd sarlavhasi (masalan 'Brendning tarixi')
+    - style: 'illustration' | '3d' | 'vector'
+    Har chaqiruvda unikal fayl nomi yaratiladi — kesh muammosi yoq.
+    shape.part ishlatiladi — nusxalangan slaydlarda ham ishlaydi.
+    """
+    import uuid, tempfile, os as _os2, logging
+    _logger = logging.getLogger(__name__)
+    
+    # Prompt: mavzu + sarlavha birlashtiriladi
+    if slide_title and slide_title.lower() not in str(topic).lower():
+        query = f"{topic}, {slide_title}"
+    else:
+        query = str(topic)
+    
+    # Together.ai orqali rasm yaratish
+    img_path = fetch_image_together(query, style=style, topic=topic)
+    if not img_path:
+        return
+    
+    try:
+        with open(img_path, 'rb') as _f:
+            img_data = _f.read()
+    finally:
+        try: _os2.remove(img_path)
+        except: pass
+    
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    
+    for shape in slide.shapes:
+        if shape.name != shape_name:
+            continue
+        blips = shape._element.findall(f'.//{{{ns_a}}}blip')
+        if not blips:
+            _logger.warning(f"[Gamma] blip topilmadi: {shape_name}")
+            return
+        blip = blips[0]
+        
+        # Unikal vaqtinchalik fayl — get_or_add_image_part keshini chetlab otish
+        unique_path = _os2.path.join(tempfile.gettempdir(), f'gamma_{uuid.uuid4().hex}.jpg')
+        with open(unique_path, 'wb') as _f2:
+            _f2.write(img_data)
+        try:
+            _, new_rId = shape.part.get_or_add_image_part(unique_path)
+            blip.set(f'{{{ns_r}}}embed', new_rId)
+            _logger.info(f"[Gamma] Rasm joylashtirildi: {shape_name} ({style})")
+        except Exception as _e:
+            _logger.warning(f"[Gamma] Rasm joylashtirishda xatolik {shape_name}: {_e}")
+        finally:
+            try: _os2.remove(unique_path)
+            except: pass
+        return
+
+def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
+    """Platinum shablon uchun shape ga matn yozish."""
+    from lxml import etree
+
+    if not shape.has_text_frame:
+        return
+    tf = shape.text_frame
+    tf.word_wrap = True
+    txBody = tf._txBody
+    nsA = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    # Barcha paragraflarni tozalash
+    for p in txBody.findall(f'{{{nsA}}}p'):
+        txBody.remove(p)
+
+    # Yangi paragraf yaratish
+    p_elem = etree.SubElement(txBody, f'{{{nsA}}}p')
+    r_elem = etree.SubElement(p_elem, f'{{{nsA}}}r')
+    rPr = etree.SubElement(r_elem, f'{{{nsA}}}rPr', attrib={'lang': 'uz-UZ', 'dirty': '0'})
+
+    if sz:
+        rPr.set('sz', str(int(sz * 100)))
+    if bold is not None:
+        rPr.set('b', '1' if bold else '0')
+    if color:
+        solidFill = etree.SubElement(rPr, f'{{{nsA}}}solidFill')
+        etree.SubElement(solidFill, f'{{{nsA}}}srgbClr', attrib={'val': color.replace('#', '')})
+
+    t_elem = etree.SubElement(r_elem, f'{{{nsA}}}t')
+    t_elem.text = str(text) if text else ''
+
+    if align:
+        pPr = etree.Element(f'{{{nsA}}}pPr')
+        algn_map = {'center': 'ctr', 'left': 'l', 'right': 'r', 'ctr': 'ctr', 'l': 'l'}
+        pPr.set('algn', algn_map.get(align, 'l'))
+        p_elem.insert(0, pPr)
+
+
+def _pt_short(text, max_chars=45):
+    """Matnni qisqartirish — sarlavha uchun."""
+    if not text:
+        return ''
+    text = str(text).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(' ', 1)[0] + '...'
+
+
+def _pt_body(text, max_chars=200):
+    """Matnni qisqartirish — body uchun."""
+    if not text:
+        return ''
+    text = str(text).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(' ', 1)[0] + '...'
+
+
+
+
+def fill_platinum_slide_1_cover(slide, topic, name_surname, image_query=None):
+    """1-slayd: Muqova — sarlavha (Text 0) + muallif (Text 1) + rasm (Image 0)."""
+    for s in slide.shapes:
+        if not s.has_text_frame:
+            continue
+        if s.name == 'Text 0':
+            _pt_clear_write(s, topic, sz=30, bold=True, color='3B4540')
+        elif s.name == 'Text 1':
+            desc = name_surname if name_surname else 'Taqdimot'
+            _pt_clear_write(s, desc, sz=13, bold=False, color='405449')
+    _gamma_place_image(slide, 'Image 0', topic, topic, 'illustration')
+
+
+def fill_platinum_slide_2_plan(slide, plan):
+    """2-slayd: Reja.
+    - Text 23 x4: reja matni (raqamsiz, faqat matn)
+    - Text 6 (=1), Text 11 (=2), Text 16 (=3), Text 21 (=4): yashil raqam bloklari
+    - Shape 3/4/5, Shape 9/10, Shape 14/15, Shape 19/20: bezak shakllari
+    Reja soni < 4 bo'lsa, ortiqcha yashil raqam bloklari va bezak shakllari yashiriladi.
+    """
+    import re
+    from lxml import etree
+    # plan dict yoki list bo'lishi mumkin
+    if isinstance(plan, dict):
+        plan_items = plan.get('content', plan.get('items', []))
+        if isinstance(plan_items, str):
+            plan_items = [plan_items]
+    elif isinstance(plan, list):
+        plan_items = plan
+    else:
+        plan_items = []
+    # Raqamli prefikslarni tozalash
+    clean_items = []
+    for item in plan_items:
+        if isinstance(item, str):
+            item_clean = re.sub(r'^\s*\d+[\.)\-]\s*', '', item.strip())
+            if item_clean:
+                clean_items.append(item_clean)
+    if not clean_items:
+        clean_items = ['Reja mavjud emas']
+    # Maksimal 3 ta element (3 tadan ortiq bo'lsa qisqartirish)
+    clean_items = clean_items[:3]
+    plan_count = len(clean_items)
+
+    # Text 23 shapes ni top koordinatasi bo'yicha saralash
+    text23_shapes = sorted(
+        [s for s in slide.shapes if s.has_text_frame and s.name == 'Text 23'],
+        key=lambda s: s.top
+    )
+    for i, ts in enumerate(text23_shapes):
+        if i < plan_count:
+            # Faqat matn yoz, raqam qo'shma (yashil raqam bloki allaqachon shablon ichida bor)
+            _pt_clear_write(ts, _pt_body(clean_items[i], 120), sz=13, bold=False, color='3B4540')
+        else:
+            # Bo'sh qil
+            _pt_clear_write(ts, '', sz=13, bold=False, color='3B4540')
+
+    # Yashil raqam bloklari va bezak shakllarini reja soniga moslashtirish
+    # Har bir reja elementi uchun shape guruhlari:
+    # 1-element: Text 6, Shape 3, Shape 4, Shape 5
+    # 2-element: Text 11, Shape 9, Shape 10
+    # 3-element: Text 16, Shape 14, Shape 15
+    # 4-element: Text 21, Shape 19, Shape 20
+    plan_shape_groups = [
+        ['Text 6', 'Shape 3', 'Shape 4', 'Shape 5'],
+        ['Text 11', 'Shape 9', 'Shape 10'],
+        ['Text 16', 'Shape 14', 'Shape 15'],
+        ['Text 21', 'Shape 19', 'Shape 20'],
+    ]
+    # Reja sonidan ortiqcha shape larni XML dan o'chirish
+    shapes_to_remove = []
+    for group_idx, group_names in enumerate(plan_shape_groups):
+        if group_idx >= plan_count:
+            for shape in slide.shapes:
+                if shape.name in group_names:
+                    shapes_to_remove.append(shape)
+    for shape in shapes_to_remove:
+        try:
+            sp = shape._element
+            sp.getparent().remove(sp)
+        except Exception as e:
+            import logging
+            logging.warning(f'[PT plan] shape o\'chirish xatoligi {shape.name}: {e}')
+
+
+def fill_platinum_slide_3_four_col(slide, title, content_data):
+    """3-slayd: Text 2 sarlavha; (Text 3+Text 4), (Text 5+Text 6), (Text 7+Text 8), (Text 9+Text 10) — 4 ta ustun.
+    Har ustunda: odd = sarlavha, even = tavsif.
+    Shablon shape nomlari: Text 3(sarlavha), Text 4(tavsif), Text 5(sarlavha), Text 6(tavsif),
+                           Text 7(sarlavha), Text 8(tavsif), Text 9(sarlavha), Text 10(tavsif).
+    Rasmlar: Image 0-3 (4 ta rasm, har ustun uchun 1 ta).
+    """
+    items = _pt_extract_items_pairs(content_data, 4)
+    name_map = {
+        'Text 2': title,
+        'Text 3': _pt_short(items[0][0], 35),
+        'Text 4': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 7': _pt_short(items[2][0], 35),
+        'Text 8': _pt_body(items[2][1], 150),
+        'Text 9': _pt_short(items[3][0], 35),
+        'Text 10': _pt_body(items[3][1], 150),
+    }
+    title_shapes = {'Text 2', 'Text 3', 'Text 5', 'Text 7', 'Text 9'}
+    for s in slide.shapes:
+        if s.has_text_frame and s.name in name_map:
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 2' else (12 if bold else 11)
+            _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    _img_style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    for img_name in ['Image 0', 'Image 1', 'Image 2', 'Image 3']:
+        _gamma_place_image(slide, img_name, _img_topic, title, _img_style)
+
+
+def fill_platinum_slide_4_three_col(slide, title, content_data):
+    """4-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta ustun.
+    Yangi shablonda rasm yo'q — faqat matn yoziladi.
+    """
+    items = _pt_extract_items_pairs(content_data, 3)
+    name_map = {
+        'Text 0': title,
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 180),
+        'Text 4': _pt_short(items[1][0], 35),
+        'Text 5': _pt_body(items[1][1], 180),
+        'Text 6': _pt_short(items[2][0], 35),
+        'Text 7': _pt_body(items[2][1], 180),
+    }
+    title_shapes = {'Text 0', 'Text 2', 'Text 4', 'Text 6'}
+    for s in slide.shapes:
+        if s.has_text_frame and s.name in name_map:
+            bold = s.name in title_shapes
+            sz = 22 if s.name == 'Text 0' else (13 if bold else 11)
+            _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Image 0-2 SVG ikonkalar — fon sifatida o'zgarishsiz qoladi (almastirilmaydi)
+
+
+def fill_platinum_slide_5_image_left(slide, title, content_data):
+    """5-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
+    (Text 2+Text 3), (Text 4+Text 5), (Text 6+Text 7) — 3 ta band.
+    Yangi shablonda faqat Image 0 (asosiy chap JPEG rasm) almastiriladi.
+    """
+    items = _pt_extract_items_pairs(content_data, 3)
+    name_map = {
+        'Text 0': title,
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 120),
+        'Text 4': _pt_short(items[1][0], 35),
+        'Text 5': _pt_body(items[1][1], 120),
+        'Text 6': _pt_short(items[2][0], 35),
+        'Text 7': _pt_body(items[2][1], 120),
+    }
+    title_shapes = {'Text 0', 'Text 2', 'Text 4', 'Text 6'}
+    for s in slide.shapes:
+        if s.has_text_frame and s.name in name_map:
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
+            _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    _img_style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
+
+
+def fill_platinum_slide_6_four_blocks(slide, title, content_data):
+    """6-slayd: Text 0 sarlavha; (Text 2+Text 3), (Text 5+Text 6), (Text 8+Text 9), (Text 11+Text 12) — 4 ta blok.
+    Yangi shablonda rasm yo'q — faqat matn yoziladi.
+    """
+    items = _pt_extract_items_pairs(content_data, 4)
+    name_map = {
+        'Text 0': title,
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 8': _pt_short(items[2][0], 35),
+        'Text 9': _pt_body(items[2][1], 150),
+        'Text 11': _pt_short(items[3][0], 35),
+        'Text 12': _pt_body(items[3][1], 150),
+    }
+    title_shapes = {'Text 0', 'Text 2', 'Text 5', 'Text 8', 'Text 11'}
+    for s in slide.shapes:
+        if s.has_text_frame and s.name in name_map:
+            bold = s.name in title_shapes
+            sz = 20 if s.name == 'Text 0' else (12 if bold else 11)
+            _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    # Image 0-3 kichik SVG ikonkalar — fon sifatida o'zgarishsiz qoladi (almastirilmaydi)
+
+
+def fill_platinum_slide_7_conclusion(slide, title, content_data):
+    """7-slayd: chap rasm, o'ng tomonda Text 0 sarlavha;
+    (Text 2+Text 3), (Text 5+Text 6) — 2 ta karta blok;
+    (Text 8+Text 9) — keng pastki blok; Text 11 — xulosa matni.
+    Rasmlar: Image 0 (asosiy chap rasm).
+    """
+    items = _pt_extract_items_pairs(content_data, 3)
+    # xulosa matni
+    if isinstance(content_data, dict):
+        conclusion = content_data.get('conclusion', content_data.get('content', ''))
+        if isinstance(conclusion, list):
+            conclusion = ' '.join(str(x) for x in conclusion)
+        conclusion = _pt_body(str(conclusion), 200)
+    elif isinstance(content_data, str):
+        conclusion = _pt_body(content_data, 200)
+    else:
+        conclusion = title
+
+    name_map = {
+        'Text 0': title,
+        'Text 2': _pt_short(items[0][0], 35),
+        'Text 3': _pt_body(items[0][1], 150),
+        'Text 5': _pt_short(items[1][0], 35),
+        'Text 6': _pt_body(items[1][1], 150),
+        'Text 8': _pt_short(items[2][0], 35),
+        'Text 9': _pt_body(items[2][1], 150),
+        'Text 11': conclusion,
+    }
+    title_shapes = {'Text 0', 'Text 2', 'Text 5', 'Text 8'}
+    for s in slide.shapes:
+        if s.has_text_frame and s.name in name_map:
+            bold = s.name in title_shapes
+            sz = 22 if s.name == 'Text 0' else (12 if bold else 11)
+            _pt_clear_write(s, name_map[s.name], sz=sz, bold=bold, color='3B4540')
+    _img_style = content_data.get('_style', '3d') if isinstance(content_data, dict) else '3d'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
+
+
+def fill_platinum_slide_8_outro(slide, topic=None):
+    """8-slayd: Outro — Text 1 ga E'tiboringiz uchun rahmat. Rasm: Image 0."""
+    for s in slide.shapes:
+        if s.has_text_frame and s.name == 'Text 1':
+            _pt_clear_write(s, "E'tiboringiz uchun rahmat!", sz=28, bold=True, color='3B4540', align='center')
+    if topic:
+        _gamma_place_image(slide, 'Image 0', topic, topic, '3d')
+
+
+def _pt_extract_items_pairs(content_data, count):
+    """content_data dan count ta (sarlavha, tavsif) juftligi ro'yxatini olish.
+    Sarlavha: matnning birinchi 3-4 so'zi (max 30 belgi).
+    Body: to'liq matn (max 150 belgi).
+    """
+    raw = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', content_data.get('col1', ''))
+        if isinstance(content, list):
+            raw = [str(x) for x in content]
+        elif isinstance(content, str):
+            raw = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+    elif isinstance(content_data, str):
+        raw = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+
+    pairs = []
+    for i in range(count):
+        if i < len(raw):
+            text = raw[i]
+            # Sarlavha: birinchi nuqtaga qadar yoki max 30 belgi
+            # Agar matnda nuqta bo'lsa, nuqtadan oldingi qism sarlavha
+            if '. ' in text:
+                first_sentence = text.split('. ')[0].strip()
+                if len(first_sentence) <= 25:
+                    title_part = first_sentence
+                else:
+                    # Birinchi 2-3 so'z, max 25 belgi
+                    words = first_sentence.split()
+                    title_part = ''
+                    for w in words[:4]:
+                        candidate = (title_part + ' ' + w).strip()
+                        if len(candidate) <= 25:
+                            title_part = candidate
+                        else:
+                            break
+                    if not title_part:
+                        title_part = words[0][:25]
+            else:
+                # Birinchi 2-3 so'z, max 25 belgi
+                words = text.split()
+                title_part = ''
+                for w in words[:4]:
+                    candidate = (title_part + ' ' + w).strip()
+                    if len(candidate) <= 25:
+                        title_part = candidate
+                    else:
+                        break
+                if not title_part:
+                    title_part = words[0][:25]
+            # Body: to'liq matn, max 160 belgi
+            body_part = text[:160] if len(text) > 160 else text
+            pairs.append((title_part, body_part))
+        else:
+            # Agar element yo'q bo'lsa, mavjud elementlardan birini qayta ishlatish
+            if pairs:
+                # Oxirgi mavjud elementni qayta ishlatish
+                pairs.append(pairs[-1])
+            elif raw:
+                # raw dan birinchi elementni ishlatish
+                text = raw[0]
+                words = text.split()
+                title_part = ' '.join(words[:3])[:25] if words else 'Ma\'lumot'
+                body_part = text[:160]
+                pairs.append((title_part, body_part))
+            else:
+                pairs.append(('', ''))
+    return pairs
+
+
+def _pt_extract_items(content_data, count):
+    """content_data dan count ta element ro'yxatini olish (legacy)."""
+    items = []
+    if isinstance(content_data, dict):
+        content = content_data.get('content', content_data.get('col1', ''))
+        if isinstance(content, list):
+            items = [str(x) for x in content[:count]]
+        elif isinstance(content, str):
+            sentences = [s.strip() for s in content.replace('\n', '. ').split('. ') if s.strip()]
+            items = sentences[:count]
+    elif isinstance(content_data, str):
+        sentences = [s.strip() for s in content_data.replace('\n', '. ').split('. ') if s.strip()]
+        items = sentences[:count]
+    # Bo'sh elementlar uchun fallback: oxirgi mavjud elementni qayta ishlatish
+    while len(items) < count:
+        if items:
+            items.append(items[-1])
+        else:
+            items.append('Ma\'lumot mavjud emas')
+    return items
+
+
+def generate_template_platinum_presentation(prs, topic, requested_slide_count, language,
+                                             name_surname, plan, content_data_list,
+                                             user_images=None):
+    """Platinum (Gamma uslubi) shablon asosida taqdimot yaratish.
+    Formula: muqova + reja + (5 kontent × N takror) + xulosa
+    5 so'rasa 8 ta, 10 so'rasa 13 ta, 15 so'rasa 18 ta, ...
+    """
+    import io
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Takrorlash soni hisoblash (Gold stilidagi kabi)
+    full_repeats = max(1, round(requested_slide_count / 5))
+    total_content_slides = full_repeats * 5
+    logger.info(f"[Platinum] {requested_slide_count} so'raldi, {full_repeats} takror, {total_content_slides} kontent slayd")
+
+    # Kontent slaydlarini takrorlash (3-7 indekslar, index 2-6)
+    # Shablon 8 slaydli: index 0=muqova, 1=reja, 2-6=kontent(5ta), 7=xulosa
+    PLATINUM_CONTENT_INDICES = [2, 3, 4, 5, 6]  # 3-7 slaydlar
+    extra_sets_needed = full_repeats - 1
+    for set_num in range(extra_sets_needed):
+        for slide_template_idx in PLATINUM_CONTENT_INDICES:
+            duplicate_slide_with_rels(prs, slide_template_idx)
+        logger.info(f"  [Platinum] {set_num + 2}-to'plam qo'shildi. Jami: {len(prs.slides)}")
+
+    # Xulosa slaydini (index 7) oxiriga ko'chirish
+    conclusion_current_index = 7
+    last_index = len(prs.slides) - 1
+    move_slide(prs, conclusion_current_index, last_index)
+    logger.info(f"[Platinum] Yakuniy tuzilma: {len(prs.slides)} ta slayd")
+
+    slides = prs.slides
+    n = len(slides)
+
+    # 1-slayd: Muqova (rasm ham yuklanadi)
+    if n > 0:
+        fill_platinum_slide_1_cover(slides[0], topic, name_surname, image_query=topic)
+
+    # 2-slayd: Reja
+    if n > 1:
+        fill_platinum_slide_2_plan(slides[1], plan)
+
+    # Kontent slaydlari (index 2 dan n-2 gacha)
+    fill_funcs = [
+        fill_platinum_slide_3_four_col,    # 0
+        fill_platinum_slide_4_three_col,   # 1
+        fill_platinum_slide_5_image_left,  # 2
+        fill_platinum_slide_6_four_blocks, # 3
+        fill_platinum_slide_7_conclusion,  # 4
+    ]
+
+    # Slayd turi uchun uslublar — faqat illustration/3d/vector
+    PLATINUM_STYLES = ['illustration', 'illustration', 'illustration', '3d', 'vector']
+    # Slayd turi uchun kontekst so'zlari
+    PLATINUM_SLIDE_CONTEXTS = [
+        'overview, four columns, concept',   # 3-slayd: 4 ustun
+        'three sections, categories',        # 4-slayd: 3 ustun
+        'main topic, visual, left image',    # 5-slayd: chap rasm
+        'four blocks, details, grid',        # 6-slayd: 4 blok
+        'conclusion, summary, analysis',     # 7-slayd: xulosa
+    ]
+
+    content_count = n - 3  # muqova + reja + xulosa = 3 ta, qolganlar kontent
+    for i in range(content_count):
+        slide_idx = i + 2
+        if slide_idx >= n - 1:
+            break
+        slide = slides[slide_idx]
+        func_idx = i % len(fill_funcs)
+        func = fill_funcs[func_idx]
+        data = content_data_list[i % len(content_data_list)] if content_data_list else {}
+        title = data.get('title', topic) if isinstance(data, dict) else topic
+        # Har slayd uchun unikal image_query yaratish (slayd sarlavhasi + kontekst)
+        slide_context = PLATINUM_SLIDE_CONTEXTS[func_idx]
+        slide_style = PLATINUM_STYLES[func_idx]
+        # title allaqachon unikal (har slayd uchun boshqacha sarlavha)
+        unique_image_query = f"{topic}, {title}"  # title o'zi unikal, context style da
+        # data ni yangilash — unikal image_query va style bilan
+        if isinstance(data, dict):
+            data = dict(data)  # nusxa olish
+            data['image_query'] = unique_image_query
+            data['_style'] = slide_style
+            data['_topic'] = topic
+        try:
+            func(slide, title, data)
+        except Exception as e:
+            logger.warning(f"[Platinum] slide {slide_idx} fill xatolik: {e}")
+
+    # Xulosa slayd (oxirgi)
+    if n > 0:
+        fill_platinum_slide_8_outro(slides[-1], topic=topic)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+# ═══════════════════════════════════════════════════════════════
+# GAMMA2 SHABLON (Stil_gamma2) — 8 slaydli qorong'i uslub
+# ═══════════════════════════════════════════════════════════════
+
+SLIDE_TYPE_NAMES_GAMMA2 = {
+    0: 'four_blocks_2x2',   # 3-slayd
+    1: 'numbered_list_4',   # 4-slayd
+    2: 'icon_list_3',       # 5-slayd
+    3: 'icon_list_3_large', # 6-slayd
+    4: 'two_plus_one',      # 7-slayd
+}
+
+
+def _g2_clear_write(shape, text, sz=None, bold=None, color=None, align=None, max_chars=None, line_spacing=None):
+    """Gamma2 shablon uchun shape ga matn yozish."""
+    from pptx.util import Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.oxml.ns import qn
+    from lxml import etree
+    # Matn uzunligini cheklash
+    if max_chars and text and len(text) > max_chars:
+        text = text[:max_chars].rsplit(' ', 1)[0] + '...'
+    tf = shape.text_frame
+    tf.word_wrap = True
+    for para in tf.paragraphs:
+        for run in para.runs:
+            run.text = ''
+    if tf.paragraphs:
+        p = tf.paragraphs[0]
+        p.clear()
+    else:
+        p_elem = etree.SubElement(tf._txBody, qn('a:p'))
+        p = tf.paragraphs[0]
+    p = tf.paragraphs[0]
+    p.clear()
+    if align == 'center':
+        p.alignment = PP_ALIGN.CENTER
+    elif align == 'right':
+        p.alignment = PP_ALIGN.RIGHT
+    else:
+        p.alignment = PP_ALIGN.LEFT
+    # Line spacing (qatorlar orasidagi interval)
+    if line_spacing is not None:
+        pPr = p._pPr
+        if pPr is None:
+            pPr = etree.SubElement(p._p, qn('a:pPr'))
+        lnSpc = pPr.find(qn('a:lnSpc'))
+        if lnSpc is None:
+            lnSpc = etree.SubElement(pPr, qn('a:lnSpc'))
+        spcPct = lnSpc.find(qn('a:spcPct'))
+        if spcPct is None:
+            spcPct = etree.SubElement(lnSpc, qn('a:spcPct'))
+        spcPct.set('val', str(int(line_spacing * 100000)))
+    run = p.add_run()
+    run.text = text
+    if sz:
+        run.font.size = Pt(sz)
+    if bold is not None:
+        run.font.bold = bold
+    if color:
+        try:
+            run.font.color.rgb = RGBColor.from_string(color)
+        except Exception:
+            pass
+
+
+
+
+
+def fill_gamma2_slide_1_cover(slide, topic, name_surname, image_query=None):
+    """1-slayd: Muqova — Text 0 (sarlavha), Text 1 (tavsif), Image 0 (o'ng rasm)."""
+    for shape in slide.shapes:
+        if shape.has_text_frame:
+            if shape.name == 'Text 0':
+                _g2_clear_write(shape, topic, sz=36, bold=True, color='76B9FF')
+            elif shape.name == 'Text 1':
+                subtitle = name_surname if name_surname else topic
+                _g2_clear_write(shape, subtitle, sz=14, bold=False, color='D6E5EF')
+    _gamma_place_image(slide, 'Image 0', topic, topic, 'illustration')
+
+
+def fill_gamma2_slide_2_plan(slide, plan):
+    """2-slayd: Reja — Text 0 (REJA), Text 4/8/12 (reja matnlari), Shape+Text raqamlar."""
+    import re
+    if isinstance(plan, dict):
+        plan_items = plan.get('content', plan.get('items', []))
+        if isinstance(plan_items, str):
+            plan_items = [plan_items]
+    elif isinstance(plan, list):
+        plan_items = plan
+    else:
+        plan_items = []
+    clean_items = []
+    for item in plan_items:
+        if isinstance(item, str):
+            item_clean = re.sub(r'^\s*\d+[\.)\-]\s*', '', item.strip())
+            if item_clean:
+                clean_items.append(item_clean)
+    if not clean_items:
+        clean_items = ['Reja mavjud emas']
+    clean_items = clean_items[:3]
+    plan_count = len(clean_items)
+    plan_text_shapes = sorted(
+        [s for s in slide.shapes if s.has_text_frame and s.name in ('Text 4', 'Text 8', 'Text 12')],
+        key=lambda s: s.top
+    )
+    for i, ts in enumerate(plan_text_shapes):
+        if i < plan_count:
+            _g2_clear_write(ts, clean_items[i], sz=13, bold=False, color='D6E5EF')
+        else:
+            _g2_clear_write(ts, '', sz=13, bold=False, color='D6E5EF')
+    plan_shape_groups = [
+        ['Shape 1', 'Text 2'],
+        ['Shape 5', 'Text 6'],
+        ['Shape 9', 'Text 10'],
+    ]
+    shapes_to_remove = []
+    for group_idx, group_names in enumerate(plan_shape_groups):
+        if group_idx >= plan_count:
+            for shape in slide.shapes:
+                if shape.name in group_names:
+                    shapes_to_remove.append(shape)
+    for shape in shapes_to_remove:
+        try:
+            shape._element.getparent().remove(shape._element)
+        except Exception as e:
+            import logging
+            logging.warning(f'[G2 plan] shape ochirish xatoligi {shape.name}: {e}')
+
+
+def fill_gamma2_slide_3_four_blocks(slide, title, content_data):
+    """3-slayd: 2x2 grid — 4 ta blok."""
+    for shape in slide.shapes:
+        if shape.has_text_frame and shape.name == 'Text 0':
+            _g2_clear_write(shape, title, sz=22, bold=True, color='76B9FF')
+    pairs = _pt_extract_items_pairs(content_data, 4)
+    block_map = [
+        ('Text 2', 'Text 3'),
+        ('Text 5', 'Text 6'),
+        ('Text 8', 'Text 9'),
+        ('Text 11', 'Text 12'),
+    ]
+    for i, (title_name, body_name) in enumerate(block_map):
+        t, b = pairs[i]
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                if shape.name == title_name:
+                    _g2_clear_write(shape, t, sz=13, bold=True, color='D6E5EF', max_chars=40)
+                elif shape.name == body_name:
+                    _g2_clear_write(shape, b, sz=10, bold=False, color='D6E5EF', max_chars=110)
+    _img_style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
+
+
+
 def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
     """4-slayd: Raqamli ro'yxat — 4 ta element.
     Shablon tahlilidan:
@@ -15170,7 +15873,9 @@ def fill_gamma2_slide_4_numbered_list(slide, title, content_data):
                 elif shape.name == body_name:
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF')
 
-    # Rasm joylashtirishni keyinroq qo'shamiz
+    _img_style = content_data.get('_style', '3d') if isinstance(content_data, dict) else '3d'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
 
 
 def fill_gamma2_slide_5_icon_list(slide, title, content_data):
@@ -15195,7 +15900,9 @@ def fill_gamma2_slide_5_icon_list(slide, title, content_data):
                 elif shape.name == body_name:
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
-    # Rasm joylashtirishni keyinroq qo'shamiz
+    _img_style = content_data.get('_style', 'vector') if isinstance(content_data, dict) else 'vector'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
 
 
 def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
@@ -15220,7 +15927,9 @@ def fill_gamma2_slide_6_icon_list_large(slide, title, content_data):
                 elif shape.name == body_name:
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=90)
 
-    # Rasm joylashtirishni keyinroq qo'shamiz
+    _img_style = content_data.get('_style', 'illustration') if isinstance(content_data, dict) else 'illustration'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
 
 
 def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
@@ -15248,7 +15957,9 @@ def fill_gamma2_slide_7_two_plus_one(slide, title, content_data):
                 elif shape.name == body_name:
                     _g2_clear_write(shape, b, sz=11, bold=False, color='D6E5EF', max_chars=130, line_spacing=1.0)
 
-    # Rasm joylashtirishni keyinroq qo'shamiz
+    _img_style = content_data.get('_style', '3d') if isinstance(content_data, dict) else '3d'
+    _img_topic = content_data.get('_topic', title) if isinstance(content_data, dict) else title
+    _gamma_place_image(slide, 'Image 0', _img_topic, title, _img_style)
 
 
 def fill_gamma2_slide_8_outro(slide, topic=None):
@@ -15284,7 +15995,8 @@ def fill_gamma2_slide_8_outro(slide, topic=None):
             r1.font.size = Pt(36)
             r1.font.bold = True
             r1.font.color.rgb = RGBColor.from_string('76B9FF')
-    # Rasm joylashtirishni keyinroq qo'shamiz
+    if topic:
+        _gamma_place_image(slide, 'Image 0', topic, topic, '3d')
 
 
 def generate_template_gamma2_presentation(prs, topic, requested_slide_count, language,
