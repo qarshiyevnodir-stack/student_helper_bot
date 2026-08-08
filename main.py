@@ -1517,7 +1517,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await query.edit_message_text(
         text=(
-            f"📊 *Sahifalar:* {kontent_slides} ta kontent + {total_slides - kontent_slides} (muqova, yakuniy) = {total_slides} ta\n"
+            f"📊 *Sahifalar:* {total_slides} ta\n"
             f"💰 *Narx:* {price:,} so'm\n\n"
             f"🗒️ *Rejani qanday tuzamiz?*"
         ),
@@ -1675,7 +1675,7 @@ async def manual_plan_confirm_handler(update: Update, context: ContextTypes.DEFA
         ])
         await query.edit_message_text(
             text=(
-                f"📊 *Sahifalar:* {kontent_slides} ta kontent + {total_slides - kontent_slides} = {total_slides} ta\n"
+                f"📊 *Sahifalar:* {total_slides} ta\n"
                 f"💰 *Narx:* {price:,} so'm\n\n"
                 f"🗒️ *Rejani qanday tuzamiz?*"
             ),
