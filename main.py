@@ -6094,7 +6094,7 @@ async def ob_tugilgan_yili_handler(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text(
         f"✅ *Tug'ilgan sanasi* saqlandi\n\n"
         f"📍 *Tug'ilgan joyi* \(viloyat, tuman\):\n"
-        f"_Masalan: Toshkent viloyati, Bekobod tumani_",
+        f"_Masalan: Toshkent viloyati, Bo'ka tumani Turon MFY_",
         parse_mode="MarkdownV2"
     )
     return OB_TUGILGAN_JOYI
@@ -6315,7 +6315,7 @@ async def ob_qarindosh_ish_handler(update: Update, context: ContextTypes.DEFAULT
     text = update.message.text.strip()
     context.user_data["ob_q_ish_temp"] = text
     await update.message.reply_text(
-        "✅ *Ish joyi* saqlandi\n\n🏠 *Turar joyi:*\n_Masalan: Toshkent viloyati, Bekobod tumani_",
+        "✅ *Ish joyi* saqlandi\n\n🏠 *Turar joyi:*\n_Masalan: Toshkent viloyati, Bo'ka tumani Turon MFY_",
         parse_mode="MarkdownV2"
     )
     return OB_QARINDOSH_TURAR
