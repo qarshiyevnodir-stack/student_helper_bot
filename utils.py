@@ -15215,6 +15215,15 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
 #           5-two_col, 6-two_col_dark, 7-two_col_dark2, 8-xulosa
 # ============================================================
 
+SLIDE_TYPE_NAMES_ODDIY1 = {
+    0: 'two_columns',
+    1: 'two_columns',
+    2: 'single_body',
+    3: 'two_columns',
+    4: 'two_columns',
+    5: 'two_columns',
+}
+
 SLIDE_TYPE_NAMES_ODDIY2 = {
     0: 'two_columns',
     1: 'two_columns',
