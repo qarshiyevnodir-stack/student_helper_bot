@@ -6166,7 +6166,7 @@ async def ob_ilmiy_unvon_handler(update: Update, context: ContextTypes.DEFAULT_T
     text = update.message.text.strip()
     context.user_data["ob_ilmiy_unvoni"] = text
     await update.message.reply_text(
-        "✅ *Ilmiy unvoni* saqlandi\n\n🌐 *Qaysi chet tillarini biladi:*\n_Masalan: Ingliz, Rus_",
+        "✅ *Ilmiy unvoni* saqlandi\n\n🌐 *Qaysi chet tillarini biladi:*\n_Masalan: Yo'q / Ingliz, Rus_",
         parse_mode="Markdown"
     )
     return OB_CHET_TILLARI
