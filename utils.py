@@ -15587,18 +15587,17 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
         with open(unique_path, 'wb') as _f2:
             _f2.write(img_data)
         try:
-            # python-pptx versiyasiga mos: 0.6.x -> image_part, 1.0.x -> (image_part, rId)
-            result = shape.part.get_or_add_image_part(unique_path)
-            if isinstance(result, tuple):
-                _, new_rId = result
+            # Mavjud rId ni topib, img_part._blob ni yangi rasm bilan almashtirish
+            # Bu usul python-pptx 0.6.x va 1.0.x da ham ishlaydi
+            cur_rId = blip.get(f'{{{ns_r}}}embed')
+            if cur_rId:
+                img_part = shape.part.related_part(cur_rId)
+                img_part._blob = img_data
+                _logger.info(f"[Gamma] Rasm joylashtirildi (blob): {shape_name} ({style})")
             else:
-                # 0.6.x: rId ni relate_to orqali olish
-                from pptx.opc.constants import RELATIONSHIP_TYPE as RT
-                new_rId = shape.part.relate_to(result, RT.IMAGE)
-            blip.set(f'{{{ns_r}}}embed', new_rId)
-            _logger.info(f"[Gamma] Rasm joylashtirildi: {shape_name} ({style})")
+                _logger.warning(f"[Gamma] rId topilmadi: {shape_name}")
         except Exception as _e:
-            _logger.warning(f"[Gamma] Rasm joylashtirishda xatolik {shape_name}: {_e}")
+            _logger.error(f"[Gamma] Rasm joylashtirishda xatolik {shape_name}: {_e}")
         finally:
             try: _os2.remove(unique_path)
             except: pass
