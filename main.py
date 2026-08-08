@@ -6193,7 +6193,7 @@ async def ob_mukofotlar_handler(update: Update, context: ContextTypes.DEFAULT_TY
     text = update.message.text.strip()
     context.user_data["ob_mukofotlar"] = text
     await update.message.reply_text(
-        "✅ *Mukofotlar* saqlandi\n\n🏙️ *Xalq deputatlari yoki saylanadigan organlar a'zosimi:*\n_Masalan: yo'q_",
+        "✅ *Mukofotlar* saqlandi\n\n🏙️ *Xalq deputatlari yoki saylanadigan organlar a'zosimi:*\n_Masalan: yo'q / bor bo'lsa nomi_",
         parse_mode="Markdown"
     )
     return OB_DEPUTATLIK
