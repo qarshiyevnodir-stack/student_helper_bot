@@ -6070,7 +6070,8 @@ async def ob_lavozim_skip_callback(update: Update, context: ContextTypes.DEFAULT
     await query.edit_message_text(
         "✅ *Lavozim* o'tkazib yuborildi\n\n"
         "📅 *Tug'ilgan sanasi* (kun.oy.yil):\n"
-        "_Masalan: 12.11.1989_",
+        "_Faqat raqamlarda, nuqta bilan ajratilgan bo'lsin_\n"
+        "_Masalan: 25.10.2000_",
         parse_mode="Markdown"
     )
     return OB_TUGILGAN_YILI
@@ -6081,7 +6082,8 @@ async def ob_lavozim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(
         f"✅ *Lavozim* saqlandi\n\n"
         f"📅 *Tug'ilgan sanasi* \(kun\.oy\.yil\):\n"
-        f"_Masalan: 12\.11\.1989_",
+        f"_Faqat raqamlarda, nuqta bilan ajratilgan bo'lsin_\n"
+        f"_Masalan: 25\.10\.2000_",
         parse_mode="MarkdownV2"
     )
     return OB_TUGILGAN_YILI
