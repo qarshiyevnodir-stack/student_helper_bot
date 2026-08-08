@@ -6175,7 +6175,7 @@ async def ob_chet_tillari_handler(update: Update, context: ContextTypes.DEFAULT_
     text = update.message.text.strip()
     context.user_data["ob_chet_tillari"] = text
     await update.message.reply_text(
-        "✅ *Chet tillari* saqlandi\n\n🎖️ *Harbiy \(maxsus\) unvoni:*\n_Masalan: yo'q_",
+        "✅ *Chet tillari* saqlandi\n\n🎖️ *Harbiy \(maxsus\) unvoni:*\n_Masalan: yo'q / bor bo'lsa nomi_",
         parse_mode="MarkdownV2"
     )
     return OB_HARBIY_UNVON
