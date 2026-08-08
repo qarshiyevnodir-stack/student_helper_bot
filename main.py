@@ -1506,7 +1506,7 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         kontent_slides = ((slide_count + 4) // 5) * 5
         total_slides = kontent_slides + 3  # muqova + reja + xulosa
     else:
-        total_slides = slide_count + 2  # muqova + xulosa
+        total_slides = slide_count + 3  # muqova + reja + xulosa
         kontent_slides = slide_count
 
     plan_method_keyboard = InlineKeyboardMarkup([
@@ -1666,7 +1666,7 @@ async def manual_plan_confirm_handler(update: Update, context: ContextTypes.DEFA
             kontent_slides = ((slide_count + 4) // 5) * 5
             total_slides = kontent_slides + 3
         else:
-            total_slides = slide_count + 2
+            total_slides = slide_count + 3
             kontent_slides = slide_count
         plan_method_keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✍️ Qo'lda kiritish", callback_data="plan_method_manual")],
