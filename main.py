@@ -1545,10 +1545,12 @@ async def plan_method_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif action == "plan_method_manual":
         # Qo'lda reja kiritish — 1-rejani so'rash
         context.user_data["manual_plan"] = []
+        back_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="manual_input_back_1")]
+        ])
         await query.edit_message_text(
-            "✍️ *Qo'lda reja kiritish*\n\n"
-            "*1-reja* nomini kiriting:\n"
-            "_(masalan: Kirish, Tarix, Asosiy qism, Xulosa)_",
+            "📝 *1-rejani kiriting:*",
+            reply_markup=back_kb,
             parse_mode="Markdown"
         )
         return MANUAL_PLAN_INPUT
@@ -1598,6 +1600,40 @@ async def plan_method_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     return PLAN_METHOD
 
 
+async def manual_plan_back_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Qo'lda reja kiritishda Orqaga tugmasi bosilganda reja usuli ekraniga qaytish."""
+    query = update.callback_query
+    await query.answer()
+    topic = context.user_data.get("topic", "")
+    language = context.user_data.get("language", "uz")
+    lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
+    slide_count = context.user_data.get("slide_count", 5)
+    template_num = context.user_data.get("template_num", 1)
+    price = get_slayd_price(template_num, slide_count)
+    if template_num in (37, 38):
+        kontent_slides = ((slide_count + 4) // 5) * 5
+        total_slides = kontent_slides + 3
+    else:
+        total_slides = slide_count + 3
+        kontent_slides = slide_count
+    plan_method_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✍️ Qo'lda kiritish", callback_data="plan_method_manual")],
+        [InlineKeyboardButton("🤖 Avtomatik reja (AI)", callback_data="plan_method_auto")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="plan_method_back")],
+    ])
+    context.user_data["manual_plan"] = []
+    await query.edit_message_text(
+        text=(
+            f"📊 *Sahifalar:* {total_slides} ta\n"
+            f"💰 *Narx:* {price:,} so'm\n\n"
+            f"🗒️ *Rejani qanday tuzamiz?*"
+        ),
+        reply_markup=plan_method_keyboard,
+        parse_mode="Markdown"
+    )
+    return PLAN_METHOD
+
+
 async def manual_plan_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Qo'lda reja kiritish — har bir reja nomini qabul qiladi."""
     text = update.message.text.strip()
@@ -1607,9 +1643,13 @@ async def manual_plan_input_handler(update: Update, context: ContextTypes.DEFAUL
     step = len(manual_plan)
 
     if step < 3:
-        # Keyingi rejani so'rash
+        # Keyingi rejani so'rash — Orqaga tugmasi bilan
+        back_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="manual_input_back_1")]
+        ])
         await update.message.reply_text(
-            f"*{step+1}-reja* nomini kiriting:",
+            f"📝 *{step+1}-rejani kiriting:*",
+            reply_markup=back_kb,
             parse_mode="Markdown"
         )
         return MANUAL_PLAN_INPUT
@@ -7485,6 +7525,7 @@ def main() -> None:
             ],
             MANUAL_PLAN_INPUT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, manual_plan_input_handler),
+                CallbackQueryHandler(manual_plan_back_handler, pattern=r"^manual_input_back_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             PLAN_CONFIRMATION: [
