@@ -409,10 +409,11 @@ def get_main_menu_keyboard():
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
         [KeyboardButton("🧩 Krossvord ✨"),     KeyboardButton("🔠 Test tuzish")],
-        [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📂 Hujjat & Dizayn ✨")],
-        [KeyboardButton("📋 Annotatsiya ✨"),       KeyboardButton("📝 Taqriz ✨")],
-        [KeyboardButton("📦 Ziplash/Arxivlash 🗜️"),  KeyboardButton("📄 PDF Konvertatsiya 🔄")],
-        [KeyboardButton("💰 Balans")],
+        [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📄 Rezyume / CV ✨")],
+        [KeyboardButton("📜 Motivatsion xat ✨"),    KeyboardButton("📊 Jadval & Diagramma ✨")],
+        [KeyboardButton("🗺️ Kontsept xarita ✨"),    KeyboardButton("📋 Annotatsiya ✨")],
+        [KeyboardButton("📝 Taqriz ✨"),  KeyboardButton("📦 Ziplash/Arxivlash 🗜️")],
+        [KeyboardButton("📄 PDF Konvertatsiya 🔄"),  KeyboardButton("💰 Balans")],
         [KeyboardButton("🔗 Referral")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -705,8 +706,9 @@ MENU_REGEX = (
     r"^(🪄 Slayd yaratish ✨|📄 Mustaqil ish ✨|📚 Referat ✨|📁 Loyiha ishi ✨|"
     r"📊 Infografika ✨|💰 Balans|🔗 Referral|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
-    r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📂 Hujjat & Dizayn ✨|"
-    r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
+r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📄 Rezyume / CV ✨|"
+r"📜 Motivatsion xat ✨|📊 Jadval & Diagramma ✨|🗺️ Kontsept xarita ✨|"
+r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
     r"💳 Balans to'ldirish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
@@ -1058,24 +1060,88 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return IN_TYPE
-    elif text == "📂 Hujjat & Dizayn ✨":
+    elif text == "📄 Rezyume / CV ✨":
         context.user_data.clear()
         context.user_data["mode"] = "hujjat"
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📄 Rezyume / CV",       callback_data="hj_rezyume")],
-            [InlineKeyboardButton("📜 Motivatsion xat",    callback_data="hj_motivatsion")],
-            [InlineKeyboardButton("📊 Jadval & Diagramma", callback_data="hj_jadval")],
-            [InlineKeyboardButton("🗺️ Kontsept xarita",    callback_data="hj_mindmap")],
+        context.user_data["hj_type"] = "rezyume"
+        lang_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="rz_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="rz_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="rz_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",  callback_data="rz_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="rz_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="rz_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="rz_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="rz_lang_tg")],
+            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="rz_lang_kk"),
+             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="rz_lang_kaa")],
         ])
         await update.message.reply_text(
-            "📂 *Hujjat & Dizayn xizmatlari*\n\n"
-            "• 📄 Rezyume / CV — 3 000 so'm\n"
-            "• 📜 Motivatsion xat — 2 000 so'm\n"
-            "• 📊 Jadval & Diagramma — 2 000 so'm\n"
-            "• 🗺️ Kontsept xarita — 2 000 so'm\n\n"
-            "Xizmatni tanlang:",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            "📄 *Rezyume / CV*\n\nQaysi tilda tayyorlansin?",
+            reply_markup=lang_kb, parse_mode="Markdown"
+        )
+        return HJ_MENU
+    elif text == "📜 Motivatsion xat ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "hujjat"
+        context.user_data["hj_type"] = "motivatsion"
+        lang_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="mv_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="mv_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="mv_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",  callback_data="mv_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="mv_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="mv_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="mv_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="mv_lang_tg")],
+            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="mv_lang_kk"),
+             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="mv_lang_kaa")],
+        ])
+        await update.message.reply_text(
+            "📜 *Motivatsion xat*\n\nQaysi tilda tayyorlansin?",
+            reply_markup=lang_kb, parse_mode="Markdown"
+        )
+        return HJ_MENU
+    elif text == "📊 Jadval & Diagramma ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "hujjat"
+        context.user_data["hj_type"] = "jadval"
+        lang_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="jd_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="jd_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="jd_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",  callback_data="jd_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="jd_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="jd_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="jd_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="jd_lang_tg")],
+            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="jd_lang_kk"),
+             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="jd_lang_kaa")],
+        ])
+        await update.message.reply_text(
+            "📊 *Jadval & Diagramma*\n\nQaysi tilda tayyorlansin?",
+            reply_markup=lang_kb, parse_mode="Markdown"
+        )
+        return HJ_MENU
+    elif text == "🗺️ Kontsept xarita ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "hujjat"
+        context.user_data["hj_type"] = "mindmap"
+        lang_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="mm_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="mm_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="mm_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",  callback_data="mm_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="mm_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="mm_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="mm_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="mm_lang_tg")],
+            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="mm_lang_kk"),
+             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="mm_lang_kaa")],
+        ])
+        await update.message.reply_text(
+            "🗺️ *Kontsept xarita*\n\nQaysi tilda tayyorlansin?",
+            reply_markup=lang_kb, parse_mode="Markdown"
         )
         return HJ_MENU
     elif text == "📋 Annotatsiya ✨":
@@ -4730,6 +4796,35 @@ async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     return HJ_LANG
 
+async def hj_direct_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Yangi alohida tugmalar uchun til tanlovi — rz_lang, mv_lang, jd_lang, mm_lang."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data  # masalan: rz_lang_uz
+    # prefix dan service va lang ni ajratish
+    prefix_map = {'rz': 'rezyume', 'mv': 'motivatsion', 'jd': 'jadval', 'mm': 'mindmap'}
+    parts = data.split('_lang_')  # ['rz', 'uz']
+    if len(parts) != 2:
+        return HJ_MENU
+    prefix = parts[0]
+    lang = parts[1]
+    service = prefix_map.get(prefix, 'rezyume')
+    context.user_data['hj_service'] = service
+    context.user_data['hj_lang'] = lang
+    lang_name = HJ_LANG_NAMES.get(lang, lang)
+    questions = {
+        'rezyume':     f'✅ Til: {lang_name}\n\nIsm-familiyangizni kiriting:',
+        'motivatsion': f'✅ Til: {lang_name}\n\nIsm-familiyangizni kiriting:',
+        'jadval':      f'✅ Til: {lang_name}\n\nJadval mavzusini kiriting:\n_(masalan: O\'zbekiston aholisi, Davlatlar YaIM)_',
+        'mindmap':     f'✅ Til: {lang_name}\n\nMind map mavzusini kiriting:\n_(masalan: Sun\'iy intellekt, Ekologiya)_',
+    }
+    await query.edit_message_text(
+        questions.get(service, f'✅ Til: {lang_name}\n\nMavzuni kiriting:'),
+        parse_mode='Markdown'
+    )
+    return HJ_INPUT1
+
+
 async def hj_get_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Til tanlovi."""
     query = update.callback_query
@@ -7486,10 +7581,12 @@ def main() -> None:
             # ── Hujjat & Dizayn holatlari ──
             HJ_MENU: [
                 CallbackQueryHandler(hj_get_menu, pattern=r"^hj_(rezyume|motivatsion|jadval|mindmap)$"),
+                CallbackQueryHandler(hj_direct_lang, pattern=r"^(rz|mv|jd|mm)_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             HJ_LANG: [
                 CallbackQueryHandler(hj_get_lang, pattern=r"^hj_lang_"),
+                CallbackQueryHandler(hj_direct_lang, pattern=r"^(rz|mv|jd|mm)_lang_"),
                 CallbackQueryHandler(hj_back_to_menu, pattern=r"^hj_back_to_menu$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
