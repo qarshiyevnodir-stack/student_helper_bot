@@ -88,6 +88,8 @@ from utils import (
     SLIDE_TYPE_NAMES_ODDIY2,
     SLIDE_TYPE_NAMES_PLATINUM,
     SLIDE_TYPE_NAMES_GAMMA2,
+    generate_obyektivka,
+    obyektivka_to_pdf,
 )
 from mustaqil_ish_utils import generate_mustaqil_ish
 from loyiha_ishi_utils import generate_loyiha_ishi
@@ -412,6 +414,35 @@ logger = logging.getLogger(__name__)
     PDF_RECEIVE,         # 165 — fayl qabul qilish
 ) = range(165, 166)
 # ─────────────────────────────────────────────
+# Suhbat holatlari — Ma'lumotnoma / Obyektivka
+# ─────────────────────────────────────────────
+(
+    OB_FISH,             # 170 — F.I.Sh.
+    OB_LAVOZIM,          # 171 — Lavozim
+    OB_TUGILGAN_YILI,    # 172 — Tug'ilgan yili
+    OB_TUGILGAN_JOYI,    # 173 — Tug'ilgan joyi
+    OB_MILLATI,          # 174 — Millati
+    OB_PARTIYAVIYLIGI,   # 175 — Partiyaviyligi
+    OB_MALUMOTI,         # 176 — Ma'lumoti
+    OB_TAMOMLAGAN,       # 177 — Tamomlagan
+    OB_MUTAXASSISLIGI,   # 178 — Mutaxassisligi
+    OB_ILMIY_DARAJA,     # 179 — Ilmiy darajasi
+    OB_ILMIY_UNVON,      # 180 — Ilmiy unvoni
+    OB_CHET_TILLARI,     # 181 — Chet tillari
+    OB_HARBIY_UNVON,     # 182 — Harbiy unvoni
+    OB_MUKOFOTLAR,       # 183 — Mukofotlar
+    OB_DEPUTATLIK,       # 184 — Deputatlik
+    OB_MEHNAT,           # 185 — Mehnat faoliyati
+    OB_MEHNAT_JOY,       # 186 — Mehnat joyi
+    OB_QARINDOSH_SEL,    # 187 — Qarindosh tanlash
+    OB_QARINDOSH_FISH,   # 188 — Qarindosh F.I.Sh.
+    OB_QARINDOSH_TUG,    # 189 — Qarindosh tug'ilgan
+    OB_QARINDOSH_ISH,    # 190 — Qarindosh ish joyi
+    OB_QARINDOSH_TURAR,  # 191 — Qarindosh turar joyi
+    OB_FORMAT,           # 192 — Format tanlash (docx/pdf)
+) = range(170, 193)
+
+# ─────────────────────────────────────────────
 # Til nomlari
 # ─────────────────────────────────────────────
 LANGUAGE_NAMES = {
@@ -443,7 +474,8 @@ def get_main_menu_keyboard():
         [KeyboardButton("📜 Motivatsion xat ✨"),    KeyboardButton("📊 Jadval & Diagramma ✨")],
         [KeyboardButton("🗺️ Kontsept xarita ✨"),    KeyboardButton("📋 Annotatsiya ✨")],
         [KeyboardButton("📝 Taqriz ✨"),  KeyboardButton("📦 Ziplash/Arxivlash 🗜️")],
-        [KeyboardButton("📄 PDF Konvertatsiya 🔄"),  KeyboardButton("💰 Balans")],
+        [KeyboardButton("📄 PDF Konvertatsiya 🔄"),  KeyboardButton("📋 Ma'lumotnoma ✨")],
+        [KeyboardButton("💰 Balans")],
         [KeyboardButton("🔗 Referral")],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -738,7 +770,7 @@ MENU_REGEX = (
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
 r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📄 Rezyume / CV ✨|"
 r"📜 Motivatsion xat ✨|📊 Jadval & Diagramma ✨|🗺️ Kontsept xarita ✨|"
-r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|"
+r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|📋 Ma'lumotnoma ✨|"
     r"💳 Balans to'ldirish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
@@ -1274,6 +1306,18 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return PDF_RECEIVE
+    elif text == "📋 Ma'lumotnoma ✨":
+        context.user_data.clear()
+        context.user_data["mode"] = "obyektivka"
+        await update.message.reply_text(
+            "📋 *Ma'lumotnoma / Obyektivka*\n\n"
+            "💰 *Narx: 3 000 so'm*\n\n"
+            "Hujjat to'ldirilgach *DOCX* yoki *PDF* formatida yuklab olishingiz mumkin.\n\n"
+            "👤 *F.I.Sh.* (to'liq familiya, ism, otasining ismi)ni kiriting:",
+            parse_mode="Markdown"
+        )
+        return OB_FISH
+
     elif text == "💰 Balans":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
@@ -5978,6 +6022,380 @@ async def pdf_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# MA'LUMOTNOMA / OBYEKTIVKA HANDLERLAR
+# ═══════════════════════════════════════════════════════════════════════════
+
+QARINDOSH_MUNOSABATLAR = [
+    "Otasi", "Onasi", "Akasi", "Opasi", "Ukasi", "Singlisi",
+    "Turmush o'rtog'i", "Qizi", "O'g'li",
+    "Qaynotasi", "Qaynonasi", "Qaynisi", "Qaynsinglisi",
+    "Boshqa"
+]
+
+def get_qarindosh_keyboard():
+    """Qarindosh munosabat tanlash klaviaturasi"""
+    buttons = []
+    row = []
+    for m in QARINDOSH_MUNOSABATLAR:
+        row.append(InlineKeyboardButton(m, callback_data=f"ob_q_{m}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton("✅ Tayyor (tugatish)", callback_data="ob_q_done")])
+    return InlineKeyboardMarkup(buttons)
+
+async def ob_fish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_fish"] = text
+    await update.message.reply_text(
+        f"✅ *F\.I\.Sh\.* saqlandi\n\n"
+        f"📌 *Hozirgi lavozimi* \(yil va joy bilan\):\n"
+        f"_Masalan: 2022\-yil dekabrdan: Termiz davlat universiteti tayanch doktoranti_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_LAVOZIM
+
+async def ob_lavozim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_lavozim"] = text
+    await update.message.reply_text(
+        f"✅ *Lavozim* saqlandi\n\n"
+        f"📅 *Tug'ilgan sanasi* \(kun\.oy\.yil\):\n"
+        f"_Masalan: 12\.11\.1989_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_TUGILGAN_YILI
+
+async def ob_tugilgan_yili_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_tugilgan_yili"] = text
+    await update.message.reply_text(
+        f"✅ *Tug'ilgan sanasi* saqlandi\n\n"
+        f"📍 *Tug'ilgan joyi* \(viloyat, tuman\):\n"
+        f"_Masalan: Surxondaryo viloyati, Jarqo'rg'on tumani_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_TUGILGAN_JOYI
+
+async def ob_tugilgan_joyi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_tugilgan_joyi"] = text
+    await update.message.reply_text(
+        "✅ *Tug'ilgan joyi* saqlandi\n\n🌍 *Millati:*\n_Masalan: O'zbek_",
+        parse_mode="Markdown"
+    )
+    return OB_MILLATI
+
+async def ob_millati_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_millati"] = text
+    await update.message.reply_text(
+        "✅ *Millati* saqlandi\n\n🏙️ *Partiyaviyligi:*\n_Masalan: Yo'q_",
+        parse_mode="Markdown"
+    )
+    return OB_PARTIYAVIYLIGI
+
+async def ob_partiyaviyligi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_partiyaviyligi"] = text
+    await update.message.reply_text(
+        "✅ *Partiyaviyligi* saqlandi\n\n🎓 *Ma'lumoti:*\n_Masalan: oliy, o'rta maxsus_",
+        parse_mode="Markdown"
+    )
+    return OB_MALUMOTI
+
+async def ob_malumoti_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_malumoti"] = text
+    await update.message.reply_text(
+        "✅ *Ma'lumoti* saqlandi\n\n🏧 *Tamomlagan muassasa\(lar\):*\n_Masalan: 2016 y\. Toshkent davlat jahon tillari universiteti_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_TAMOMLAGAN
+
+async def ob_tamomlagan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_tamomlagan"] = text
+    await update.message.reply_text(
+        "✅ *Tamomlagan* saqlandi\n\n📚 *Mutaxassisligi:*\n_Masalan: Bakalavriat: Filologiya va tillarni o'qitish_",
+        parse_mode="Markdown"
+    )
+    return OB_MUTAXASSISLIGI
+
+async def ob_mutaxassisligi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_mutaxassisligi"] = text
+    await update.message.reply_text(
+        "✅ *Mutaxassisligi* saqlandi\n\n🔬 *Ilmiy darajasi:*\n_Masalan: yo'q, fan nomzodi_",
+        parse_mode="Markdown"
+    )
+    return OB_ILMIY_DARAJA
+
+async def ob_ilmiy_daraja_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_ilmiy_darajasi"] = text
+    await update.message.reply_text(
+        "✅ *Ilmiy darajasi* saqlandi\n\n🏅 *Ilmiy unvoni:*\n_Masalan: yo'q, dotsent_",
+        parse_mode="Markdown"
+    )
+    return OB_ILMIY_UNVON
+
+async def ob_ilmiy_unvon_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_ilmiy_unvoni"] = text
+    await update.message.reply_text(
+        "✅ *Ilmiy unvoni* saqlandi\n\n🌐 *Qaysi chet tillarini biladi:*\n_Masalan: Ingliz, Rus_",
+        parse_mode="Markdown"
+    )
+    return OB_CHET_TILLARI
+
+async def ob_chet_tillari_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_chet_tillari"] = text
+    await update.message.reply_text(
+        "✅ *Chet tillari* saqlandi\n\n🎖️ *Harbiy \(maxsus\) unvoni:*\n_Masalan: yo'q_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_HARBIY_UNVON
+
+async def ob_harbiy_unvon_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_harbiy_unvoni"] = text
+    await update.message.reply_text(
+        "✅ *Harbiy unvoni* saqlandi\n\n🏆 *Davlat mukofotlari bilan taqdirlanganmi:*\n_Masalan: yo'q_",
+        parse_mode="Markdown"
+    )
+    return OB_MUKOFOTLAR
+
+async def ob_mukofotlar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_mukofotlar"] = text
+    await update.message.reply_text(
+        "✅ *Mukofotlar* saqlandi\n\n🏙️ *Xalq deputatlari yoki saylanadigan organlar a'zosimi:*\n_Masalan: yo'q_",
+        parse_mode="Markdown"
+    )
+    return OB_DEPUTATLIK
+
+async def ob_deputatlik_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_deputatlik"] = text
+    context.user_data["ob_mehnat"] = []
+    await update.message.reply_text(
+        "✅ *Deputatlik* saqlandi\n\n"
+        "💼 *MEHNAT FAOLIYATI*\n\n"
+        "*1\-yozuv: Yillar* \(masalan: 2016\-2017 yy\.\):\n"
+        "_Agar mehnat faoliyati yo'q bo'lsa, \"yo'q\" yozing_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_MEHNAT
+
+async def ob_mehnat_yil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    mehnat = context.user_data.get("ob_mehnat", [])
+    n = len(mehnat) + 1
+    if text.lower() in ("yo'q", "yoq", "-", ""):
+        context.user_data["ob_qarindoshlar"] = []
+        await update.message.reply_text(
+            "👨‍👩‍👧‍👦 *QARINDOSHLAR*\n\nQuyidagi tugmalardan munosabatni tanlang:",
+            reply_markup=get_qarindosh_keyboard(),
+            parse_mode="Markdown"
+        )
+        return OB_QARINDOSH_SEL
+    context.user_data["ob_mehnat_yil_temp"] = text
+    await update.message.reply_text(
+        f"✅ *Yillar* saqlandi\n\n🏢 *{n}\-yozuv: Ish joyi va lavozimi:*\n"
+        f"_Masalan: Toshkent davlat texnika universiteti, o'qituvchi_",
+        parse_mode="Markdown"
+    )
+    return OB_MEHNAT_JOY
+
+async def ob_mehnat_joy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    yil = context.user_data.pop("ob_mehnat_yil_temp", "")
+    mehnat = context.user_data.get("ob_mehnat", [])
+    mehnat.append({"yil": yil, "joy": text})
+    context.user_data["ob_mehnat"] = mehnat
+    n = len(mehnat)
+    if n >= 5:
+        context.user_data["ob_qarindoshlar"] = []
+        await update.message.reply_text(
+            f"✅ *{n}\-yozuv* saqlandi\n\n👨‍👩‍👧‍👦 *QARINDOSHLAR*\n\nQuyidagi tugmalardan munosabatni tanlang:",
+            reply_markup=get_qarindosh_keyboard(),
+            parse_mode="Markdown"
+        )
+        return OB_QARINDOSH_SEL
+    next_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➡️ Qarindoshlarga o'tish", callback_data="ob_mehnat_done")]
+    ])
+    await update.message.reply_text(
+        f"✅ *{n}\-yozuv* saqlandi\n\n"
+        f"💼 *{n+1}\-yozuv: Yillar* \(yoki keyingi bosqichga o'ting\):",
+        reply_markup=next_kb,
+        parse_mode="Markdown"
+    )
+    return OB_MEHNAT
+
+async def ob_mehnat_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    context.user_data["ob_qarindoshlar"] = []
+    await query.edit_message_text(
+        "👨‍👩‍👧‍👦 *QARINDOSHLAR*\n\nQuyidagi tugmalardan munosabatni tanlang:",
+        reply_markup=get_qarindosh_keyboard(),
+        parse_mode="Markdown"
+    )
+    return OB_QARINDOSH_SEL
+
+async def ob_qarindosh_sel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    if data == "ob_q_done":
+        n = len(context.user_data.get("ob_qarindoshlar", []))
+        format_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
+             InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
+            [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
+        ])
+        await query.edit_message_text(
+            f"✅ *{n} ta qarindosh kiritildi*\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
+            reply_markup=format_kb,
+            parse_mode="Markdown"
+        )
+        return OB_FORMAT
+    munosabat = data.replace("ob_q_", "")
+    context.user_data["ob_q_munosabat_temp"] = munosabat
+    await query.edit_message_text(
+        f"👤 *Munosabat: {esc_md(munosabat)}*\n\n📝 *Familiyasi, ismi va otasining ismi:*",
+        parse_mode="Markdown"
+    )
+    return OB_QARINDOSH_FISH
+
+async def ob_qarindosh_fish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_q_fish_temp"] = text
+    await update.message.reply_text(
+        f"✅ *F\.I\.Sh\.* saqlandi\n\n📅 *Tug'ilgan yili va joyi:*\n_Masalan: 1957 yil, Surxondaryo viloyati_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_QARINDOSH_TUG
+
+async def ob_qarindosh_tug_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_q_tug_temp"] = text
+    await update.message.reply_text(
+        "✅ *Tug'ilgan* saqlandi\n\n💼 *Ish joyi va lavozimi:*\n_Masalan: Nafaqada_",
+        parse_mode="Markdown"
+    )
+    return OB_QARINDOSH_ISH
+
+async def ob_qarindosh_ish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["ob_q_ish_temp"] = text
+    await update.message.reply_text(
+        "✅ *Ish joyi* saqlandi\n\n🏠 *Turar joyi:*\n_Masalan: Surxondaryo vil\., Jarqo'rg'on tumani_",
+        parse_mode="MarkdownV2"
+    )
+    return OB_QARINDOSH_TURAR
+
+async def ob_qarindosh_turar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    munosabat = context.user_data.pop("ob_q_munosabat_temp", "")
+    fish      = context.user_data.pop("ob_q_fish_temp", "")
+    tugilgan  = context.user_data.pop("ob_q_tug_temp", "")
+    ish_joyi  = context.user_data.pop("ob_q_ish_temp", "")
+    qarindoshlar = context.user_data.get("ob_qarindoshlar", [])
+    qarindoshlar.append({"munosabat": munosabat, "fish": fish, "tugilgan": tugilgan, "ish_joyi": ish_joyi, "turar_joyi": text})
+    context.user_data["ob_qarindoshlar"] = qarindoshlar
+    n = len(qarindoshlar)
+    if n >= 15:
+        format_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
+             InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
+            [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
+        ])
+        await update.message.reply_text(
+            f"✅ *{munosabat}* saqlandi\. Jami: {n} ta\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
+            reply_markup=format_kb,
+            parse_mode="MarkdownV2"
+        )
+        return OB_FORMAT
+    await update.message.reply_text(
+        f"✅ *{esc_md(munosabat)}* saqlandi\. Jami: {n} ta\n\nKeyingi qarindoshni tanlang yoki \"Tayyor\" tugmasini bosing:",
+        reply_markup=get_qarindosh_keyboard(),
+        parse_mode="MarkdownV2"
+    )
+    return OB_QARINDOSH_SEL
+
+async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    fmt = query.data
+    user = query.from_user
+    price = 3000
+    balance = await asyncio.to_thread(db.get_balance, user.id)
+    if balance < price:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]])
+        await query.edit_message_text(
+            f"❌ *Balansingiz yetarli emas\!*\n\n💰 Joriy balans: *{balance:,} so'm*\n💳 Kerakli summa: *{price:,} so'm*",
+            reply_markup=kb, parse_mode="MarkdownV2"
+        )
+        return OB_FORMAT
+    await query.edit_message_text("⏳ *Hujjat tayyorlanmoqda\.\.\.*", parse_mode="MarkdownV2")
+    data = {
+        "fish":           context.user_data.get("ob_fish", ""),
+        "lavozim":        context.user_data.get("ob_lavozim", ""),
+        "tugilgan_yili":  context.user_data.get("ob_tugilgan_yili", ""),
+        "tugilgan_joyi":  context.user_data.get("ob_tugilgan_joyi", ""),
+        "millati":        context.user_data.get("ob_millati", ""),
+        "partiyaviyligi": context.user_data.get("ob_partiyaviyligi", ""),
+        "malumoti":       context.user_data.get("ob_malumoti", ""),
+        "tamomlagan":     context.user_data.get("ob_tamomlagan", ""),
+        "mutaxassisligi": context.user_data.get("ob_mutaxassisligi", ""),
+        "ilmiy_darajasi": context.user_data.get("ob_ilmiy_darajasi", "yo'q"),
+        "ilmiy_unvoni":   context.user_data.get("ob_ilmiy_unvoni", "yo'q"),
+        "chet_tillari":   context.user_data.get("ob_chet_tillari", ""),
+        "harbiy_unvoni":  context.user_data.get("ob_harbiy_unvoni", "yo'q"),
+        "mukofotlar":     context.user_data.get("ob_mukofotlar", "yo'q"),
+        "deputatlik":     context.user_data.get("ob_deputatlik", "yo'q"),
+        "mehnat":         context.user_data.get("ob_mehnat", []),
+        "qarindoshlar":   context.user_data.get("ob_qarindoshlar", []),
+    }
+    try:
+        docx_bytes = await asyncio.to_thread(generate_obyektivka, data)
+    except Exception as e:
+        logger.error(f"generate_obyektivka xatolik: {e}")
+        await query.edit_message_text("❌ Hujjat yaratishda xatolik yuz berdi\. Qayta urinib ko'ring\.", parse_mode="MarkdownV2")
+        return ConversationHandler.END
+    await asyncio.to_thread(db.deduct_balance, user.id, price)
+    fish = data.get("fish", "obyektivka")
+    fname = fish.replace(" ", "_")[:30]
+    from io import BytesIO
+    if fmt in ("ob_fmt_docx", "ob_fmt_both"):
+        f = BytesIO(docx_bytes); f.name = f"{fname}.docx"
+        await context.bot.send_document(chat_id=user.id, document=f, filename=f"Malumotnoma_{fname}.docx",
+            caption=f"📝 *Ma'lumotnoma \(DOCX\)*", parse_mode="MarkdownV2")
+    if fmt in ("ob_fmt_pdf", "ob_fmt_both"):
+        try:
+            pdf_bytes = await asyncio.to_thread(obyektivka_to_pdf, docx_bytes)
+            f = BytesIO(pdf_bytes); f.name = f"{fname}.pdf"
+            await context.bot.send_document(chat_id=user.id, document=f, filename=f"Malumotnoma_{fname}.pdf",
+                caption=f"📄 *Ma'lumotnoma \(PDF\)*", parse_mode="MarkdownV2")
+        except Exception as e:
+            logger.error(f"PDF xatolik: {e}")
+            await context.bot.send_message(chat_id=user.id, text="⚠️ PDF yaratishda xatolik\. DOCX fayl yuborildi\.")
+    new_bal = await asyncio.to_thread(db.get_balance, user.id)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=f"✅ *Ma'lumotnoma tayyor\!*\n\n💰 Yechildi: *{price:,} so'm*\n💳 Qolgan balans: *{new_bal:,} so'm*",
+        reply_markup=get_main_menu_keyboard(), parse_mode="MarkdownV2"
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
+
+# ═══════════════════════════════════════════════════════════════════════════
 # AI YORDAMCHI HANDLERR
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -7912,6 +8330,100 @@ def main() -> None:
                 ),
                 CallbackQueryHandler(pdf_again_callback, pattern=r"^pdf_again$"),
                 CallbackQueryHandler(pdf_cancel_callback, pattern=r"^pdf_cancel$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            # ── Ma'lumotnoma / Obyektivka holatlari ──
+            OB_FISH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_fish_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_LAVOZIM: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_lavozim_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_TUGILGAN_YILI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_tugilgan_yili_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_TUGILGAN_JOYI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_tugilgan_joyi_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MILLATI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_millati_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_PARTIYAVIYLIGI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_partiyaviyligi_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MALUMOTI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_malumoti_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_TAMOMLAGAN: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_tamomlagan_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MUTAXASSISLIGI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_mutaxassisligi_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_ILMIY_DARAJA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_ilmiy_daraja_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_ILMIY_UNVON: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_ilmiy_unvon_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_CHET_TILLARI: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_chet_tillari_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_HARBIY_UNVON: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_harbiy_unvon_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MUKOFOTLAR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_mukofotlar_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_DEPUTATLIK: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_deputatlik_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MEHNAT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_mehnat_yil_handler),
+                CallbackQueryHandler(ob_mehnat_done_callback, pattern=r"^ob_mehnat_done$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_MEHNAT_JOY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_mehnat_joy_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_QARINDOSH_SEL: [
+                CallbackQueryHandler(ob_qarindosh_sel_handler, pattern=r"^ob_q_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_QARINDOSH_FISH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_fish_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_QARINDOSH_TUG: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_tug_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_QARINDOSH_ISH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_ish_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_QARINDOSH_TURAR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_turar_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_FORMAT: [
+                CallbackQueryHandler(ob_format_handler, pattern=r"^ob_fmt_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── AI Yordamchi holatlari ──

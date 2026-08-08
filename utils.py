@@ -16540,3 +16540,96 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
     prs.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ─────────────────────────────────────────────
+# Ma'lumotnoma / Obyektivka yaratish
+# ─────────────────────────────────────────────
+
+def generate_obyektivka(data: dict) -> bytes:
+    """
+    Shablon asosida Ma'lumotnoma/Obyektivka yaratadi.
+    data dict kalitlari:
+      fish, lavozim, tugilgan_yili, tugilgan_joyi,
+      millati, partiyaviyligi, malumoti, tamomlagan,
+      mutaxassisligi, ilmiy_darajasi, ilmiy_unvoni,
+      chet_tillari, harbiy_unvoni, mukofotlar, deputatlik,
+      mehnat: list of {yil, joy}  (max 5)
+      qarindoshlar: list of {munosabat, fish, tugilgan, ish_joyi, turar_joyi}  (max 15)
+    Returns: docx bytes
+    """
+    import io as _io
+    from docxtpl import DocxTemplate
+
+    template_path = os.path.join(
+        os.path.dirname(__file__),
+        "templates", "obyektivka_shablon.docx"
+    )
+
+    tpl = DocxTemplate(template_path)
+
+    # Mehnat faoliyati — 5 ta qator (bo'sh bo'lsa yil/joy bo'sh, "-" qoladi)
+    mehnat_list = data.get("mehnat", [])
+    mehnat_ctx = {}
+    for i in range(1, 6):
+        m = mehnat_list[i - 1] if i - 1 < len(mehnat_list) else {}
+        mehnat_ctx[f"mehnat_{i}_yil"] = m.get("yil", "")
+        mehnat_ctx[f"mehnat_{i}_joy"] = m.get("joy", "")
+
+    # Qarindoshlar — 15 ta qator
+    q_list = data.get("qarindoshlar", [])
+    q_ctx = {}
+    for i in range(1, 16):
+        q = q_list[i - 1] if i - 1 < len(q_list) else {}
+        q_ctx[f"q{i}_munosabat"] = q.get("munosabat", "")
+        q_ctx[f"q{i}_fish"]      = q.get("fish", "")
+        q_ctx[f"q{i}_tugilgan"]  = q.get("tugilgan", "")
+        q_ctx[f"q{i}_ish_joyi"]  = q.get("ish_joyi", "")
+        q_ctx[f"q{i}_turar_joyi"] = q.get("turar_joyi", "")
+
+    context = {
+        "fish":           data.get("fish", ""),
+        "lavozim":        data.get("lavozim", ""),
+        "tugilgan_yili":  data.get("tugilgan_yili", ""),
+        "tugilgan_joyi":  data.get("tugilgan_joyi", ""),
+        "millati":        data.get("millati", ""),
+        "partiyaviyligi": data.get("partiyaviyligi", ""),
+        "malumoti":       data.get("malumoti", ""),
+        "tamomlagan":     data.get("tamomlagan", ""),
+        "mutaxassisligi": data.get("mutaxassisligi", ""),
+        "ilmiy_darajasi": data.get("ilmiy_darajasi", "yo'q"),
+        "ilmiy_unvoni":   data.get("ilmiy_unvoni", "yo'q"),
+        "chet_tillari":   data.get("chet_tillari", ""),
+        "harbiy_unvoni":  data.get("harbiy_unvoni", "yo'q"),
+        "mukofotlar":     data.get("mukofotlar", "yo'q"),
+        "deputatlik":     data.get("deputatlik", "yo'q"),
+        **mehnat_ctx,
+        **q_ctx,
+    }
+
+    tpl.render(context)
+    buf = _io.BytesIO()
+    tpl.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+def obyektivka_to_pdf(docx_bytes: bytes) -> bytes:
+    """docx bytes ni PDF ga o'tkazadi (libreoffice orqali)"""
+    import subprocess, tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        docx_path = os.path.join(tmpdir, "obyektivka.docx")
+        pdf_path  = os.path.join(tmpdir, "obyektivka.pdf")
+
+        with open(docx_path, "wb") as f:
+            f.write(docx_bytes)
+
+        subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", "pdf",
+             docx_path, "--outdir", tmpdir],
+            check=True, capture_output=True, timeout=60
+        )
+
+        with open(pdf_path, "rb") as f:
+            return f.read()
