@@ -6049,13 +6049,31 @@ def get_qarindosh_keyboard():
 async def ob_fish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
     context.user_data["ob_fish"] = text
+    skip_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏩ O'tkazib yuborish", callback_data="ob_lavozim_skip")]
+    ])
     await update.message.reply_text(
-        f"✅ *F\.I\.Sh\.* saqlandi\n\n"
-        f"📌 *Hozirgi lavozimi* \(yil va joy bilan\):\n"
-        f"_Masalan: 2022\-yil dekabrdan: Termiz davlat universiteti tayanch doktoranti_",
-        parse_mode="MarkdownV2"
+        "✅ *F.I.Sh.* saqlandi\n\n"
+        "📌 *Hozirgi lavozimi* (yil va joy bilan):\n"
+        "_Masalan: 2022-yil dekabrdan: Termiz davlat universiteti tayanch doktoranti_\n\n"
+        "⚠️ Ixtiyoriy \u2014 bo'sh qoldirish uchun tugmani bosing:",
+        reply_markup=skip_kb,
+        parse_mode="Markdown"
     )
     return OB_LAVOZIM
+
+async def ob_lavozim_skip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Lavozim maydonini bo'sh qoldirish"""
+    query = update.callback_query
+    await query.answer()
+    context.user_data["ob_lavozim"] = ""
+    await query.edit_message_text(
+        "✅ *Lavozim* o'tkazib yuborildi\n\n"
+        "📅 *Tug'ilgan sanasi* (kun.oy.yil):\n"
+        "_Masalan: 12.11.1989_",
+        parse_mode="Markdown"
+    )
+    return OB_TUGILGAN_YILI
 
 async def ob_lavozim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
@@ -8339,6 +8357,7 @@ def main() -> None:
             ],
             OB_LAVOZIM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_lavozim_handler),
+                CallbackQueryHandler(ob_lavozim_skip_callback, pattern=r"^ob_lavozim_skip$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             OB_TUGILGAN_YILI: [
