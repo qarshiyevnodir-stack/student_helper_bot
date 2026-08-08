@@ -53,12 +53,46 @@ def _get_next_together_key():
         return keys[idx]
 
 
+def _translate_to_english(text):
+    """O'zbek/rus tilidagi matnni inglizchaga tarjima qiladi (LLM orqali)."""
+    try:
+        import os as _os3
+        api_key = _os3.getenv('OPENAI_API_KEY', '')
+        api_base = _os3.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
+        if not api_key:
+            return text
+        import requests as _req
+        resp = _req.post(
+            f'{api_base}/chat/completions',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json={
+                'model': 'gpt-4o-mini',
+                'messages': [
+                    {'role': 'system', 'content': 'Translate the following text to English. Return ONLY the English translation, nothing else.'},
+                    {'role': 'user', 'content': text}
+                ],
+                'max_tokens': 100,
+                'temperature': 0
+            },
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return resp.json()['choices'][0]['message']['content'].strip()
+    except Exception:
+        pass
+    return text
+
+
 def _build_together_prompt(image_query, style='photo', content_keywords=None, topic=None):
     """
     Slayd sarlavhasi va kontent so'zlaridan kelib chiqib boyitilgan prompt yaratadi.
     Asosiy mavzuni (topic) saqlab qoladi.
     style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
     """
+    # Mavzu va sarlavhani inglizchaga tarjima qilish (AI uchun aniqroq)
+    translated_query = _translate_to_english(str(image_query)) if image_query else ''
+    translated_topic = _translate_to_english(str(topic)) if topic else ''
+
     # Kontent so'zlarini qo'shish (faqat mavzuga aloqadorroq qilib)
     extra = ''
     if content_keywords:
@@ -68,10 +102,10 @@ def _build_together_prompt(image_query, style='photo', content_keywords=None, to
 
     # Asosiy kontekst yaratish
     base = ""
-    if topic and topic.lower() not in str(image_query).lower():
-        base = f"{topic}, {image_query}"
+    if translated_topic and translated_topic.lower() not in translated_query.lower():
+        base = f"{translated_topic}, {translated_query}"
     else:
-        base = str(image_query)
+        base = translated_query
 
     if extra:
         base = f"{base}, related to {extra}"
