@@ -119,7 +119,13 @@ ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 SERVICE_PRICES = {
-    "slayd":        3000,
+    "slayd":        2500,   # Silver uchun (matnli stillar)
+    "slayd_gold_10":  2500,   # Gold 10 slayd
+    "slayd_gold_20":  3000,   # Gold 20 slayd
+    "slayd_gold_30":  4000,   # Gold 30 slayd
+    "slayd_plat_10":  3000,   # Platinum 10 slayd
+    "slayd_plat_20":  4000,   # Platinum 20 slayd
+    "slayd_plat_30":  5000,   # Platinum 30 slayd
     "mustaqil_ish": 3000,
     "referat":      3000,
     "loyiha_ishi":  3000,
@@ -153,7 +159,29 @@ SERVICE_PRICES = {
     "arxivlash":        1000,
     "pdf_convert":      1500,
 }
-MIN_TOPUP = 3000
+MIN_TOPUP = 2500
+
+
+def get_slayd_price(template_num: int, slide_count: int) -> int:
+    """Stil va slayd soniga qarab taqdimot narxini qaytaradi."""
+    # Silver stillar (oddiy1=35, oddiy2=36) — matnli, rasm yo'q
+    if template_num in (35, 36):
+        return SERVICE_PRICES['slayd']  # 2500
+    # Platinum stillar (37=Gamma1, 38=Gamma2)
+    if template_num in (37, 38):
+        if slide_count <= 10:
+            return SERVICE_PRICES['slayd_plat_10']   # 3000
+        elif slide_count <= 20:
+            return SERVICE_PRICES['slayd_plat_20']   # 4000
+        else:
+            return SERVICE_PRICES['slayd_plat_30']   # 5000
+    # Gold stillar (1-34)
+    if slide_count <= 10:
+        return SERVICE_PRICES['slayd_gold_10']   # 2500
+    elif slide_count <= 20:
+        return SERVICE_PRICES['slayd_gold_20']   # 3000
+    else:
+        return SERVICE_PRICES['slayd_gold_30']   # 4000
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -1553,7 +1581,9 @@ async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # ── Tasdiqlandi: 2-BOSQICH ──
     # Balans tekshirish
     user_id = query.from_user.id
-    price = SERVICE_PRICES['slayd']
+    _template_num = context.user_data.get('template_num', 1)
+    _slide_count = context.user_data.get('slide_count', 5)
+    price = get_slayd_price(_template_num, _slide_count)
     balance = await asyncio.to_thread(db.get_balance, user_id)
     if balance < price:
         keyboard = InlineKeyboardMarkup([
@@ -1695,7 +1725,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
     language     = context.user_data.get("language", "uz")
     slide_count  = context.user_data.get("slide_count", 5)
     name_surname = context.user_data.get("name_surname", "")
-    price        = SERVICE_PRICES['slayd']
+    price        = get_slayd_price(template_num, slide_count)
     await context.bot.send_message(
         chat_id=chat_id,
         text="⏳ Taqdimot yaratilmoqda..."
@@ -1866,7 +1896,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     slide_count  = context.user_data.get("slide_count", 5)
     name_surname = context.user_data.get("name_surname", "")
     user_id      = query.from_user.id
-    price        = SERVICE_PRICES['slayd']
+    price        = get_slayd_price(template_num, slide_count)
     try:
         await query.edit_message_caption(
             caption="⏳ Taqdimot yaratilmoqda...",
@@ -2201,7 +2231,7 @@ async def image_source_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     filename = pending.get("filename", "taqdimot.pptx")
     topic = context.user_data.get("topic", "")
     slide_count = context.user_data.get("slide_count", 5)
-    price = SERVICE_PRICES['slayd']
+    price = get_slayd_price(context.user_data.get("template_num", 1), slide_count)
     image_queries = context.user_data.get("pending_image_queries", [])
 
     if action == "img_source_auto":
@@ -2256,7 +2286,7 @@ async def user_image_collect_handler(update: Update, context: ContextTypes.DEFAU
     filename = pending.get("filename", "taqdimot.pptx")
     topic = context.user_data.get("topic", "")
     slide_count = context.user_data.get("slide_count", 5)
-    price = SERVICE_PRICES['slayd']
+    price = get_slayd_price(context.user_data.get("template_num", 1), slide_count)
     image_queries = context.user_data.get("pending_image_queries", [])
     collected = context.user_data.get("collected_user_images", [])
     img_count = len(image_queries)
