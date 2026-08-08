@@ -212,7 +212,9 @@ logger = logging.getLogger(__name__)
     TEMPLATE_SELECT,     # 5 — shablon tanlash
     IMAGE_SOURCE_SELECT, # 6 — rasm manbai tanlash (o'z rasmlari yoki avtomatik)
     USER_IMAGE_COLLECT,  # 7 — foydalanuvchi rasmlarini qabul qilish
-) = range(8)
+    PLAN_METHOD,         # 8 — reja usulini tanlash (qo'lda / avtomatik)
+    MANUAL_PLAN_INPUT,   # 9 — qo'lda reja kiritish
+) = range(10)
 
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Mustaqil ish
@@ -1485,7 +1487,7 @@ async def get_name_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return TEMPLATE_SELECT
 
 async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Slayd sonini qabul qiladi va 1-BOSQICH ni ishga tushiradi."""
+    """Slayd sonini qabul qiladi va reja usulini tanlash ekranini ko'rsatadi."""
     query = update.callback_query
     await query.answer()
 
@@ -1495,43 +1497,217 @@ async def get_slide_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     topic = context.user_data.get("topic", "")
     language = context.user_data.get("language", "uz")
     lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
+    name_surname = context.user_data.get("name_surname", "")
+    template_num = context.user_data.get("template_num", 1)
+    price = get_slayd_price(template_num, slide_count)
+
+    # Sahifalar sonini hisoblash
+    if template_num in (37, 38):  # Platinum
+        kontent_slides = ((slide_count + 4) // 5) * 5
+        total_slides = kontent_slides + 3  # muqova + reja + xulosa
+    else:
+        total_slides = slide_count + 2  # muqova + xulosa
+        kontent_slides = slide_count
+
+    plan_method_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✍️ Qo'lda kiritish", callback_data="plan_method_manual")],
+        [InlineKeyboardButton("🤖 Avtomatik reja (AI)", callback_data="plan_method_auto")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="plan_method_back")],
+    ])
 
     await query.edit_message_text(
-        text=f"📊 Slaydlar soni: *{slide_count}*\n\n⏳ Reja tuzilmoqda...",
+        text=(
+            f"📌 *Mavzu:* {esc_md(topic)}\n"
+            f"👤 *Muallif:* {esc_md(name_surname)}\n"
+            f"🌐 *Til:* {esc_md(lang_name)}\n"
+            f"📊 *Sahifalar:* {kontent_slides} ta kontent + {total_slides - kontent_slides} (muqova, yakuniy) = {total_slides} ta\n"
+            f"💰 *Narx:* {price:,} so'm\n\n"
+            f"🗒️ *Rejani qanday tuzamiz?*"
+        ),
+        reply_markup=plan_method_keyboard,
         parse_mode="Markdown"
     )
+    return PLAN_METHOD
 
-    template_num_for_plan = context.user_data.get("template_num", None)
-    try:
-        result = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: generate_plan_with_titles(topic, slide_count, language, template_num=template_num_for_plan)
+async def plan_method_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Reja usulini tanlash: qo'lda yoki avtomatik."""
+    query = update.callback_query
+    await query.answer()
+    action = query.data  # plan_method_manual / plan_method_auto / plan_method_back
+
+    if action == "plan_method_back":
+        # Slayd soni tanlashga qaytish
+        slide_kb = get_slide_count_keyboard()
+        await query.edit_message_text(
+            "📊 *Nechta slayd kerak?*",
+            reply_markup=slide_kb,
+            parse_mode="Markdown"
         )
-    except Exception as e:
-        logger.error(f"generate_plan_with_titles xatolik: {e}")
-        result = None
+        return SLIDE_COUNT
 
-    if not result or not result.get("plan"):
-        result = {
-            "plan": [f"1. {esc_md(topic)} haqida umumiy ma'lumot",
-                     f"2. {esc_md(topic)} ning asosiy jihatlari",
-                     f"3. {esc_md(topic)} ning ahamiyati"],
-            "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
+    elif action == "plan_method_manual":
+        # Qo'lda reja kiritish — 1-rejani so'rash
+        context.user_data["manual_plan"] = []
+        await query.edit_message_text(
+            "✍️ *Qo'lda reja kiritish*\n\n"
+            "*1-reja* nomini kiriting:\n"
+            "_(masalan: Kirish, Tarix, Asosiy qism, Xulosa)_",
+            parse_mode="Markdown"
+        )
+        return MANUAL_PLAN_INPUT
+
+    elif action == "plan_method_auto":
+        # Avtomatik reja (AI)
+        topic = context.user_data.get("topic", "")
+        language = context.user_data.get("language", "uz")
+        lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
+        slide_count = context.user_data.get("slide_count", 5)
+        template_num_for_plan = context.user_data.get("template_num", None)
+
+        await query.edit_message_text(
+            text=f"🤖 AI reja tuzmoqda...\n⏳ Bir daqiqa kuting...",
+            parse_mode="Markdown"
+        )
+        try:
+            result = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: generate_plan_with_titles(topic, slide_count, language, template_num=template_num_for_plan)
+            )
+        except Exception as e:
+            logger.error(f"generate_plan_with_titles xatolik: {e}")
+            result = None
+
+        if not result or not result.get("plan"):
+            result = {
+                "plan": [f"{topic} haqida umumiy ma'lumot",
+                         f"{topic} ning asosiy jihatlari",
+                         f"{topic} ning ahamiyati"],
+                "slide_titles": [f"{topic} — {i+1}" for i in range(slide_count)]
+            }
+        if not result.get("slide_titles"):
+            result["slide_titles"] = [f"{topic} — {i+1}" for i in range(slide_count)]
+
+        context.user_data["stage1_result"] = result
+        plan_items = result.get("plan", [])
+        plan_text = format_plan_message(topic, slide_count, lang_name, plan_items)
+
+        await query.edit_message_text(
+            text=plan_text,
+            reply_markup=get_plan_confirmation_keyboard(),
+            parse_mode="Markdown"
+        )
+        return PLAN_CONFIRMATION
+
+    return PLAN_METHOD
+
+
+async def manual_plan_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Qo'lda reja kiritish — har bir reja nomini qabul qiladi."""
+    text = update.message.text.strip()
+    manual_plan = context.user_data.get("manual_plan", [])
+    manual_plan.append(text)
+    context.user_data["manual_plan"] = manual_plan
+    step = len(manual_plan)
+
+    if step < 3:
+        # Keyingi rejani so'rash
+        await update.message.reply_text(
+            f"*{step+1}-reja* nomini kiriting:",
+            parse_mode="Markdown"
+        )
+        return MANUAL_PLAN_INPUT
+    else:
+        # 3 ta reja kiritildi — tasdiqlash ekranini ko'rsatish
+        topic = context.user_data.get("topic", "")
+        slide_count = context.user_data.get("slide_count", 5)
+        language = context.user_data.get("language", "uz")
+        lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
+
+        plan_lines = "\n".join([f"{i+1}. {esc_md(p)}" for i, p in enumerate(manual_plan)])
+        confirm_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Davom etish", callback_data="manual_plan_confirm")],
+            [InlineKeyboardButton("🔄 Rejani o'zgartirish", callback_data="manual_plan_redo")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="manual_plan_back")],
+        ])
+        await update.message.reply_text(
+            f"📋 *Kiritilgan reja:*\n\n{plan_lines}\n\n"
+            f"📌 *Mavzu:* {esc_md(topic)}\n"
+            f"📊 *Slaydlar soni:* {slide_count}\n"
+            f"🌐 *Til:* {esc_md(lang_name)}",
+            reply_markup=confirm_kb,
+            parse_mode="Markdown"
+        )
+        return PLAN_CONFIRMATION
+
+
+async def manual_plan_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Qo'lda kiritilgan rejani tasdiqlash yoki qayta kiritish."""
+    query = update.callback_query
+    await query.answer()
+    action = query.data
+
+    if action == "manual_plan_redo":
+        # Qayta kiritish
+        context.user_data["manual_plan"] = []
+        await query.edit_message_text(
+            "✍️ *Rejani qayta kiriting*\n\n"
+            "*1-reja* nomini kiriting:",
+            parse_mode="Markdown"
+        )
+        return MANUAL_PLAN_INPUT
+
+    elif action == "manual_plan_back":
+        # Reja usuli tanlashga qaytish
+        topic = context.user_data.get("topic", "")
+        language = context.user_data.get("language", "uz")
+        lang_name = LANGUAGE_NAMES.get(language, "O'zbek tili")
+        name_surname = context.user_data.get("name_surname", "")
+        slide_count = context.user_data.get("slide_count", 5)
+        template_num = context.user_data.get("template_num", 1)
+        price = get_slayd_price(template_num, slide_count)
+        if template_num in (37, 38):
+            kontent_slides = ((slide_count + 4) // 5) * 5
+            total_slides = kontent_slides + 3
+        else:
+            total_slides = slide_count + 2
+            kontent_slides = slide_count
+        plan_method_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ Qo'lda kiritish", callback_data="plan_method_manual")],
+            [InlineKeyboardButton("🤖 Avtomatik reja (AI)", callback_data="plan_method_auto")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="plan_method_back")],
+        ])
+        await query.edit_message_text(
+            text=(
+                f"📌 *Mavzu:* {esc_md(topic)}\n"
+                f"👤 *Muallif:* {esc_md(name_surname)}\n"
+                f"🌐 *Til:* {esc_md(lang_name)}\n"
+                f"📊 *Sahifalar:* {kontent_slides} ta kontent + {total_slides - kontent_slides} = {total_slides} ta\n"
+                f"💰 *Narx:* {price:,} so'm\n\n"
+                f"🗒️ *Rejani qanday tuzamiz?*"
+            ),
+            reply_markup=plan_method_keyboard,
+            parse_mode="Markdown"
+        )
+        return PLAN_METHOD
+
+    elif action == "manual_plan_confirm":
+        # Davom etish — qo'lda kiritilgan rejani stage1_result ga saqlash
+        manual_plan = context.user_data.get("manual_plan", [])
+        topic = context.user_data.get("topic", "")
+        slide_count = context.user_data.get("slide_count", 5)
+        # slide_titles ni reja nomlaridan yaratish
+        slide_titles = []
+        for i in range(slide_count):
+            slide_titles.append(manual_plan[i % len(manual_plan)])
+        context.user_data["stage1_result"] = {
+            "plan": manual_plan,
+            "slide_titles": slide_titles
         }
-    # slide_titles bo'sh bo'lsa fallback
-    if not result.get("slide_titles"):
-        result["slide_titles"] = [f"{topic} — {i+1}" for i in range(slide_count)]
+        # Taqdimot yaratishga o'tish
+        return await webapp_data_handler_generate(update, context)
 
-    context.user_data["stage1_result"] = result
-    plan_items = result.get("plan", [])
-    plan_text = format_plan_message(topic, slide_count, lang_name, plan_items)
-
-    await query.edit_message_text(
-        text=plan_text,
-        reply_markup=get_plan_confirmation_keyboard(),
-        parse_mode="Markdown"
-    )
     return PLAN_CONFIRMATION
+
 
 async def plan_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Reja tasdiqlash yoki qayta tuzish."""
@@ -7309,8 +7485,17 @@ def main() -> None:
                 CallbackQueryHandler(edit_name_handler, pattern=r"^edit_name$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
+            PLAN_METHOD: [
+                CallbackQueryHandler(plan_method_handler, pattern=r"^plan_method_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            MANUAL_PLAN_INPUT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, manual_plan_input_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
             PLAN_CONFIRMATION: [
                 CallbackQueryHandler(plan_confirmation, pattern=r"^plan_confirm_"),
+                CallbackQueryHandler(manual_plan_confirm_handler, pattern=r"^manual_plan_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             IMAGE_SOURCE_SELECT: [
