@@ -29,6 +29,15 @@ import itertools
 _together_key_lock = __import__('threading').Lock()
 _together_key_idx = [0]  # mutable list — thread-safe index
 
+# Startup: Together.ai kalitlarini tekshirish
+_together_key_1 = os.getenv('TOGETHER_API_KEY_1', '')
+_together_key_2 = os.getenv('TOGETHER_API_KEY_2', '')
+if _together_key_1 or _together_key_2:
+    logging.info(f'[Together] Kalitlar yuklandi: KEY1={bool(_together_key_1)}, KEY2={bool(_together_key_2)}')
+else:
+    logging.warning('[Together] DIQQAT: TOGETHER_API_KEY_1 va TOGETHER_API_KEY_2 topilmadi!')
+
+
 def _get_next_together_key():
     """Round-robin: har safar os.getenv dan qayta o'qib keyingi kalitni qaytaradi."""
     keys = [k for k in [
@@ -15548,8 +15557,10 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
         query = str(topic)
     
     # Together.ai orqali rasm yaratish
+    _logger.info(f"[Gamma] Rasm so'rovi: {shape_name}, query={query[:50]}, style={style}")
     img_path = fetch_image_together(query, style=style, topic=topic)
     if not img_path:
+        _logger.error(f"[Gamma] fetch_image_together None qaytardi: {shape_name}, query={query[:50]}")
         return
     
     try:
