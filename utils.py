@@ -15587,7 +15587,14 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
         with open(unique_path, 'wb') as _f2:
             _f2.write(img_data)
         try:
-            _, new_rId = shape.part.get_or_add_image_part(unique_path)
+            # python-pptx versiyasiga mos: 0.6.x -> image_part, 1.0.x -> (image_part, rId)
+            result = shape.part.get_or_add_image_part(unique_path)
+            if isinstance(result, tuple):
+                _, new_rId = result
+            else:
+                # 0.6.x: rId ni relate_to orqali olish
+                from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+                new_rId = shape.part.relate_to(result, RT.IMAGE)
             blip.set(f'{{{ns_r}}}embed', new_rId)
             _logger.info(f"[Gamma] Rasm joylashtirildi: {shape_name} ({style})")
         except Exception as _e:
