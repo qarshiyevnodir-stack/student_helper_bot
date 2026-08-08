@@ -6184,7 +6184,7 @@ async def ob_harbiy_unvon_handler(update: Update, context: ContextTypes.DEFAULT_
     text = update.message.text.strip()
     context.user_data["ob_harbiy_unvoni"] = text
     await update.message.reply_text(
-        "✅ *Harbiy unvoni* saqlandi\n\n🏆 *Davlat mukofotlari bilan taqdirlanganmi:*\n_Masalan: yo'q_",
+        "✅ *Harbiy unvoni* saqlandi\n\n🏆 *Davlat mukofotlari bilan taqdirlanganmi:*\n_Masalan: yo'q / bor bo'lsa nomi_",
         parse_mode="Markdown"
     )
     return OB_MUKOFOTLAR
