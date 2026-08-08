@@ -6112,7 +6112,7 @@ async def ob_millati_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = update.message.text.strip()
     context.user_data["ob_millati"] = text
     await update.message.reply_text(
-        "✅ *Millati* saqlandi\n\n🏙️ *Partiyaviyligi:*\n_Masalan: Yo'q_",
+        "✅ *Millati* saqlandi\n\n🏙️ *Partiyaviyligi:*\n_Masalan: Agar bo'lsa nomi / Yo'q_",
         parse_mode="Markdown"
     )
     return OB_PARTIYAVIYLIGI
