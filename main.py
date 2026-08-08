@@ -6297,7 +6297,7 @@ async def ob_qarindosh_fish_handler(update: Update, context: ContextTypes.DEFAUL
     text = update.message.text.strip()
     context.user_data["ob_q_fish_temp"] = text
     await update.message.reply_text(
-        f"✅ *F\.I\.Sh\.* saqlandi\n\n📅 *Tug'ilgan yili va joyi:*\n_Masalan: 1957 yil, Surxondaryo viloyati_",
+        f"✅ *F\.I\.Sh\.* saqlandi\n\n📅 *Tug'ilgan yili va joyi:*\n_Masalan: 1957 yil, Toshkent viloyati, Bo'ka tumani_",
         parse_mode="MarkdownV2"
     )
     return OB_QARINDOSH_TUG
@@ -6315,7 +6315,7 @@ async def ob_qarindosh_ish_handler(update: Update, context: ContextTypes.DEFAULT
     text = update.message.text.strip()
     context.user_data["ob_q_ish_temp"] = text
     await update.message.reply_text(
-        "✅ *Ish joyi* saqlandi\n\n🏠 *Turar joyi:*\n_Masalan: Surxondaryo vil\., Jarqo'rg'on tumani_",
+        "✅ *Ish joyi* saqlandi\n\n🏠 *Turar joyi:*\n_Masalan: Toshkent viloyati, Bekobod tumani_",
         parse_mode="MarkdownV2"
     )
     return OB_QARINDOSH_TURAR
