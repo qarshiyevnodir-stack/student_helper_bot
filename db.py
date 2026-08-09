@@ -150,7 +150,7 @@ def init_db():
         """)
 
         # Broadcast xabarlar jadvali
-        cur.execute("""
+        c.execute("""
             CREATE TABLE IF NOT EXISTS broadcast_messages (
                 id         SERIAL PRIMARY KEY,
                 user_id    BIGINT NOT NULL,
@@ -159,7 +159,7 @@ def init_db():
             )
         """)
         # Oxirgi broadcast ID ni saqlash
-        cur.execute("""
+        c.execute("""
             CREATE TABLE IF NOT EXISTS broadcast_sessions (
                 id         SERIAL PRIMARY KEY,
                 session_id TEXT NOT NULL UNIQUE,
