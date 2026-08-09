@@ -8661,6 +8661,12 @@ def main() -> None:
         ],
     )
 
+    # Admin broadcast handler — ConversationHandler dan OLDIN, group=-1 bilan
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+        admin_broadcast_text_handler
+    ), group=-1)
+
     application.add_handler(slayd_handler)
     # Admin handlerlari
     application.add_handler(CommandHandler("admin", admin_panel))
@@ -8668,10 +8674,6 @@ def main() -> None:
     application.add_handler(CommandHandler("broadcast", admin_broadcast))
     application.add_handler(CommandHandler("edit_broadcast", edit_broadcast_cmd))
     application.add_handler(CommandHandler("delete_broadcast", delete_broadcast_cmd))
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
-        admin_broadcast_text_handler
-    ))
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
         admin_delete_user_message
