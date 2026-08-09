@@ -657,11 +657,7 @@ async def archive_send_document(
             f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
             f"🆔 ID: {user.id}\n"
             f"📋 Xizmat: {service_name}\n"
-            f"📝 Mavzu: {topic}\n"
-            f"🌐 Til: {language}\n"
-            f"📄 Sahifalar: {page_count}\n"
-            f"💰 Narx: {price:,} so'm\n"
-            f"📅 Sana: {now}"
+            f"📝 Mavzu: {topic}"
         )
         # bytes yoki BytesIO dan yangi BytesIO nusxa yaratish
         if isinstance(document_bytes, (bytes, bytearray)):
@@ -703,10 +699,7 @@ async def archive_send_photo(
             f"👤 Foydalanuvchi: {full_name} ({username_str})\n"
             f"🆔 ID: {user.id}\n"
             f"📋 Xizmat: {service_name}\n"
-            f"📝 Mavzu: {topic}\n"
-            f"🌐 Til: {language}\n"
-            f"💰 Narx: {price:,} so'm\n"
-            f"📅 Sana: {now}"
+            f"📝 Mavzu: {topic}"
         )
         with open(photo_path, "rb") as f:
             await bot.send_photo(
