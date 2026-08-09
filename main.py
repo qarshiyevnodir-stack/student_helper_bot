@@ -6365,7 +6365,6 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     format_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
          InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
-        [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
     ])
     await update.message.reply_text(
         "✅ *Rasm qabul qilindi\!*\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
