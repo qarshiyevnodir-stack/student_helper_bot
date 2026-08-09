@@ -6378,7 +6378,7 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
     fmt = query.data
     user = query.from_user
-    price = 3000
+    price = 5000
     balance = await asyncio.to_thread(db.get_balance, user.id)
     if balance < price:
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]])
