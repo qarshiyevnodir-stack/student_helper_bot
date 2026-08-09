@@ -16611,7 +16611,55 @@ def generate_obyektivka(data: dict) -> bytes:
     buf = _io.BytesIO()
     tpl.save(buf)
     buf.seek(0)
-    return buf.read()
+
+    # Bo'sh mehnat va qarindosh qatorlarini o'chirish
+    from docx import Document
+    from docx.oxml.ns import qn
+    import copy
+
+    buf.seek(0)
+    doc = Document(buf)
+
+    # --- Mehnat faoliyati: bo'sh qatorlarni o'chirish ---
+    # Jadval 0 da mehnat qatorlari 16-20 indekslarda (0-based)
+    mehnat_count = len(mehnat_list)
+    t0 = doc.tables[0]
+    # Mehnat qatorlari indekslari: 16,17,18,19,20 (0-based)
+    # Ular shablon da row 16-20 bo'ladi
+    # Orqadan o'chirish (indeks buzilmasin)
+    mehnat_row_indices = [16, 17, 18, 19, 20]  # 0-based
+    rows_to_delete = []
+    for idx, ri in enumerate(mehnat_row_indices):
+        if idx >= mehnat_count and ri < len(t0.rows):
+            rows_to_delete.append(ri)
+    # Orqadan o'chirish
+    for ri in sorted(rows_to_delete, reverse=True):
+        try:
+            row_elem = t0.rows[ri]._tr
+            row_elem.getparent().remove(row_elem)
+        except Exception:
+            pass
+
+    # --- Qarindoshlar: bo'sh qatorlarni o'chirish ---
+    q_count = len(q_list)
+    t1 = doc.tables[1]
+    # Qator 0 — sarlavha, qatorlar 1-15 — ma'lumotlar
+    q_rows_to_delete = []
+    for idx in range(q_count, 15):  # q_count dan 14 gacha
+        ri = idx + 1  # 0-based (sarlavha = 0)
+        if ri < len(t1.rows):
+            q_rows_to_delete.append(ri)
+    for ri in sorted(q_rows_to_delete, reverse=True):
+        try:
+            row_elem = t1.rows[ri]._tr
+            row_elem.getparent().remove(row_elem)
+        except Exception:
+            pass
+
+    out = _io.BytesIO()
+    doc.save(out)
+    out.seek(0)
+    return out.read()
 
 
 def obyektivka_to_pdf(docx_bytes: bytes) -> bytes:
