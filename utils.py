@@ -16656,6 +16656,47 @@ def generate_obyektivka(data: dict) -> bytes:
         except Exception:
             pass
 
+    # --- Foydalanuvchi rasmini 3x4 sm o'lchamda joylashtirish ---
+    photo_bytes = data.get("photo_bytes")
+    if photo_bytes:
+        try:
+            from PIL import Image as PILImage
+            # Rasmni 3x4 sm o'lchamga crop/resize qilish
+            # 3x4 sm = 354x472 px (300 dpi)
+            img = PILImage.open(_io.BytesIO(photo_bytes))
+            # Nisbatni saqlagan holda 3:4 ga crop
+            w, h = img.size
+            target_ratio = 3 / 4
+            current_ratio = w / h
+            if current_ratio > target_ratio:
+                # Kengroq — kengligi qirqiladi
+                new_w = int(h * target_ratio)
+                left = (w - new_w) // 2
+                img = img.crop((left, 0, left + new_w, h))
+            elif current_ratio < target_ratio:
+                # Balandroq — balandligi qirqiladi
+                new_h = int(w / target_ratio)
+                top = (h - new_h) // 2
+                img = img.crop((0, top, w, top + new_h))
+            img = img.resize((354, 472), PILImage.LANCZOS)
+            img_buf = _io.BytesIO()
+            img.save(img_buf, format='JPEG', quality=95)
+            img_buf.seek(0)
+            img_data = img_buf.read()
+            # Shablon dagi rasm (rId2) ni almashtirish
+            if doc.inline_shapes:
+                shape = doc.inline_shapes[0]
+                blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+                rId = blip.get(qn('r:embed'))
+                if rId:
+                    doc.part.related_parts[rId]._blob = img_data
+                    # O'lchamni 3x4 sm ga sozlash (EMU: 1 sm = 360000 EMU)
+                    shape.width  = int(3 * 360000)
+                    shape.height = int(4 * 360000)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Rasm joylashtirish xatolik: {e}")
+
     out = _io.BytesIO()
     doc.save(out)
     out.seek(0)

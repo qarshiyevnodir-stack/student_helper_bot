@@ -440,7 +440,8 @@ logger = logging.getLogger(__name__)
     OB_QARINDOSH_ISH,    # 190 — Qarindosh ish joyi
     OB_QARINDOSH_TURAR,  # 191 — Qarindosh turar joyi
     OB_FORMAT,           # 192 — Format tanlash (docx/pdf)
-) = range(170, 193)
+    OB_PHOTO,            # 193 — Rasm yuklash
+) = range(170, 194)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -6043,7 +6044,7 @@ def get_qarindosh_keyboard():
             row = []
     if row:
         buttons.append(row)
-    buttons.append([InlineKeyboardButton("✅ Tayyor (tugatish)", callback_data="ob_q_done")])
+    buttons.append([InlineKeyboardButton("👨‍👩‍👧‍👦 Qarindoshlarim bo'ldi, tugatish", callback_data="ob_q_done")])
     return InlineKeyboardMarkup(buttons)
 
 async def ob_fish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -6274,17 +6275,13 @@ async def ob_qarindosh_sel_handler(update: Update, context: ContextTypes.DEFAULT
     data = query.data
     if data == "ob_q_done":
         n = len(context.user_data.get("ob_qarindoshlar", []))
-        format_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
-             InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
-            [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
-        ])
         await query.edit_message_text(
-            f"✅ *{n} ta qarindosh kiritildi*\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
-            reply_markup=format_kb,
+            f"✅ *{n} ta qarindosh kiritildi*\n\n📸 *Endi rasm yuboring:*\n"
+            "_Xotiradan rasm tanlang yoki suratga oling._\n"
+            "_Rasm ma'lumotnomada 3×4 sm o'lchamda joylashtiriladi._",
             parse_mode="Markdown"
         )
-        return OB_FORMAT
+        return OB_PHOTO
     munosabat = data.replace("ob_q_", "")
     context.user_data["ob_q_munosabat_temp"] = munosabat
     await query.edit_message_text(
@@ -6331,23 +6328,51 @@ async def ob_qarindosh_turar_handler(update: Update, context: ContextTypes.DEFAU
     context.user_data["ob_qarindoshlar"] = qarindoshlar
     n = len(qarindoshlar)
     if n >= 15:
-        format_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
-             InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
-            [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
-        ])
         await update.message.reply_text(
-            f"✅ *{munosabat}* saqlandi\. Jami: {n} ta\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
-            reply_markup=format_kb,
+            f"✅ *{munosabat}* saqlandi\. Jami: {n} ta\n\n📸 *Endi rasm yuboring:*\n"
+            "_Xotiradan rasm tanlang yoki suratga oling\._\n"
+            "_Rasm ma'lumotnomada 3×4 sm o'lchamda joylashtiriladi\._",
             parse_mode="MarkdownV2"
         )
-        return OB_FORMAT
+        return OB_PHOTO
     await update.message.reply_text(
         f"✅ *{esc_md(munosabat)}* saqlandi\. Jami: {n} ta\n\nKeyingi qarindoshni tanlang yoki \"Tayyor\" tugmasini bosing:",
         reply_markup=get_qarindosh_keyboard(),
         parse_mode="MarkdownV2"
     )
     return OB_QARINDOSH_SEL
+
+async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Foydalanuvchi rasmini qabul qilib user_data ga saqlaydi, keyin format tanlashga o'tadi"""
+    user = update.effective_user
+    photo = None
+    if update.message.photo:
+        photo = update.message.photo[-1]  # Eng katta o'lcham
+    elif update.message.document and update.message.document.mime_type and update.message.document.mime_type.startswith("image"):
+        photo = update.message.document
+    if photo is None:
+        await update.message.reply_text(
+            "❌ Rasm topilmadi\. Iltimos, rasm yuboring — xotiradan tanlang yoki suratga oling\.",
+            parse_mode="MarkdownV2"
+        )
+        return OB_PHOTO
+    # Rasmni yuklab olish
+    file = await context.bot.get_file(photo.file_id)
+    import io as _io
+    buf = _io.BytesIO()
+    await file.download_to_memory(buf)
+    context.user_data["ob_photo_bytes"] = buf.getvalue()
+    format_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
+         InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
+        [InlineKeyboardButton("📝 DOCX + 📄 PDF", callback_data="ob_fmt_both")],
+    ])
+    await update.message.reply_text(
+        "✅ *Rasm qabul qilindi\!*\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
+        reply_markup=format_kb,
+        parse_mode="MarkdownV2"
+    )
+    return OB_FORMAT
 
 async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -6382,6 +6407,7 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "deputatlik":     context.user_data.get("ob_deputatlik", "yo'q"),
         "mehnat":         context.user_data.get("ob_mehnat", []),
         "qarindoshlar":   context.user_data.get("ob_qarindoshlar", []),
+        "photo_bytes":    context.user_data.get("ob_photo_bytes", None),
     }
     try:
         docx_bytes = await asyncio.to_thread(generate_obyektivka, data)
@@ -8441,6 +8467,10 @@ def main() -> None:
             ],
             OB_QARINDOSH_TURAR: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_turar_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_PHOTO: [
+                MessageHandler(filters.PHOTO | filters.Document.IMAGE, ob_photo_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             OB_FORMAT: [
