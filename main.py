@@ -466,7 +466,7 @@ LANGUAGE_NAMES = {
 def get_main_menu_keyboard():
     keyboard = [
         [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
-        [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📊 Infografika ✨")],
+        [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📋 Ma'lumotnoma ✨")],
         [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
@@ -474,8 +474,8 @@ def get_main_menu_keyboard():
         [KeyboardButton("✍️ Insho / Esse ✨"),    KeyboardButton("📄 Rezyume / CV ✨")],
         [KeyboardButton("📜 Motivatsion xat ✨"),    KeyboardButton("📊 Jadval & Diagramma ✨")],
         [KeyboardButton("🗺️ Kontsept xarita ✨"),    KeyboardButton("📋 Annotatsiya ✨")],
-        [KeyboardButton("📝 Taqriz ✨"),  KeyboardButton("📦 Ziplash/Arxivlash 🗜️")],
-        [KeyboardButton("📄 PDF Konvertatsiya 🔄"),  KeyboardButton("📋 Ma'lumotnoma ✨")],
+        [KeyboardButton("📝 Taqriz ✨"),  KeyboardButton("📦 Ziplash/Arxivlash 🗄️")],
+        [KeyboardButton("📄 PDF Konvertatsiya 🔄"),  KeyboardButton("📊 Infografika ✨")],
         [KeyboardButton("💰 Balans")],
         [KeyboardButton("🔗 Referral")],
     ]
