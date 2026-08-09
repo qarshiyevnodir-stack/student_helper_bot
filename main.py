@@ -8651,6 +8651,10 @@ def main() -> None:
             # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+                admin_broadcast_text_handler
+            ),
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
                 admin_delete_user_message
             ),
             MessageHandler(MENU_FILTER, handle_main_menu_selection),
