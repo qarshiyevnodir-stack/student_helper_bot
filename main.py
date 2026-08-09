@@ -6139,7 +6139,7 @@ async def ob_tamomlagan_handler(update: Update, context: ContextTypes.DEFAULT_TY
     text = update.message.text.strip()
     context.user_data["ob_tamomlagan"] = text
     await update.message.reply_text(
-        "✅ *Tamomlagan* saqlandi\n\n📚 *Mutaxassisligi:*\n_Masalan: Bakalavriat: Filologiya va tillarni o'qitish_",
+        "✅ *Tamomlagan* saqlandi\n\n📚 *Mutaxassisligi:*\n_Masalan: Filologiya va tillarni o'qitish_",
         parse_mode="Markdown"
     )
     return OB_MUTAXASSISLIGI
