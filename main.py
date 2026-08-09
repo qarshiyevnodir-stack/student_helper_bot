@@ -6148,7 +6148,7 @@ async def ob_mutaxassisligi_handler(update: Update, context: ContextTypes.DEFAUL
     text = update.message.text.strip()
     context.user_data["ob_mutaxassisligi"] = text
     await update.message.reply_text(
-        "✅ *Mutaxassisligi* saqlandi\n\n🔬 *Ilmiy darajasi:*\n_Masalan: yo'q, fan nomzodi_",
+        "✅ *Mutaxassisligi* saqlandi\n\n🔬 *Ilmiy darajasi:*\n_Masalan: yo'q / fan nomzodi_",
         parse_mode="Markdown"
     )
     return OB_ILMIY_DARAJA
@@ -6157,7 +6157,7 @@ async def ob_ilmiy_daraja_handler(update: Update, context: ContextTypes.DEFAULT_
     text = update.message.text.strip()
     context.user_data["ob_ilmiy_darajasi"] = text
     await update.message.reply_text(
-        "✅ *Ilmiy darajasi* saqlandi\n\n🏅 *Ilmiy unvoni:*\n_Masalan: yo'q, dotsent_",
+        "✅ *Ilmiy darajasi* saqlandi\n\n🏅 *Ilmiy unvoni:*\n_Masalan: yo'q / dotsent_",
         parse_mode="Markdown"
     )
     return OB_ILMIY_UNVON
