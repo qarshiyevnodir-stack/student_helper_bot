@@ -7843,13 +7843,71 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users = await asyncio.to_thread(db.get_all_users, limit=5000)
     sent = 0
     failed = 0
+    import uuid
+    session_id = str(uuid.uuid4())
+    # Avvalgi broadcast xabarlarini tozalash
+    await asyncio.to_thread(db.clear_broadcast_messages)
     for u in users:
         try:
-            await context.bot.send_message(chat_id=u['user_id'], text=text)
+            msg = await context.bot.send_message(chat_id=u['user_id'], text=text)
+            await asyncio.to_thread(db.save_broadcast_message, session_id, u['user_id'], msg.message_id)
             sent += 1
         except Exception:
             failed += 1
-    await update.message.reply_text(f"📢 Yuborildi: {sent} | Muvaffaqiyatsiz: {failed}")
+    await update.message.reply_text(
+        f"📢 Yuborildi: {sent} | Muvaffaqiyatsiz: {failed}\n\n"
+        f"ℹ️ Xabarni tahrirlash: `/edit_broadcast Yangi matn`\n"
+        f"🗑️ Xabarni o'chirish: `/delete_broadcast`",
+        parse_mode="Markdown"
+    )
+
+async def edit_broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Oxirgi broadcast xabarini tahrirlaydi: /edit_broadcast Yangi matn"""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if not context.args:
+        await update.message.reply_text("Format: /edit_broadcast Yangi matn")
+        return
+    new_text = " ".join(context.args)
+    messages = await asyncio.to_thread(db.get_last_broadcast_messages)
+    if not messages:
+        await update.message.reply_text("❌ Tahrirlash uchun xabar topilmadi. Avval /broadcast bilan xabar yuboring.")
+        return
+    edited = 0
+    failed = 0
+    for item in messages:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=item['user_id'],
+                message_id=item['message_id'],
+                text=new_text
+            )
+            edited += 1
+        except Exception:
+            failed += 1
+    await update.message.reply_text(f"✅ Tahrirlandi: {edited} | Muvaffaqiyatsiz: {failed}")
+
+async def delete_broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Oxirgi broadcast xabarini barcha foydalanuvchilardan o'chiradi: /delete_broadcast"""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    messages = await asyncio.to_thread(db.get_last_broadcast_messages)
+    if not messages:
+        await update.message.reply_text("❌ O'chirish uchun xabar topilmadi.")
+        return
+    deleted = 0
+    failed = 0
+    for item in messages:
+        try:
+            await context.bot.delete_message(
+                chat_id=item['user_id'],
+                message_id=item['message_id']
+            )
+            deleted += 1
+        except Exception:
+            failed += 1
+    await asyncio.to_thread(db.clear_broadcast_messages)
+    await update.message.reply_text(f"🗑️ O'chirildi: {deleted} | Muvaffaqiyatsiz: {failed}")
 
 async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Foydalanuvchi haqida ma'lumot: /user_info user_id"""
@@ -8581,6 +8639,8 @@ def main() -> None:
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
     application.add_handler(CommandHandler("broadcast", admin_broadcast))
+    application.add_handler(CommandHandler("edit_broadcast", edit_broadcast_cmd))
+    application.add_handler(CommandHandler("delete_broadcast", delete_broadcast_cmd))
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
         admin_delete_user_message

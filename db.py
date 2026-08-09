@@ -149,6 +149,24 @@ def init_db():
             )
         """)
 
+        # Broadcast xabarlar jadvali
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS broadcast_messages (
+                id         SERIAL PRIMARY KEY,
+                user_id    BIGINT NOT NULL,
+                message_id BIGINT NOT NULL,
+                sent_at    TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # Oxirgi broadcast ID ni saqlash
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS broadcast_sessions (
+                id         SERIAL PRIMARY KEY,
+                session_id TEXT NOT NULL UNIQUE,
+                sent_at    TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
         conn.commit()
     finally:
         release_conn(conn)
@@ -645,5 +663,65 @@ def delete_user(user_id: int) -> bool:
         deleted = c.fetchone()
         conn.commit()
         return deleted is not None
+    finally:
+        release_conn(conn)
+
+
+# ─────────────────────────────────────────────
+# Broadcast funksiyalari
+# ─────────────────────────────────────────────
+
+def save_broadcast_message(session_id: str, user_id: int, message_id: int):
+    """Broadcast xabarining message_id sini saqlaydi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        # Session ni qo'shish (agar yo'q bo'lsa)
+        c.execute("""
+            INSERT INTO broadcast_sessions (session_id)
+            VALUES (%s)
+            ON CONFLICT (session_id) DO NOTHING
+        """, (session_id,))
+        # Xabar ID ni saqlash
+        c.execute("""
+            INSERT INTO broadcast_messages (user_id, message_id)
+            VALUES (%s, %s)
+        """, (user_id, message_id))
+        conn.commit()
+    finally:
+        release_conn(conn)
+
+def get_last_broadcast_messages():
+    """Oxirgi broadcast sessiyasidagi barcha xabarlarni qaytaradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        # Oxirgi session_id ni topish
+        c.execute("SELECT session_id FROM broadcast_sessions ORDER BY sent_at DESC LIMIT 1")
+        row = c.fetchone()
+        if not row:
+            return []
+        session_id = row[0]
+        # Shu sessiondagi barcha xabarlarni olish
+        c.execute("""
+            SELECT bm.user_id, bm.message_id
+            FROM broadcast_messages bm
+            JOIN broadcast_sessions bs ON bs.session_id = %s
+            WHERE bm.sent_at >= bs.sent_at - INTERVAL '1 minute'
+            ORDER BY bm.id
+        """, (session_id,))
+        rows = c.fetchall()
+        return [{"user_id": r[0], "message_id": r[1]} for r in rows]
+    finally:
+        release_conn(conn)
+
+def clear_broadcast_messages():
+    """Barcha broadcast xabarlarini bazadan tozalaydi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("DELETE FROM broadcast_messages")
+        c.execute("DELETE FROM broadcast_sessions")
+        conn.commit()
     finally:
         release_conn(conn)
