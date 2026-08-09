@@ -1319,7 +1319,8 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         msg = (
             f"💰 *Balansingiz: {balance:,} so'm*\n\n"
             "📋 *Xizmat narxlari:*\n"
-            "• Taqdimot: `3 000` so'm\n"
+            "• Taqdimot: `2 500 - 5 000` so'm\n"
+            "• Ma'lumotnoma/Obyektivka: `5 000` so'm\n"
             "• Mustaqil ish: `3 000` so'm\n"
             "• Kurs ishi: `12 000` so'm\n"
             "• Infografika: `1 500` so'm\n"
