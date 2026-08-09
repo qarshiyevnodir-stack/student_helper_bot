@@ -6028,7 +6028,7 @@ async def pdf_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 QARINDOSH_MUNOSABATLAR = [
     "Otasi", "Onasi", "Akasi", "Opasi", "Ukasi", "Singlisi",
     "Turmush o'rtog'i", "Qizi", "O'g'li",
-    "Qaynotasi", "Qaynonasi", "Qaynisi", "Qaynsinglisi",
+    "Qaynotasi", "Qaynonasi",
     "Boshqa"
 ]
 
