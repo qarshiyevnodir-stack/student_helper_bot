@@ -466,7 +466,7 @@ LANGUAGE_NAMES = {
 def get_main_menu_keyboard():
     keyboard = [
         [KeyboardButton("🪄 Slayd yaratish ✨"), KeyboardButton("📄 Mustaqil ish ✨")],
-        [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📋 Ma'lumotnoma ✨")],
+        [KeyboardButton("📁 Loyiha ishi ✨"),    KeyboardButton("📋Ma'lumotnoma/Obyektivka✨")],
         [KeyboardButton("🤖 AI yordamchi 💬"), KeyboardButton("📰 Maqola ✨")],
         [KeyboardButton("🎓 Kurs ishi / BMI 📝"),    KeyboardButton("📚 Referat ✨")],
         [KeyboardButton("📜 Tezis ✨"),         KeyboardButton("💡 Glossary ✨")],
@@ -771,7 +771,7 @@ MENU_REGEX = (
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
 r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📄 Rezyume / CV ✨|"
 r"📜 Motivatsion xat ✨|📊 Jadval & Diagramma ✨|🗺️ Kontsept xarita ✨|"
-r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|📋 Ma'lumotnoma ✨|"
+r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|📋Ma'lumotnoma/Obyektivka✨|"
     r"💳 Balans to'ldirish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
@@ -1307,7 +1307,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return PDF_RECEIVE
-    elif text == "📋 Ma'lumotnoma ✨":
+    elif text == "📋Ma'lumotnoma/Obyektivka✨":
         context.user_data.clear()
         context.user_data["mode"] = "obyektivka"
         await update.message.reply_text(
