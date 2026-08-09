@@ -7850,27 +7850,48 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
     """Admin broadcast uchun matn qabul qiladi va barcha foydalanuvchilarga yuboradi"""
     if update.effective_user.id not in ADMIN_IDS:
         return
-    if not context.user_data.get('admin_broadcast_waiting'):
+    is_broadcast = context.user_data.get('admin_broadcast_waiting')
+    is_edit = context.user_data.get('admin_edit_broadcast_waiting')
+    if not is_broadcast and not is_edit:
         return
     text = update.message.text
     if text in ('/cancel', 'Bekor qilish'):
         context.user_data.pop('admin_broadcast_waiting', None)
-        await update.message.reply_text("❌ Broadcast bekor qilindi.")
+        context.user_data.pop('admin_edit_broadcast_waiting', None)
+        await update.message.reply_text("❌ Bekor qilindi.")
         return
-    # Broadcast yuborish — Markdown -> HTML konvertatsiya
+    # Markdown -> HTML konvertatsiya
     import re
     def md_to_html(t):
-        # Qalin: *matn* -> <b>matn</b>
         t = re.sub(r'\*([^*\n]+)\*', r'<b>\1</b>', t)
-        # Kursiv: _matn_ -> <i>matn</i>
         t = re.sub(r'_([^_\n]+)_', r'<i>\1</i>', t)
-        # Kod: `matn` -> <code>matn</code>
         t = re.sub(r'`([^`\n]+)`', r'<code>\1</code>', t)
-        # HTML maxsus belgilarni himoyalash (faqat HTML teglari bo'lmagan joylarda)
-        # & belgisini himoyalash — lekin allaqachon HTML bo'lsa buzmaslik uchun
-        t = t.replace('&', '&amp;').replace('<b>', '<b>').replace('</b>', '</b>').replace('<i>', '<i>').replace('</i>', '</i>').replace('<code>', '<code>').replace('</code>', '</code>')
         return t
     html_text = md_to_html(text)
+    if is_edit:
+        # Tahrirlash rejimi
+        context.user_data.pop('admin_edit_broadcast_waiting', None)
+        messages = await asyncio.to_thread(db.get_last_broadcast_messages)
+        if not messages:
+            await update.message.reply_text("❌ Tahrirlash uchun xabar topilmadi.")
+            return
+        edited = 0
+        failed = 0
+        await update.message.reply_text("⏳ Tahrirlanyapti...")
+        for item in messages:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=item['user_id'],
+                    message_id=item['message_id'],
+                    text=html_text,
+                    parse_mode="HTML"
+                )
+                edited += 1
+            except Exception:
+                failed += 1
+        await update.message.reply_text(f"✅ Tahrirlandi: {edited} | Muvaffaqiyatsiz: {failed}")
+        return
+    # Broadcast yuborish
     context.user_data.pop('admin_broadcast_waiting', None)
     users = await asyncio.to_thread(db.get_all_users, limit=5000)
     sent = 0
@@ -7898,30 +7919,21 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
     )
 
 async def edit_broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Oxirgi broadcast xabarini tahrirlaydi: /edit_broadcast Yangi matn"""
+    """Oxirgi broadcast xabarini tahrirlaydi — 2 bosqich"""
     if update.effective_user.id not in ADMIN_IDS:
         return
-    if not context.args:
-        await update.message.reply_text("Format: /edit_broadcast Yangi matn")
-        return
-    new_text = " ".join(context.args)
     messages = await asyncio.to_thread(db.get_last_broadcast_messages)
     if not messages:
         await update.message.reply_text("❌ Tahrirlash uchun xabar topilmadi. Avval /broadcast bilan xabar yuboring.")
         return
-    edited = 0
-    failed = 0
-    for item in messages:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=item['user_id'],
-                message_id=item['message_id'],
-                text=new_text
-            )
-            edited += 1
-        except Exception:
-            failed += 1
-    await update.message.reply_text(f"✅ Tahrirlandi: {edited} | Muvaffaqiyatsiz: {failed}")
+    context.user_data['admin_edit_broadcast_waiting'] = True
+    await update.message.reply_text(
+        "✏️ *Broadcast xabarini tahrirlash*\n\n"
+        "Yangi xabar matnini yozing.\n"
+        "Ko'p qatorli, *qalin*, _kursiv_ formatlar ishlatsa bo'ladi.\n\n"
+        "Bekor qilish uchun /cancel yozing.",
+        parse_mode="Markdown"
+    )
 
 async def delete_broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Oxirgi broadcast xabarini barcha foydalanuvchilardan o'chiradi: /delete_broadcast"""
