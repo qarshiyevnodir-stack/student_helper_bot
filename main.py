@@ -6205,9 +6205,9 @@ async def ob_deputatlik_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await update.message.reply_text(
         "✅ *Deputatlik* saqlandi\n\n"
         "💼 *MEHNAT FAOLIYATI*\n\n"
-        "*1\-yozuv: Yillar* \(masalan: 2016\-2017 yy\.\):\n"
+        "*1-yozuv: Yillar* (masalan: 2016-2017 yy.):\n"
         "_Agar mehnat faoliyati yo'q bo'lsa, \"yo'q\" yozing_",
-        parse_mode="MarkdownV2"
+        parse_mode="Markdown"
     )
     return OB_MEHNAT
 
@@ -6225,7 +6225,7 @@ async def ob_mehnat_yil_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return OB_QARINDOSH_SEL
     context.user_data["ob_mehnat_yil_temp"] = text
     await update.message.reply_text(
-        f"✅ *Yillar* saqlandi\n\n🏢 *{n}\-yozuv: Ish joyi va lavozimi:*\n"
+        f"✅ *Yillar* saqlandi\n\n🏢 *{n}-yozuv: Ish joyi va lavozimi:*\n"
         f"_Masalan: Toshkent davlat texnika universiteti, o'qituvchi_",
         parse_mode="Markdown"
     )
@@ -6241,7 +6241,7 @@ async def ob_mehnat_joy_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if n >= 5:
         context.user_data["ob_qarindoshlar"] = []
         await update.message.reply_text(
-            f"✅ *{n}\-yozuv* saqlandi\n\n👨‍👩‍👧‍👦 *QARINDOSHLAR*\n\nQuyidagi tugmalardan munosabatni tanlang:",
+            f"✅ *{n}-yozuv* saqlandi\n\n👨‍👩‍👧‍👦 *QARINDOSHLAR*\n\nQuyidagi tugmalardan munosabatni tanlang:",
             reply_markup=get_qarindosh_keyboard(),
             parse_mode="Markdown"
         )
@@ -6250,8 +6250,8 @@ async def ob_mehnat_joy_handler(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton("➡️ Qarindoshlarga o'tish", callback_data="ob_mehnat_done")]
     ])
     await update.message.reply_text(
-        f"✅ *{n}\-yozuv* saqlandi\n\n"
-        f"💼 *{n+1}\-yozuv: Yillar* \(yoki keyingi bosqichga o'ting\):",
+        f"✅ *{n}-yozuv* saqlandi\n\n"
+        f"💼 *{n+1}-yozuv: Yillar* (yoki keyingi bosqichga o'ting):",
         reply_markup=next_kb,
         parse_mode="Markdown"
     )
