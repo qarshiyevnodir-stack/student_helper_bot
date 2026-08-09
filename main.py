@@ -7857,7 +7857,20 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
         context.user_data.pop('admin_broadcast_waiting', None)
         await update.message.reply_text("❌ Broadcast bekor qilindi.")
         return
-    # Broadcast yuborish
+    # Broadcast yuborish — Markdown -> HTML konvertatsiya
+    import re
+    def md_to_html(t):
+        # Qalin: *matn* -> <b>matn</b>
+        t = re.sub(r'\*([^*\n]+)\*', r'<b>\1</b>', t)
+        # Kursiv: _matn_ -> <i>matn</i>
+        t = re.sub(r'_([^_\n]+)_', r'<i>\1</i>', t)
+        # Kod: `matn` -> <code>matn</code>
+        t = re.sub(r'`([^`\n]+)`', r'<code>\1</code>', t)
+        # HTML maxsus belgilarni himoyalash (faqat HTML teglari bo'lmagan joylarda)
+        # & belgisini himoyalash — lekin allaqachon HTML bo'lsa buzmaslik uchun
+        t = t.replace('&', '&amp;').replace('<b>', '<b>').replace('</b>', '</b>').replace('<i>', '<i>').replace('</i>', '</i>').replace('<code>', '<code>').replace('</code>', '</code>')
+        return t
+    html_text = md_to_html(text)
     context.user_data.pop('admin_broadcast_waiting', None)
     users = await asyncio.to_thread(db.get_all_users, limit=5000)
     sent = 0
@@ -7870,8 +7883,8 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
         try:
             msg = await context.bot.send_message(
                 chat_id=u['user_id'],
-                text=text,
-                parse_mode="Markdown"
+                text=html_text,
+                parse_mode="HTML"
             )
             await asyncio.to_thread(db.save_broadcast_message, session_id, u['user_id'], msg.message_id)
             sent += 1
