@@ -7833,30 +7833,53 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
 
 
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Barcha foydalanuvchilarga xabar yuboradi: /broadcast Xabar"""
+    """Barcha foydalanuvchilarga xabar yuboradi — 2 bosqich: avval /broadcast, keyin matn"""
     if update.effective_user.id not in ADMIN_IDS:
         return
-    if not context.args:
-        await update.message.reply_text("Format: /broadcast Xabar matni")
+    # Admin xabar matnini kutish rejimiga o'tadi
+    context.user_data['admin_broadcast_waiting'] = True
+    await update.message.reply_text(
+        "📢 *Broadcast xabari*\n\n"
+        "Yubormoqchi bo'lgan xabar matnini yozing.\n"
+        "Ko'p qatorli, **qalin**, _kursiv_ formatlar ishlatsa bo'ladi.\n\n"
+        "Bekor qilish uchun /cancel yozing.",
+        parse_mode="Markdown"
+    )
+
+async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin broadcast uchun matn qabul qiladi va barcha foydalanuvchilarga yuboradi"""
+    if update.effective_user.id not in ADMIN_IDS:
         return
-    text = " ".join(context.args)
+    if not context.user_data.get('admin_broadcast_waiting'):
+        return
+    text = update.message.text
+    if text in ('/cancel', 'Bekor qilish'):
+        context.user_data.pop('admin_broadcast_waiting', None)
+        await update.message.reply_text("❌ Broadcast bekor qilindi.")
+        return
+    # Broadcast yuborish
+    context.user_data.pop('admin_broadcast_waiting', None)
     users = await asyncio.to_thread(db.get_all_users, limit=5000)
     sent = 0
     failed = 0
     import uuid
     session_id = str(uuid.uuid4())
-    # Avvalgi broadcast xabarlarini tozalash
     await asyncio.to_thread(db.clear_broadcast_messages)
+    await update.message.reply_text("⏳ Xabar yuborilmoqda...")
     for u in users:
         try:
-            msg = await context.bot.send_message(chat_id=u['user_id'], text=text)
+            msg = await context.bot.send_message(
+                chat_id=u['user_id'],
+                text=text,
+                parse_mode="Markdown"
+            )
             await asyncio.to_thread(db.save_broadcast_message, session_id, u['user_id'], msg.message_id)
             sent += 1
         except Exception:
             failed += 1
     await update.message.reply_text(
-        f"📢 Yuborildi: {sent} | Muvaffaqiyatsiz: {failed}\n\n"
-        f"ℹ️ Xabarni tahrirlash: `/edit_broadcast Yangi matn`\n"
+        f"📢 Yuborildi: *{sent}* | Muvaffaqiyatsiz: *{failed}*\n\n"
+        f"ℹ️ Xabarni tahrirlash: `/edit_broadcast`\n"
         f"🗑️ Xabarni o'chirish: `/delete_broadcast`",
         parse_mode="Markdown"
     )
@@ -8641,6 +8664,10 @@ def main() -> None:
     application.add_handler(CommandHandler("broadcast", admin_broadcast))
     application.add_handler(CommandHandler("edit_broadcast", edit_broadcast_cmd))
     application.add_handler(CommandHandler("delete_broadcast", delete_broadcast_cmd))
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
+        admin_broadcast_text_handler
+    ))
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
         admin_delete_user_message
