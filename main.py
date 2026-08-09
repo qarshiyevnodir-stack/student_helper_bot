@@ -6094,7 +6094,7 @@ async def ob_tugilgan_yili_handler(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text(
         f"✅ *Tug'ilgan sanasi* saqlandi\n\n"
         f"📍 *Tug'ilgan joyi* \(viloyat, tuman\):\n"
-        f"_Masalan: Toshkent viloyati, Bo'ka tumani Turon MFY_",
+        f"_Masalan: Toshkent viloyati, Bo'ka tumani_",
         parse_mode="MarkdownV2"
     )
     return OB_TUGILGAN_JOYI
