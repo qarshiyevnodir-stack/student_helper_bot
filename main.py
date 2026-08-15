@@ -6822,7 +6822,7 @@ async def cv_get_skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["cv_data"]["skills"] = "" if text == "-" else text
     await update.message.reply_text(
         "🎨 *15/15 — Uslub variantlari (Style Options):*\n\n"
-        "*Ohang (Tone) tanlang:*",
+        "*Stilni tanlang:*",
         parse_mode="Markdown",
         reply_markup=CV_TONE_KEYBOARD
     )
