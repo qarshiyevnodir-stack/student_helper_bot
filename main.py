@@ -1127,22 +1127,22 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         context.user_data["mode"] = "hujjat"
         context.user_data["hj_type"] = "rezyume"
         lang_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="rz_lang_uz"),
-             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="rz_lang_en")],
-            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="rz_lang_ru"),
-             InlineKeyboardButton("🇰🇷 Kores",  callback_data="rz_lang_ko")],
-            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="rz_lang_zh"),
-             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="rz_lang_de")],
-            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="rz_lang_tr"),
-             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="rz_lang_tg")],
-            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="rz_lang_kk"),
-             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="rz_lang_kaa")],
+            [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="cv_lang_uz"),
+             InlineKeyboardButton("🇬🇧 Ingliz", callback_data="cv_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Rus",    callback_data="cv_lang_ru"),
+             InlineKeyboardButton("🇰🇷 Kores",  callback_data="cv_lang_ko")],
+            [InlineKeyboardButton("🇨🇳 Xitoy",  callback_data="cv_lang_zh"),
+             InlineKeyboardButton("🇩🇪 Nemis",  callback_data="cv_lang_de")],
+            [InlineKeyboardButton("🇹🇷 Turk",   callback_data="cv_lang_tr"),
+             InlineKeyboardButton("🇹🇯 Tojik",  callback_data="cv_lang_tg")],
+            [InlineKeyboardButton("🇰🇿 Qozoq",  callback_data="cv_lang_kk"),
+             InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="cv_lang_kaa")],
         ])
         await update.message.reply_text(
             "📄 *Rezyume / CV*\n\nQaysi tilda tayyorlansin?",
             reply_markup=lang_kb, parse_mode="Markdown"
         )
-        return HJ_MENU
+        return CV_LANG
     elif text == "📜 Motivatsion xat ✨":
         context.user_data.clear()
         context.user_data["mode"] = "hujjat"
