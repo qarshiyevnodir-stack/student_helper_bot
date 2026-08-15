@@ -106,7 +106,7 @@ from ai_utils import get_ai_response, AI_FREE_LIMIT, AI_PRICE_PER_MSG
 from db import get_ai_daily_count, increment_ai_daily_count
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from hujjat_utils import (
-    generate_cv_full,
+    generate_cv_full, generate_cv_full_docx,
     generate_cv, generate_motivation, generate_table, generate_mindmap,
     HUJJAT_PRICES, LANG_LABELS as HJ_LANG_LABELS
 )
@@ -400,7 +400,13 @@ logger = logging.getLogger(__name__)
     CV_SKILLS,           # 154
     CV_TONE,             # 155
     CV_LENGTH,           # 156
-) = range(140, 157)
+    CV_STYLE,            # 157
+    CV_PREVIEW,          # 158
+    CV_FORMAT,           # 159
+) = range(140, 160)
+# CV preview ichidan maydon tahrirlash
+CV_EDIT_INPUT = 194
+
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Arxivlash
 # ─────────────────────────────────────────────
@@ -6569,6 +6575,23 @@ CV_LENGTH_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("📄📄 2 sahifa", callback_data="cv_length_2")],
 ])
 
+CV_STYLE_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("⬛ Minimal", callback_data="cv_style_minimal")],
+    [InlineKeyboardButton("💼 Professional", callback_data="cv_style_professional")],
+    [InlineKeyboardButton("🎨 Creative", callback_data="cv_style_creative")],
+])
+
+CV_PREVIEW_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("✅ Davom etish", callback_data="cv_preview_continue")],
+    [InlineKeyboardButton("✏️ Ma'lumotlarni tahrirlash", callback_data="cv_preview_edit")],
+    [InlineKeyboardButton("❌ Bekor qilish", callback_data="cv_preview_cancel")],
+])
+
+CV_FORMAT_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📄 PDF", callback_data="cv_format_pdf"),
+     InlineKeyboardButton("📝 DOCX", callback_data="cv_format_docx")],
+])
+
 def _cv_skip_text(lang: str) -> str:
     skips = {
         "uz": "_(o'tkazib yuborish uchun '-' yozing)_",
@@ -6577,6 +6600,10 @@ def _cv_skip_text(lang: str) -> str:
         "ko": "_(건너뛰려면 '-' 입력)_",
         "zh": "_(输入'-'跳过)_",
         "de": "_(geben Sie '-' ein, um zu überspringen)_",
+        "tr": "_(atlamak için '-' yazın)_",
+        "tg": "_(барои гузаштан '-' нависед)_",
+        "kaa": "_(- жазып өткізіп жибериўге болады)_",
+        "kk": "_(өткізіп жіберу үшін '-' жазыңыз)_",
     }
     return skips.get(lang, "_(type '-' to skip)_")
 
@@ -6589,7 +6616,7 @@ async def cv_get_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     lang_name = CV_LANG_NAMES.get(lang, lang)
     await query.edit_message_text(
         f"✅ Til: {lang_name}\n\n"
-        f"👤 *1/14 — To'liq ism, familiya, otangizning ismi:*\n"
+        f"👤 *1/15 — To'liq ism, familiya, otangizning ismi:*\n"
         f"Misol: Alisher Navoiy Nizomiddinovich",
         parse_mode="Markdown"
     )
@@ -6650,22 +6677,20 @@ async def cv_get_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return CV_LINKS
 
 async def cv_get_links(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Havolalar."""
+    """Havolalar. Profil rasmi preview tasdiqlangandan keyin, oxirida so'raladi."""
     text = update.message.text.strip()
     context.user_data["cv_data"]["links"] = "" if text == "-" else text
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🖼️ *6/14 — Profil rasmi (ixtiyoriy):*\n"
-        f"Rasm yuboring yoki '-' yozing o'tkazib yuborish uchun",
+        f"💼 *6/15 — Lavozimingiz (Professional title):*\n"
+        f"Misol: Frontend Developer | Marketing Manager | Data Scientist\n{skip}",
         parse_mode="Markdown"
     )
-    return CV_PHOTO
+    return CV_TITLE
 
 async def cv_get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Profil rasmi."""
-    lang = context.user_data["cv_data"].get("lang", "uz")
-    skip = _cv_skip_text(lang)
+    """Preview tasdiqlangandan keyingi yakuniy profil rasmi."""
     if update.message.photo:
         photo = update.message.photo[-1]
         file = await photo.get_file()
@@ -6677,13 +6702,14 @@ async def cv_get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     elif update.message.text and update.message.text.strip() == "-":
         context.user_data["cv_data"]["photo"] = None
     else:
-        context.user_data["cv_data"]["photo"] = None
+        await update.message.reply_text("Iltimos, rasm yuboring yoki rasm qo'ymoqchi bo'lmasangiz `-` yozing.", parse_mode="Markdown")
+        return CV_PHOTO
     await update.message.reply_text(
-        f"💼 *7/14 — Lavozimingiz (Professional title):*\n"
-        f"Misol: Frontend Developer | Marketing Manager | Data Scientist\n{skip}",
-        parse_mode="Markdown"
+        "✅ Rasm qabul qilindi.\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
+        parse_mode="Markdown",
+        reply_markup=CV_FORMAT_KEYBOARD,
     )
-    return CV_TITLE
+    return CV_FORMAT
 
 async def cv_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Lavozim."""
@@ -6692,17 +6718,17 @@ async def cv_get_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
-        f"🗺️ *8/15 — Mintaqa-xudud (Region):*\n"
-        f"Ishlash yoki yashash mintaqangizni kiriting\n"
-        f"Misol: Toshkent shahri | Samarqand viloyati | Andijon\n{skip}",
+        f"🌐 *8/15 — Biladigan tillaringiz:*\n"
+        f"Har bir til va darajani vergul bilan yozing\n"
+        f"Misol: O'zbek — ona tili, Ingliz — B2, Rus — B1\n{skip}",
         parse_mode="Markdown"
     )
     return CV_REGION
 
 async def cv_get_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Mintaqa-xudud."""
+    """Biladigan tillar."""
     text = update.message.text.strip()
-    context.user_data["cv_data"]["region"] = "" if text == "-" else text
+    context.user_data["cv_data"]["languages"] = "" if text == "-" else text
     lang = context.user_data["cv_data"].get("lang", "uz")
     skip = _cv_skip_text(lang)
     await update.message.reply_text(
@@ -6822,87 +6848,173 @@ async def cv_get_tone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     return CV_LENGTH
 
+def _cv_preview_text(cv_data: dict) -> str:
+    """CV tayyorlashdan avval ko'rsatiladigan qisqa ma'lumotnoma."""
+    style_names = {"minimal": "⬛ Minimal", "professional": "💼 Professional", "creative": "🎨 Creative"}
+    rows = [
+        "👁️ *Rezyume preview*",
+        "",
+        f"👤 *F.I.Sh.:* {cv_data.get('fullname', '-')}",
+        f"💼 *Lavozim:* {cv_data.get('title', '-') or '-'}",
+        f"📧 *Email:* {cv_data.get('email', '-') or '-'}",
+        f"📞 *Telefon:* {cv_data.get('phone', '-') or '-'}",
+        f"📍 *Joylashuv:* {cv_data.get('location', '-') or '-'}",
+        f"🌐 *Tillar:* {cv_data.get('languages', '-') or '-'}",
+        f"🎨 *Dizayn:* {style_names.get(cv_data.get('style'), '💼 Professional')}",
+        f"📄 *Uzunlik:* {cv_data.get('length', 1)} sahifa",
+        "",
+        "Ma'lumotlarni tekshiring. Hammasi to'g'ri bo'lsa davom eting.",
+    ]
+    return "\n".join(rows)
+
+
 async def cv_get_length(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Length tanlandi — rezyume yaratish."""
+    """Uzunlik tanlangach, dizayn tanlashga o'tadi."""
     query = update.callback_query
     await query.answer()
-    length = int(query.data.replace("cv_length_", ""))
-    context.user_data["cv_data"]["length"] = length
+    context.user_data["cv_data"]["length"] = int(query.data.replace("cv_length_", ""))
+    await query.edit_message_text(
+        "🎨 *Rezyume dizaynini tanlang:*\n\n"
+        "⬛ *Minimal* — sodda, ATS-ga mos va rasmiy.\n"
+        "💼 *Professional* — ishga topshirish uchun klassik uslub.\n"
+        "🎨 *Creative* — portfolio va ijodiy yo'nalishlar uchun.",
+        parse_mode="Markdown",
+        reply_markup=CV_STYLE_KEYBOARD,
+    )
+    return CV_STYLE
+
+
+async def cv_get_style(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    context.user_data["cv_data"]["style"] = query.data.replace("cv_style_", "")
+    await query.edit_message_text(
+        _cv_preview_text(context.user_data["cv_data"]),
+        parse_mode="Markdown",
+        reply_markup=CV_PREVIEW_KEYBOARD,
+    )
+    return CV_PREVIEW
+
+
+CV_EDIT_FIELDS = {
+    "title": "Lavozim", "summary": "Professional xulosa", "experience": "Ish tajribasi",
+    "projects": "Loyihalar", "education": "Ta'lim", "certifications": "Sertifikatlar",
+    "skills": "Ko'nikmalar", "languages": "Tillar", "links": "Havolalar",
+}
+
+CV_EDIT_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("💼 Lavozim", callback_data="cv_edit_title"), InlineKeyboardButton("📝 Xulosa", callback_data="cv_edit_summary")],
+    [InlineKeyboardButton("🏢 Tajriba", callback_data="cv_edit_experience"), InlineKeyboardButton("🚀 Loyihalar", callback_data="cv_edit_projects")],
+    [InlineKeyboardButton("🎓 Ta'lim", callback_data="cv_edit_education"), InlineKeyboardButton("🏆 Sertifikat", callback_data="cv_edit_certifications")],
+    [InlineKeyboardButton("🛠️ Ko'nikmalar", callback_data="cv_edit_skills"), InlineKeyboardButton("🌐 Tillar", callback_data="cv_edit_languages")],
+    [InlineKeyboardButton("🔗 Havolalar", callback_data="cv_edit_links")],
+    [InlineKeyboardButton("⬅️ Previewga qaytish", callback_data="cv_edit_back")],
+])
+
+
+async def cv_preview_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    action = query.data.replace("cv_preview_", "")
+    if action == "cancel":
+        context.user_data.pop("cv_data", None)
+        await query.edit_message_text("❌ Rezyume yaratish bekor qilindi.")
+        await context.bot.send_message(chat_id=update.effective_user.id, text="Asosiy menyu:", reply_markup=get_main_menu_keyboard())
+        return ConversationHandler.END
+    if action == "edit":
+        await query.edit_message_text("✏️ *Qaysi ma'lumotni tahrirlamoqchisiz?*", parse_mode="Markdown", reply_markup=CV_EDIT_KEYBOARD)
+        return CV_PREVIEW
+    await query.edit_message_text(
+        "🖼️ *Profil rasmini yuboring (ixtiyoriy):*\n\n"
+        "Rasm rezyume sarlavhasiga joylashtiriladi. Rasm qo'ymoqchi bo'lmasangiz `-` yozing.",
+        parse_mode="Markdown",
+    )
+    return CV_PHOTO
+
+
+async def cv_edit_select_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    action = query.data.replace("cv_edit_", "")
+    if action == "back":
+        await query.edit_message_text(_cv_preview_text(context.user_data["cv_data"]), parse_mode="Markdown", reply_markup=CV_PREVIEW_KEYBOARD)
+        return CV_PREVIEW
+    context.user_data["cv_edit_field"] = action
+    await query.edit_message_text(
+        f"✏️ *{CV_EDIT_FIELDS.get(action, action)}* uchun yangi ma'lumotni yuboring.\n\n"
+        "Bo'sh qoldirish uchun `-` yozing.",
+        parse_mode="Markdown",
+    )
+    return CV_EDIT_INPUT
+
+
+async def cv_edit_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    field = context.user_data.get("cv_edit_field")
+    if field not in CV_EDIT_FIELDS:
+        return CV_PREVIEW
+    value = update.message.text.strip()
+    context.user_data["cv_data"][field] = "" if value == "-" else value
+    context.user_data.pop("cv_edit_field", None)
+    await update.message.reply_text(_cv_preview_text(context.user_data["cv_data"]), parse_mode="Markdown", reply_markup=CV_PREVIEW_KEYBOARD)
+    return CV_PREVIEW
+
+
+async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Rasm oxirida qabul qilinadi, so'ng PDF yoki DOCX yaratiladi."""
+    query = update.callback_query
+    await query.answer()
+    output_format = query.data.replace("cv_format_", "")
     cv_data = context.user_data.get("cv_data", {})
     user = update.effective_user
-    price = 3000
+    price = HUJJAT_PRICES.get("rezyume", 3000)
     user_data = await asyncio.to_thread(db.get_user, user.id)
     balance = user_data["balance"] if user_data else 0
     if balance < price:
-        await query.edit_message_text(
-            f"⚠️ Balansingiz yetarli emas!\n"
-            f"💰 Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm\n\n"
-            f"Balansni to'ldirish uchun \"Balans & Referral\" bo'limiga o'ting."
-        )
-        await context.bot.send_message(chat_id=user.id, text="Asosiy menyu:", reply_markup=get_main_menu_keyboard())
+        await query.edit_message_text(f"⚠️ Balansingiz yetarli emas. Kerakli: {price:,} so'm | Mavjud: {balance:,} so'm")
         return ConversationHandler.END
-    lang = cv_data.get("lang", "uz")
-    lang_name = CV_LANG_NAMES.get(lang, lang)
-    fullname = cv_data.get("fullname", "")
-    await query.edit_message_text(
-        f"⏳ *Rezyume yaratilmoqda...*\n"
-        f"👤 {fullname}\n"
-        f"🌍 Til: {lang_name} | {length} sahifa\n\n"
-        f"Bir daqiqa kuting...",
-        parse_mode="Markdown"
-    )
+
+    fullname = cv_data.get("fullname", "rezyume")
+    lang_name = CV_LANG_NAMES.get(cv_data.get("lang", "uz"), "O'zbek")
+    await query.edit_message_text("⏳ *Rezyume yaratilmoqda...*\nBir oz kuting.", parse_mode="Markdown")
     await context.bot.send_chat_action(chat_id=user.id, action="upload_document")
     try:
         import time
-        t0 = time.time()
-        doc = await generate_cv_full(cv_data)
-        elapsed = time.time() - t0
+        started = time.time()
+        if output_format == "docx":
+            doc = await generate_cv_full_docx(cv_data)
+            extension, mime_label = "docx", "DOCX"
+        else:
+            doc = await generate_cv_full(cv_data)
+            extension, mime_label = "pdf", "PDF"
+        elapsed = time.time() - started
         await asyncio.to_thread(db.deduct_balance, user.id, price)
         await asyncio.to_thread(db.log_generation, user.id, "rezyume", fullname, price)
-        doc.seek(0)
-        filename = f"rezyume_{fullname[:20].replace(' ', '_')}.pdf"
-        caption = (
-            f"📄 Rezyume / CV\n"
-            f"👤 {fullname}\n"
-            f"🌍 {lang_name} | {length} sahifa | PDF\n\n"
-            f"@slidego | t.me/slidego"
-        )
+        filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
         await context.bot.send_document(
             chat_id=user.id,
             document=doc,
             filename=filename,
-            caption=caption
+            caption=f"📄 Rezyume / CV\n👤 {fullname}\n🌍 {lang_name} | {mime_label}",
         )
         doc.seek(0)
         archive_doc = BytesIO(doc.read())
         archive_doc.seek(0)
         await archive_send_document(
-            bot=context.bot,
-            user=user,
-            service_name="Rezyume / CV",
-            topic=fullname,
-            language=lang_name,
-            page_count=length,
-            price=price,
-            document_bytes=archive_doc,
-            filename=filename,
+            bot=context.bot, user=user, service_name="Rezyume / CV", topic=fullname,
+            language=lang_name, page_count=cv_data.get("length", 1), price=price,
+            document_bytes=archive_doc, filename=filename,
         )
         await context.bot.send_message(
             chat_id=user.id,
             text=f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
-            reply_markup=get_main_menu_keyboard()
+            reply_markup=get_main_menu_keyboard(),
         )
     except Exception as e:
         logger.error(f"CV yaratish xatolik: {e}", exc_info=True)
         await context.bot.send_message(
             chat_id=user.id,
-            text=(
-                f"❌ Rezyume yaratishda xatolik yuz berdi.\n"
-                f"`{type(e).__name__}: {str(e)[:200]}`\n\n"
-                f"Iltimos, qayta urinib ko'ring. Balans yechilmadi."
-            ),
+            text="❌ Rezyume yaratishda xatolik yuz berdi. Qayta urinib ko'ring. Balans yechilmadi.",
             reply_markup=get_main_menu_keyboard(),
-            parse_mode="Markdown"
         )
     return ConversationHandler.END
 
@@ -8648,6 +8760,23 @@ def main() -> None:
             ],
             CV_LENGTH: [
                 CallbackQueryHandler(cv_get_length, pattern=r"^cv_length_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_STYLE: [
+                CallbackQueryHandler(cv_get_style, pattern=r"^cv_style_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_PREVIEW: [
+                CallbackQueryHandler(cv_preview_handler, pattern=r"^cv_preview_"),
+                CallbackQueryHandler(cv_edit_select_handler, pattern=r"^cv_edit_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_EDIT_INPUT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, cv_edit_input_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            CV_FORMAT: [
+                CallbackQueryHandler(cv_format_handler, pattern=r"^cv_format_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Balans to'ldirish holatlari ──

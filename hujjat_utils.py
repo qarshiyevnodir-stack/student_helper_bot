@@ -43,6 +43,10 @@ LANG_PROMPTS = {
     "ko": "한국어로 작성하세요.",
     "zh": "用中文写。",
     "de": "Schreibe auf Deutsch.",
+    "tr": "Türkçe yaz.",
+    "tg": "Ба забони тоҷикӣ нависед.",
+    "kaa": "Qaraqalpaq tilinde jaz.",
+    "kk": "Қазақ тілінде жазыңыз.",
 }
 LANG_LABELS = {
     "uz": "O'zbek", "ru": "Rus", "en": "Ingliz",
@@ -86,6 +90,30 @@ CV_LABELS = {
         "education": "Ausbildung", "skills": "Fähigkeiten", "languages": "Sprachen",
         "contact": "Kontakt", "projects": "Projekte", "certifications": "Zertifikate",
         "interests": "Interessen"
+    },
+    "tr": {
+        "summary": "Profesyonel Özet", "experience": "İş Deneyimi",
+        "education": "Eğitim", "skills": "Beceriler", "languages": "Diller",
+        "contact": "İletişim", "projects": "Projeler", "certifications": "Sertifikalar",
+        "interests": "İlgi Alanları"
+    },
+    "tg": {
+        "summary": "Хулосаи касбӣ", "experience": "Таҷрибаи корӣ",
+        "education": "Маълумот", "skills": "Малакаҳо", "languages": "Забонҳо",
+        "contact": "Тамос", "projects": "Лоиҳаҳо", "certifications": "Сертификатҳо",
+        "interests": "Шавқу ҳавасҳо"
+    },
+    "kaa": {
+        "summary": "Қысқаша мағлыўмат", "experience": "Жумыс тәжирийбеси",
+        "education": "Билими", "skills": "Көникпелер", "languages": "Тиллер",
+        "contact": "Байланыс", "projects": "Жобалар", "certifications": "Сертификатлар",
+        "interests": "Қызығыўлар"
+    },
+    "kk": {
+        "summary": "Кәсіби түйін", "experience": "Жұмыс тәжірибесі",
+        "education": "Білім", "skills": "Дағдылар", "languages": "Тілдер",
+        "contact": "Байланыс", "projects": "Жобалар", "certifications": "Сертификаттар",
+        "interests": "Қызығушылықтар"
     },
 }
 
@@ -166,85 +194,129 @@ def _build_cv_pdf(data: dict, name: str, profession: str, lang: str) -> BytesIO:
 
 
 
+def _cv_clean(value) -> str:
+    """Bo'sh yoki o'tkazib yuborilgan CV maydonlarini bir xil ko'rinishga keltiradi."""
+    if value is None:
+        return ""
+    value = str(value).strip()
+    return "" if value.lower() in {"", "-", "yo'q", "yoq", "none", "n/a"} else value
+
+
 def _generate_cv_full_content(cv_data: dict) -> dict:
+    """Foydalanuvchi bergan ma'lumotni fakt to'qimasdan CV JSONiga normalizatsiya qiladi."""
     lang = cv_data.get("lang", "uz")
     lang_inst = LANG_PROMPTS.get(lang, LANG_PROMPTS["uz"])
     client = get_client()
-    
-    # Format user inputs
-    name = cv_data.get("fullname", "")
-    email = cv_data.get("email", "")
-    phone = cv_data.get("phone", "")
-    location = cv_data.get("location", "")
-    links = cv_data.get("links", "")
-    title = cv_data.get("title", "")
-    summary = cv_data.get("summary", "")
-    experience = cv_data.get("experience", "")
-    projects = cv_data.get("projects", "")
-    education = cv_data.get("education", "")
-    certs = cv_data.get("certifications", "")
-    skills = cv_data.get("skills", "")
+
+    raw = {
+        "fullname": _cv_clean(cv_data.get("fullname")),
+        "email": _cv_clean(cv_data.get("email")),
+        "phone": _cv_clean(cv_data.get("phone")),
+        "location": _cv_clean(cv_data.get("location")),
+        "links": _cv_clean(cv_data.get("links")),
+        "title": _cv_clean(cv_data.get("title")),
+        "region": _cv_clean(cv_data.get("region")),
+        "summary": _cv_clean(cv_data.get("summary")),
+        "experience": _cv_clean(cv_data.get("experience")),
+        "projects": _cv_clean(cv_data.get("projects")),
+        "education": _cv_clean(cv_data.get("education")),
+        "certifications": _cv_clean(cv_data.get("certifications")),
+        "skills": _cv_clean(cv_data.get("skills")),
+        "languages": _cv_clean(cv_data.get("languages")),
+    }
     tone = cv_data.get("tone", "professional")
-    length = cv_data.get("length", 1)
-    region = cv_data.get("region", "")
-    
-    prompt = (
-        f"{lang_inst} Professional CV yoz. "
-        f"Foydalanuvchi quyidagi ma'lumotlarni taqdim etgan. Ularni chiroyli tarzda formatlab JSON ga joyla:\n"
-        f"Ism: {name}\n"
-        f"Email: {email}\n"
-        f"Telefon: {phone}\n"
-        f"Manzil: {location}\n"
-        f"Mintaqa/Xudud: {region}\n"
-        f"Havolalar: {links}\n"
-        f"Lavozim: {title}\n"
-        f"Xulosa: {summary}\n"
-        f"Tajriba: {experience}\n"
-        f"Loyihalar: {projects}\n"
-        f"Ta'lim: {education}\n"
-        f"Sertifikatlar: {certs}\n"
-        f"Ko'nikmalar: {skills}\n"
-        f"Ohang (Tone): {tone}\n"
-        f"Uzunlik (Sahifalar soni): {length}\n\n"
-        f"Agar ba'zi ma'lumotlar '-' bo'lsa yoki bo'sh bo'lsa, o'sha qismlarni bo'sh qoldir yoki moslab to'ldir.\n"
-        f"JSON formatida qaytar:\n"
-        f"{{\"summary\": \"professional tavsif\", "
-        f"\"skills\": [\"skill1\", \"skill2\"], "
-        f"\"experience\": ["
-        f"  {{\"title\":\"lavozim\",\"company\":\"kompaniya\",\"date\":\"sana\",\"bullets\":[\"yutuq 1\",\"yutuq 2\"]}}"
-        f"], "
-        f"\"education\": ["
-        f"  {{\"degree\":\"daraja\",\"school\":\"universitet\",\"date\":\"sana\",\"description\":\"tavsif\"}}"
-        f"], "
-        f"\"projects\": ["
-        f"  {{\"name\":\"loyiha\",\"description\":\"tavsif\"}}"
-        f"], "
-        f"\"certifications\": ["
-        f"  {{\"name\":\"sertifikat\",\"organization\":\"tashkilot\",\"date\":\"sana\"}}"
-        f"], "
-        f"\"languages\": ["
-        f"  {{\"name\":\"til\",\"level\":\"daraja\"}}"
-        f"], "
-        f"\"interests\": [], "
-        f"\"contact\": {{\"phone\":\"{phone}\",\"email\":\"{email}\",\"location\":\"{location}\",\"links\":\"{links}\"}} }}"
-    )
+
+    prompt = f"""{lang_inst}
+You are a precise CV editor. Convert ONLY the user's information below into clean CV JSON.
+
+NON-NEGOTIABLE RULES:
+- Never invent, assume, embellish, or add any employer, project, date, degree, certificate, language, number, achievement, responsibility, or skill.
+- If a source field is empty, the corresponding JSON value must be an empty string or empty list.
+- You may correct spelling, split provided text into entries, and make wording concise without changing facts.
+- Do not write placeholder values such as 'N/A', 'not specified', 'company', or 'date'.
+- Keep the selected tone ({tone}) only in the wording style; do not change factual content.
+
+USER DATA:
+Full name: {raw['fullname']}
+Email: {raw['email']}
+Phone: {raw['phone']}
+Location: {raw['location']}
+Links: {raw['links']}
+Target title: {raw['title']}
+Region: {raw['region']}
+Professional summary: {raw['summary']}
+Experience: {raw['experience']}
+Projects: {raw['projects']}
+Education: {raw['education']}
+Certifications: {raw['certifications']}
+Skills: {raw['skills']}
+Languages: {raw['languages']}
+
+Return only this JSON object:
+{{
+  "summary": "",
+  "skills": [],
+  "experience": [{{"title":"","company":"","date":"","bullets":[]}}],
+  "education": [{{"degree":"","school":"","date":"","description":""}}],
+  "projects": [{{"name":"","description":""}}],
+  "certifications": [{{"name":"","organization":"","date":""}}],
+  "languages": [{{"name":"","level":""}}],
+  "interests": []
+}}"""
     resp = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=2500,
-        temperature=0.6,
+        max_tokens=2200,
+        temperature=0.15,
         response_format={"type": "json_object"},
     )
-    import json
-    return json.loads(resp.choices[0].message.content)
+    data = json.loads(resp.choices[0].message.content)
+
+    # Qo'shimcha himoya: foydalanuvchi bo'sh qoldirgan bo'limlar hech qachon chiqmaydi.
+    for key in ("summary", "experience", "projects", "education", "certifications", "skills", "languages"):
+        if not raw.get(key):
+            data[key] = "" if key == "summary" else []
+    data["contact"] = {
+        "phone": raw["phone"],
+        "email": raw["email"],
+        "location": raw["location"],
+        "links": raw["links"],
+    }
+    data["interests"] = []
+    return data
+
+def _prepare_cv_for_length(data: dict, length: int) -> dict:
+    """1 sahifalik CV uchun faqat eng muhim ma'lumotlarni ixchamlashtiradi."""
+    import copy
+    prepared = copy.deepcopy(data)
+    if length != 1:
+        return prepared
+    prepared["experience"] = prepared.get("experience", [])[:2]
+    for exp in prepared["experience"]:
+        exp["bullets"] = exp.get("bullets", [])[:2]
+    prepared["projects"] = prepared.get("projects", [])[:1]
+    prepared["certifications"] = prepared.get("certifications", [])[:2]
+    prepared["skills"] = prepared.get("skills", [])[:10]
+    prepared["languages"] = prepared.get("languages", [])[:3]
+    return prepared
+
 
 def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
+    """Tanlangan dizaynda standart A4 PDF CV yaratadi."""
     lang = cv_data.get("lang", "uz")
     labels = CV_LABELS.get(lang, CV_LABELS["uz"])
-    
-    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resume_template.html")
+    style = cv_data.get("style", "professional")
+    length = int(cv_data.get("length", 1))
+    template_names = {
+        "minimal": "resume_template_minimal.html",
+        "professional": "resume_template.html",
+        "creative": "resume_template_creative.html",
+    }
+    template_name = template_names.get(style, "resume_template.html")
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), template_name)
     with open(template_path, "r", encoding="utf-8") as f:
         template_str = f.read()
+    data = _prepare_cv_for_length(data, length)
 
     from jinja2 import Template
     tmpl = Template(template_str)
@@ -281,40 +353,171 @@ def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
         contact=contact,
         photo_b64=photo_b64,
         links=cv_data.get("links", ""),
-        region=cv_data.get("region", "")
+        region=cv_data.get("region", ""),
+        length=length,
     )
 
     import weasyprint
     from weasyprint import CSS
-    import numpy as np
-    from pdf2image import convert_from_bytes
-
-    # Step 1: katta sahifada render qilib haqiqiy kontent balandligini aniqlaymiz
-    large_css = CSS(string='@page { size: 210mm 9999mm; margin: 0; }')
-    pdf_large = weasyprint.HTML(string=html, base_url=".").write_pdf(stylesheets=[large_css])
-    imgs = convert_from_bytes(pdf_large, dpi=150)
-    img = imgs[0]
-    arr = np.array(img)
-    row_has_content = ~(arr == 255).all(axis=(1, 2))
-    indices = np.where(row_has_content)[0]
-    if len(indices) == 0:
-        # Fallback: oddiy A4
-        pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf()
-    else:
-        last_row = indices[-1]
-        # 150dpi: 1px = 25.4/150 mm
-        content_height_mm = (last_row + 30) * (25.4 / 150)
-        content_height_mm = max(content_height_mm, 100)
-        exact_css = CSS(string=f'@page {{ size: 210mm {content_height_mm:.1f}mm; margin: 0; }}')
-        pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf(stylesheets=[exact_css])
+    # Haqiqiy A4: kontent uzun bo'lsa WeasyPrint avtomatik 2-sahifaga o'tadi.
+    a4_css = CSS(string='@page { size: A4; margin: 0; }')
+    pdf_bytes = weasyprint.HTML(string=html, base_url=".").write_pdf(stylesheets=[a4_css])
 
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     return buf
 
+def _docx_section_title(document, title: str, accent: RGBColor):
+    p = document.add_paragraph()
+    p.paragraph_format.space_before = Pt(9)
+    p.paragraph_format.space_after = Pt(4)
+    run = p.add_run(title.upper())
+    run.bold = True
+    run.font.name = "Arial"
+    run.font.size = Pt(10)
+    run.font.color.rgb = accent
+
+
+def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
+    """Tahrir qilinadigan, professional DOCX CV yaratadi."""
+    data = _prepare_cv_for_length(data, int(cv_data.get("length", 1)))
+    lang = cv_data.get("lang", "uz")
+    labels = CV_LABELS.get(lang, CV_LABELS["uz"])
+    style = cv_data.get("style", "professional")
+    accent_values = {
+        "minimal": (0x1F, 0x29, 0x37),
+        "professional": (0x00, 0x78, 0x6E),
+        "creative": (0x6D, 0x28, 0xD9),
+    }
+    accent = RGBColor(*accent_values.get(style, accent_values["professional"]))
+
+    document = Document()
+    section = document.sections[0]
+    section.top_margin = Cm(1.4)
+    section.bottom_margin = Cm(1.4)
+    section.left_margin = Cm(1.5)
+    section.right_margin = Cm(1.5)
+
+    normal = document.styles["Normal"]
+    normal.font.name = "Arial"
+    normal.font.size = Pt(10)
+    normal.paragraph_format.space_after = Pt(4)
+
+    # Sarlavha va oxirgi qadamda yuborilgan profil rasmi
+    header = document.add_table(rows=1, cols=2)
+    header.autofit = False
+    left_cell, right_cell = header.rows[0].cells
+    left_cell.width = Cm(13.2)
+    right_cell.width = Cm(3.8)
+    p = left_cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = p.add_run(_cv_clean(cv_data.get("fullname")).upper())
+    run.bold = True
+    run.font.name = "Arial"
+    run.font.size = Pt(22)
+    run.font.color.rgb = accent
+    if _cv_clean(cv_data.get("title")):
+        role_p = left_cell.add_paragraph()
+        role = role_p.add_run(_cv_clean(cv_data.get("title")))
+        role.bold = True
+        role.font.name = "Arial"
+        role.font.size = Pt(12)
+
+    photo = cv_data.get("photo")
+    if photo:
+        photo_p = right_cell.paragraphs[0]
+        photo_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        photo_p.add_run().add_picture(BytesIO(photo), width=Cm(3.0), height=Cm(4.0))
+
+    contact_values = [
+        _cv_clean(cv_data.get("phone")),
+        _cv_clean(cv_data.get("email")),
+        _cv_clean(cv_data.get("location")),
+        _cv_clean(cv_data.get("links")),
+    ]
+    contact_text = "  |  ".join(v for v in contact_values if v)
+    if contact_text:
+        p = document.add_paragraph()
+        p.paragraph_format.space_before = Pt(4)
+        contact_run = p.add_run(contact_text)
+        contact_run.font.name = "Arial"
+        contact_run.font.size = Pt(9)
+
+    if data.get("summary"):
+        _docx_section_title(document, labels["summary"], accent)
+        document.add_paragraph(data["summary"])
+
+    if data.get("experience"):
+        _docx_section_title(document, labels["experience"], accent)
+        for exp in data["experience"]:
+            p = document.add_paragraph()
+            p.paragraph_format.space_before = Pt(3)
+            heading = " | ".join(v for v in [exp.get("title", ""), exp.get("company", "")] if v)
+            r = p.add_run(heading)
+            r.bold = True
+            r.font.name = "Arial"
+            if exp.get("date"):
+                date = p.add_run(f"    {exp['date']}")
+                date.italic = True
+                date.font.size = Pt(9)
+            for bullet in exp.get("bullets", []):
+                bullet_p = document.add_paragraph(style="List Bullet")
+                bullet_p.add_run(bullet)
+
+    if data.get("education"):
+        _docx_section_title(document, labels["education"], accent)
+        for edu in data["education"]:
+            p = document.add_paragraph()
+            title = " | ".join(v for v in [edu.get("degree", ""), edu.get("school", "")] if v)
+            r = p.add_run(title)
+            r.bold = True
+            if edu.get("date"):
+                p.add_run(f"    {edu['date']}")
+            if edu.get("description"):
+                document.add_paragraph(edu["description"])
+
+    if data.get("projects"):
+        _docx_section_title(document, labels["projects"], accent)
+        for project in data["projects"]:
+            p = document.add_paragraph()
+            r = p.add_run(project.get("name", ""))
+            r.bold = True
+            if project.get("description"):
+                p.add_run(f" — {project['description']}")
+
+    if data.get("skills"):
+        _docx_section_title(document, labels["skills"], accent)
+        document.add_paragraph(" • ".join(data["skills"]))
+
+    if data.get("languages"):
+        _docx_section_title(document, labels["languages"], accent)
+        language_items = [
+            " — ".join(v for v in [item.get("name", ""), item.get("level", "")] if v)
+            for item in data["languages"]
+        ]
+        document.add_paragraph(" • ".join(item for item in language_items if item))
+
+    if data.get("certifications"):
+        _docx_section_title(document, labels["certifications"], accent)
+        for cert in data["certifications"]:
+            item = " | ".join(v for v in [cert.get("name", ""), cert.get("organization", ""), cert.get("date", "")] if v)
+            if item:
+                document.add_paragraph(item, style="List Bullet")
+
+    buf = BytesIO()
+    document.save(buf)
+    buf.seek(0)
+    return buf
+
+
 async def generate_cv_full(cv_data: dict) -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_full_content, cv_data)
     return await asyncio.to_thread(_build_cv_full_pdf, data, cv_data)
+
+
+async def generate_cv_full_docx(cv_data: dict) -> BytesIO:
+    data = await asyncio.to_thread(_generate_cv_full_content, cv_data)
+    return await asyncio.to_thread(_build_cv_full_docx, data, cv_data)
 
 async def generate_cv(name: str, profession: str, lang: str, extra: str = "") -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_content, name, profession, lang, extra)
