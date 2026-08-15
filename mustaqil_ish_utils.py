@@ -262,6 +262,16 @@ def create_text_section(document, title, topic, prompt_detail, language):
     system_msg = f"You are an academic assistant writing a research paper in {language}. Write a detailed, academic paragraph."
     prompt = f"Mavzu: '{topic}'. {prompt_detail}"
     content = generate_content_from_gpt(prompt, language, system_msg)
+    # Sarlavha hujjatga yuqorida allaqachon qo'shilgan. AI matnni
+    # "Xulosa" yoki "Kirish" deb yana boshlasa, takroriy sarlavhani olib tashlaymiz.
+    escaped_title = re.escape(title)
+    content = re.sub(
+        rf'^\s*(?:#+\s*)?{escaped_title}\s*[:\-–—]?\s*(?:\n+)?',
+        '',
+        content,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
     add_formatted_paragraph(document, content)
     document.add_page_break()
 
