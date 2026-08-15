@@ -8802,6 +8802,9 @@ def main() -> None:
             # WEB_APP_DATA — barcha state larda ishlashi uchun fallbacks da ham
             MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
             CallbackQueryHandler(open_stil_handler, pattern=r"^open_stil_(silver|gold)$|^stil_back$"),
+            # Menyu tugmalari barcha state larda avval qayta ishlansin.
+            # Bu admin broadcast fallbacki menyu tanlovini ushlab qolishining oldini oladi.
+            MessageHandler(MENU_FILTER, handle_main_menu_selection),
             # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
@@ -8811,7 +8814,6 @@ def main() -> None:
                 filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
                 admin_delete_user_message
             ),
-            MessageHandler(MENU_FILTER, handle_main_menu_selection),
         ],
     )
 
