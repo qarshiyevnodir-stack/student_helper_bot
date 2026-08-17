@@ -6,7 +6,7 @@ from io import BytesIO
 import random
 import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
+from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
     generate_presentation,
     generate_template_1_presentation,
@@ -111,6 +111,8 @@ from hujjat_utils import (
     HUJJAT_PRICES, LANG_LABELS as HJ_LANG_LABELS
 )
 from pptx import Presentation
+from bot_core.reliability import configure_secure_logging, global_error_handler
+from bot_core.pricing import SERVICE_PRICES, get_slayd_price
 
 # ─────────────────────────────────────────────
 # Admin va narx sozlamalari
@@ -120,70 +122,8 @@ ADMIN_USERNAME = "Slidego_adminbot"  # Admin telegram username (@ belgisisiz)
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
-SERVICE_PRICES = {
-    "slayd":        2500,   # Silver uchun (matnli stillar)
-    "slayd_gold_10":  2500,   # Gold 10 slayd
-    "slayd_gold_20":  3000,   # Gold 20 slayd
-    "slayd_gold_30":  4000,   # Gold 30 slayd
-    "slayd_plat_10":  3000,   # Platinum 10 slayd
-    "slayd_plat_20":  4000,   # Platinum 20 slayd
-    "slayd_plat_30":  5000,   # Platinum 30 slayd
-    "mustaqil_ish": 3000,
-    "referat":      3000,
-    "loyiha_ishi":  3000,
-    "infografika":      1500,
-    "infografika_hd":   3000,
-    "maqola":           3000,
-    "tezis":            2000,
-    "glossary_small":   1000,
-    "glossary_medium":  2000,
-    "glossary_large":   3000,
-    "test_10":          1000,
-    "test_20":          2000,
-    "test_30":          2000,
-    "test_50":          3000,
-    # Krossvord
-    "krossvord_10":     1000,
-    "krossvord_15":     2000,
-    "krossvord_20":     2000,
-    # Insho / Esse
-    "insho_1":          1000,
-    # Hujjat & Dizayn
-    "rezyume":          3000,
-    "motivatsion":      2000,
-    "jadval":           2000,
-    "mindmap":          2000,
-    "insho_2":          2000,
-    "insho_3":          2000,
-    "insho_5":          3000,
-    "kurs_ishi":        12000,
-    "bmi":              20000,
-    "arxivlash":        1000,
-    "pdf_convert":      1500,
-}
+# Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
-
-
-def get_slayd_price(template_num: int, slide_count: int) -> int:
-    """Stil va slayd soniga qarab taqdimot narxini qaytaradi."""
-    # Silver stillar (oddiy1=35, oddiy2=36) — matnli, rasm yo'q
-    if template_num in (35, 36):
-        return SERVICE_PRICES['slayd']  # 2500
-    # Platinum stillar (37=Gamma1, 38=Gamma2)
-    if template_num in (37, 38):
-        if slide_count <= 10:
-            return SERVICE_PRICES['slayd_plat_10']   # 3000
-        elif slide_count <= 20:
-            return SERVICE_PRICES['slayd_plat_20']   # 4000
-        else:
-            return SERVICE_PRICES['slayd_plat_30']   # 5000
-    # Gold stillar (1-34)
-    if slide_count <= 10:
-        return SERVICE_PRICES['slayd_gold_10']   # 2500
-    elif slide_count <= 20:
-        return SERVICE_PRICES['slayd_gold_20']   # 3000
-    else:
-        return SERVICE_PRICES['slayd_gold_30']   # 4000
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -193,6 +133,8 @@ load_dotenv()
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+# HTTP request URLlarida tokenlar chiqib ketmasligi uchun loggerlarni himoyalaymiz.
+configure_secure_logging()
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
@@ -770,7 +712,7 @@ MENU_REGEX = (
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
 r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📄 Rezyume / CV ✨|"
 r"📜 Motivatsion xat ✨|📊 Jadval & Diagramma ✨|🗺️ Kontsept xarita ✨|"
-r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗜️|📄 PDF Konvertatsiya 🔄|📋Ma'lumotnoma/Obyektivka✨|"
+r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗄️|📄 PDF Konvertatsiya 🔄|📋Ma'lumotnoma/Obyektivka✨|"
     r"💳 Balans to'ldirish|⬅️ Orqaga)$"
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
@@ -1249,7 +1191,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return TQ_LANGUAGE
-    elif text == "📦 Ziplash/Arxivlash 🗜️":
+    elif text == "📦 Ziplash/Arxivlash 🗄️":
         context.user_data.clear()
         context.user_data["mode"] = "arxivlash"
         context.user_data["arxiv_files"] = []
@@ -6374,6 +6316,11 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return OB_FORMAT
 
 async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ma'lumotnoma faylini tayyorlaydi, faqat yetkazib berishdan oldin atomik mablag' yechadi.
+
+    Fayl Telegramga yuborilmasa mablag' avtomatik qaytariladi. Shuning uchun
+    foydalanuvchiga hech qachon noto'g'ri “balans yechilmadi” xabari berilmaydi.
+    """
     query = update.callback_query
     await query.answer()
     fmt = query.data
@@ -6387,55 +6334,83 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             reply_markup=kb, parse_mode="MarkdownV2"
         )
         return OB_FORMAT
+
     await query.edit_message_text("⏳ *Hujjat tayyorlanmoqda\.\.\.*", parse_mode="MarkdownV2")
     data = {
-        "fish":           context.user_data.get("ob_fish", ""),
-        "lavozim":        context.user_data.get("ob_lavozim", ""),
-        "tugilgan_yili":  context.user_data.get("ob_tugilgan_yili", ""),
-        "tugilgan_joyi":  context.user_data.get("ob_tugilgan_joyi", ""),
-        "millati":        context.user_data.get("ob_millati", ""),
+        "fish": context.user_data.get("ob_fish", ""),
+        "lavozim": context.user_data.get("ob_lavozim", ""),
+        "tugilgan_yili": context.user_data.get("ob_tugilgan_yili", ""),
+        "tugilgan_joyi": context.user_data.get("ob_tugilgan_joyi", ""),
+        "millati": context.user_data.get("ob_millati", ""),
         "partiyaviyligi": context.user_data.get("ob_partiyaviyligi", ""),
-        "malumoti":       context.user_data.get("ob_malumoti", ""),
-        "tamomlagan":     context.user_data.get("ob_tamomlagan", ""),
+        "malumoti": context.user_data.get("ob_malumoti", ""),
+        "tamomlagan": context.user_data.get("ob_tamomlagan", ""),
         "mutaxassisligi": context.user_data.get("ob_mutaxassisligi", ""),
         "ilmiy_darajasi": context.user_data.get("ob_ilmiy_darajasi", "yo'q"),
-        "ilmiy_unvoni":   context.user_data.get("ob_ilmiy_unvoni", "yo'q"),
-        "chet_tillari":   context.user_data.get("ob_chet_tillari", ""),
-        "harbiy_unvoni":  context.user_data.get("ob_harbiy_unvoni", "yo'q"),
-        "mukofotlar":     context.user_data.get("ob_mukofotlar", "yo'q"),
-        "deputatlik":     context.user_data.get("ob_deputatlik", "yo'q"),
-        "mehnat":         context.user_data.get("ob_mehnat", []),
-        "qarindoshlar":   context.user_data.get("ob_qarindoshlar", []),
-        "photo_bytes":    context.user_data.get("ob_photo_bytes", None),
+        "ilmiy_unvoni": context.user_data.get("ob_ilmiy_unvoni", "yo'q"),
+        "chet_tillari": context.user_data.get("ob_chet_tillari", ""),
+        "harbiy_unvoni": context.user_data.get("ob_harbiy_unvoni", "yo'q"),
+        "mukofotlar": context.user_data.get("ob_mukofotlar", "yo'q"),
+        "deputatlik": context.user_data.get("ob_deputatlik", "yo'q"),
+        "mehnat": context.user_data.get("ob_mehnat", []),
+        "qarindoshlar": context.user_data.get("ob_qarindoshlar", []),
+        "photo_bytes": context.user_data.get("ob_photo_bytes", None),
     }
+
     try:
         docx_bytes = await asyncio.to_thread(generate_obyektivka, data)
+        files_to_send = []
+        fish = data.get("fish", "obyektivka")
+        fname = fish.replace(" ", "_")[:30]
+        if fmt in ("ob_fmt_docx", "ob_fmt_both"):
+            files_to_send.append((docx_bytes, f"Malumotnoma_{fname}.docx", "📝 *Ma'lumotnoma \(DOCX\)*"))
+        if fmt in ("ob_fmt_pdf", "ob_fmt_both"):
+            pdf_bytes = await asyncio.to_thread(obyektivka_to_pdf, docx_bytes)
+            files_to_send.append((pdf_bytes, f"Malumotnoma_{fname}.pdf", "📄 *Ma'lumotnoma \(PDF\)*"))
     except Exception as e:
-        logger.error(f"generate_obyektivka xatolik: {e}")
+        logger.error("Ma'lumotnoma fayli yaratilmadi: %s", e, exc_info=True)
         await query.edit_message_text("❌ Hujjat yaratishda xatolik yuz berdi\. Qayta urinib ko'ring\.", parse_mode="MarkdownV2")
         return ConversationHandler.END
-    await asyncio.to_thread(db.deduct_balance, user.id, price)
-    fish = data.get("fish", "obyektivka")
-    fname = fish.replace(" ", "_")[:30]
-    from io import BytesIO
-    if fmt in ("ob_fmt_docx", "ob_fmt_both"):
-        f = BytesIO(docx_bytes); f.name = f"{fname}.docx"
-        await context.bot.send_document(chat_id=user.id, document=f, filename=f"Malumotnoma_{fname}.docx",
-            caption=f"📝 *Ma'lumotnoma \(DOCX\)*", parse_mode="MarkdownV2")
-    if fmt in ("ob_fmt_pdf", "ob_fmt_both"):
-        try:
-            pdf_bytes = await asyncio.to_thread(obyektivka_to_pdf, docx_bytes)
-            f = BytesIO(pdf_bytes); f.name = f"{fname}.pdf"
-            await context.bot.send_document(chat_id=user.id, document=f, filename=f"Malumotnoma_{fname}.pdf",
-                caption=f"📄 *Ma'lumotnoma \(PDF\)*", parse_mode="MarkdownV2")
-        except Exception as e:
-            logger.error(f"PDF xatolik: {e}")
-            await context.bot.send_message(chat_id=user.id, text="⚠️ PDF yaratishda xatolik\. DOCX fayl yuborildi\.")
+
+    # Yakuniy atomik tekshiruv: parallel buyurtma balansni sarflagan bo'lsa fayl yuborilmaydi.
+    charged = await asyncio.to_thread(db.deduct_balance, user.id, price)
+    if not charged:
+        await query.edit_message_text(
+            "⚠️ Balans buyurtma tayyorlanayotgan paytda o'zgardi\. Iltimos, balansni tekshirib qayta urinib ko'ring\.",
+            parse_mode="MarkdownV2",
+        )
+        return ConversationHandler.END
+
+    try:
+        from io import BytesIO
+        for content, filename, caption in files_to_send:
+            file_obj = BytesIO(content)
+            file_obj.name = filename
+            await context.bot.send_document(
+                chat_id=user.id,
+                document=file_obj,
+                filename=filename,
+                caption=caption,
+                parse_mode="MarkdownV2",
+            )
+    except Exception as e:
+        # Hujjat foydalanuvchiga yetib bormagan bo'lsa mablag' qaytariladi.
+        await asyncio.to_thread(db.add_balance, user.id, price)
+        logger.error("Ma'lumotnoma yetkazib berilmadi; balans qaytarildi: %s", e, exc_info=True)
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="❌ Hujjat yuborilmadi\. Balansingizdan mablag' yechilmadi — summa avtomatik qaytarildi\.",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="MarkdownV2",
+        )
+        return ConversationHandler.END
+
     new_bal = await asyncio.to_thread(db.get_balance, user.id)
     await context.bot.send_message(
         chat_id=user.id,
         text=f"✅ *Ma'lumotnoma tayyor\!*\n\n💰 Yechildi: *{price:,} so'm*\n💳 Qolgan balans: *{new_bal:,} so'm*",
-        reply_markup=get_main_menu_keyboard(), parse_mode="MarkdownV2"
+        reply_markup=get_main_menu_keyboard(),
+        parse_mode="MarkdownV2",
     )
     context.user_data.clear()
     return ConversationHandler.END
@@ -6456,7 +6431,7 @@ async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "🎓 Kurs ishi / BMI 📝", "📚 Referat ✨", "📜 Tezis ✨",
         "💡 Glossary ✨", "🧩 Krossvord ✨", "🔠 Test tuzish",
         "✍️ Insho / Esse ✨", "📂 Hujjat & Dizayn ✨",
-        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗜️", "📄 PDF Konvertatsiya 🔄", "💰 Balans", "🔗 Referral"
+        "📋 Annotatsiya ✨", "📝 Taqriz ✨", "📦 Ziplash/Arxivlash 🗄️", "📄 PDF Konvertatsiya 🔄", "💰 Balans", "🔗 Referral"
     ]
     if text in main_menu_buttons:
         return await handle_main_menu_selection(update, context)
@@ -6960,7 +6935,7 @@ async def cv_edit_input_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Rasm oxirida qabul qilinadi, so'ng PDF yoki DOCX yaratiladi."""
+    """CVni yaratadi va foydalanuvchiga yetkazib berilmaganda mablag'ni qaytaradi."""
     query = update.callback_query
     await query.answer()
     output_format = query.data.replace("cv_format_", "")
@@ -6977,6 +6952,7 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lang_name = CV_LANG_NAMES.get(cv_data.get("lang", "uz"), "O'zbek")
     await query.edit_message_text("⏳ *Rezyume yaratilmoqda...*\nBir oz kuting.", parse_mode="Markdown")
     await context.bot.send_chat_action(chat_id=user.id, action="upload_document")
+
     try:
         import time
         started = time.time()
@@ -6987,15 +6963,46 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             doc = await generate_cv_full(cv_data)
             extension, mime_label = "pdf", "PDF"
         elapsed = time.time() - started
-        await asyncio.to_thread(db.deduct_balance, user.id, price)
-        await asyncio.to_thread(db.log_generation, user.id, "rezyume", fullname, price)
-        filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
+    except Exception as e:
+        logger.error("CV yaratilmadi: %s", e, exc_info=True)
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="❌ Rezyume yaratishda xatolik yuz berdi. Qayta urinib ko'ring. Balans yechilmadi.",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    # Fayl tayyor bo'lgach, yetkazib berishdan oldin balansni atomik tekshirib yechamiz.
+    charged = await asyncio.to_thread(db.deduct_balance, user.id, price)
+    if not charged:
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="⚠️ Balans buyurtma tayyorlanayotgan paytda o'zgardi. Iltimos, balansni tekshirib qayta urinib ko'ring.",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
+    try:
         await context.bot.send_document(
             chat_id=user.id,
             document=doc,
             filename=filename,
             caption=f"📄 Rezyume / CV\n👤 {fullname}\n🌍 {lang_name} | {mime_label}",
         )
+    except Exception as e:
+        # Telegram yuborishi xato qilsa, foydalanuvchi hujjat olmagan bo'ladi — mablag' qaytariladi.
+        await asyncio.to_thread(db.add_balance, user.id, price)
+        logger.error("CV yetkazib berilmadi; balans qaytarildi: %s", e, exc_info=True)
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="❌ Rezyume yuborilmadi. Balansingizga summa avtomatik qaytarildi.",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    # Arxivning ishlamasligi foydalanuvchiga yetkazib berilgan faylga ta'sir qilmasligi kerak.
+    try:
         doc.seek(0)
         archive_doc = BytesIO(doc.read())
         archive_doc.seek(0)
@@ -7004,18 +7011,16 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             language=lang_name, page_count=cv_data.get("length", 1), price=price,
             document_bytes=archive_doc, filename=filename,
         )
-        await context.bot.send_message(
-            chat_id=user.id,
-            text=f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
-            reply_markup=get_main_menu_keyboard(),
-        )
     except Exception as e:
-        logger.error(f"CV yaratish xatolik: {e}", exc_info=True)
-        await context.bot.send_message(
-            chat_id=user.id,
-            text="❌ Rezyume yaratishda xatolik yuz berdi. Qayta urinib ko'ring. Balans yechilmadi.",
-            reply_markup=get_main_menu_keyboard(),
-        )
+        logger.warning("CV arxivga yuborilmadi, foydalanuvchiga fayl yetkazildi: %s", e, exc_info=True)
+
+    await asyncio.to_thread(db.log_generation, user.id, "rezyume", fullname, price)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
+        reply_markup=get_main_menu_keyboard(),
+    )
+    context.user_data.pop("cv_data", None)
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -7971,7 +7976,9 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
         context.user_data.pop('admin_broadcast_waiting', None)
         context.user_data.pop('admin_edit_broadcast_waiting', None)
         await update.message.reply_text("❌ Bekor qilindi.")
-        return
+        # Broadcast xabari boshqa ConversationHandler tomonidan oddiy matn sifatida
+        # qayta ishlanmasligi kerak.
+        raise ApplicationHandlerStop
     # Markdown -> HTML konvertatsiya
     import re
     def md_to_html(t):
@@ -8002,7 +8009,7 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
             except Exception:
                 failed += 1
         await update.message.reply_text(f"✅ Tahrirlandi: {edited} | Muvaffaqiyatsiz: {failed}")
-        return
+        raise ApplicationHandlerStop
     # Broadcast yuborish
     context.user_data.pop('admin_broadcast_waiting', None)
     users = await asyncio.to_thread(db.get_all_users, limit=5000)
@@ -8029,6 +8036,7 @@ async def admin_broadcast_text_handler(update: Update, context: ContextTypes.DEF
         f"🗑️ Xabarni o'chirish: `/delete_broadcast`",
         parse_mode="Markdown"
     )
+    raise ApplicationHandlerStop
 
 async def edit_broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Oxirgi broadcast xabarini tahrirlaydi — 2 bosqich"""
@@ -8102,6 +8110,13 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────
 
 def main() -> None:
+    # Database migratsiyalari va jadvallarini faqat bot ishga tushayotganda tayyorlaymiz.
+    try:
+        db.init_db()
+    except Exception:
+        logger.exception("Database boshlang'ich sozlamasi bajarilmadi")
+        return
+
     token = os.getenv("BOT_TOKEN")
     if not token:
         logger.error("BOT_TOKEN topilmadi!")
@@ -8137,7 +8152,7 @@ def main() -> None:
             MessageHandler(filters.Regex(r"^📂 Hujjat & Dizayn ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📋 Annotatsiya ✨$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📝 Taqriz ✨$"), handle_main_menu_selection),
-            MessageHandler(filters.Regex(r"^📦 Ziplash/Arxivlash 🗜️$"), handle_main_menu_selection),
+            MessageHandler(filters.Regex(r"^📦 Ziplash/Arxivlash 🗄️$"), handle_main_menu_selection),
             MessageHandler(filters.Regex(r"^📄 PDF Konvertatsiya 🔄$"), handle_main_menu_selection),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu_selection),
             CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
@@ -8805,15 +8820,8 @@ def main() -> None:
             # Menyu tugmalari barcha state larda avval qayta ishlansin.
             # Bu admin broadcast fallbacki menyu tanlovini ushlab qolishining oldini oladi.
             MessageHandler(MENU_FILTER, handle_main_menu_selection),
-            # Admin xabarlari - barcha state larda ishlashi uchun fallbacks da
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
-                admin_broadcast_text_handler
-            ),
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_IDS),
-                admin_delete_user_message
-            ),
+            # Admin rejimlari global handlerlarda boshqariladi; ularni fallback'ga
+            # qayta qo'shish menyu va suhbat oqimlarini ushlab qolishi mumkin.
         ],
     )
 
@@ -8824,6 +8832,8 @@ def main() -> None:
     ), group=-1)
 
     application.add_handler(slayd_handler)
+    # Har qanday kutilmagan xato markazlashgan va maxfiy ma'lumotsiz qayd qilinadi.
+    application.add_error_handler(global_error_handler)
     # Admin handlerlari
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))

@@ -1,0 +1,20 @@
+# Python bytecode va lokal cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual muhit va lokal konfiguratsiya
+.venv/
+venv/
+.env
+.env.*
+
+# Generatsiya va sinov artefaktlari
+test_output/
+*.log
+.tmp/
+tmp/
+
+# Tizim fayllari
+.DS_Store
+Thumbs.db

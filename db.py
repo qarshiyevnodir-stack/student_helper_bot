@@ -263,17 +263,28 @@ def set_balance(user_id: int, new_balance: int) -> bool:
 
 
 def deduct_balance(user_id: int, amount: int) -> bool:
-    """Balansdan yechadi. Yetarli bo'lmasa False qaytaradi."""
+    """Balansdan atomik tarzda yechadi. Yetarli bo'lmasa False qaytaradi.
+
+    `SELECT` va keyingi `UPDATE` alohida bajarilsa, foydalanuvchi bir vaqtda
+    ikki buyurtma yuborganda balans manfiy bo'lib qolishi mumkin. Shu sabab
+    tekshiruv hamda yechish bitta SQL amali ichida bajariladi.
+    """
+    if amount <= 0:
+        return False
     conn = get_conn()
     try:
         c = conn.cursor()
-        c.execute("SELECT balance FROM users WHERE user_id = %s", (user_id,))
-        row = c.fetchone()
-        if not row or row[0] < amount:
-            return False
-        c.execute("UPDATE users SET balance = balance - %s WHERE user_id = %s", (amount, user_id))
+        c.execute("""
+            UPDATE users
+            SET balance = balance - %s,
+                last_active = NOW()
+            WHERE user_id = %s
+              AND balance >= %s
+            RETURNING balance
+        """, (amount, user_id, amount))
+        updated = c.fetchone()
         conn.commit()
-        return True
+        return updated is not None
     finally:
         release_conn(conn)
 
@@ -378,20 +389,29 @@ def create_topup_request(user_id: int, amount: int, screenshot_id: str) -> int:
 
 
 def approve_topup(tx_id: int) -> dict | None:
+    """Faqat bir marta tasdiqlanadigan to'lovni atomik tarzda balansga qo'shadi."""
     conn = get_conn()
     try:
         c = conn.cursor()
-        c.execute("SELECT * FROM transactions WHERE id = %s AND status = 'pending'", (tx_id,))
+        # `status = pending` sharti aynan UPDATE ichida: ikki admin bir paytda
+        # tugmani bossa, faqat birinchi so'rov mablag'ni qo'sha oladi.
+        c.execute("""
+            UPDATE transactions
+            SET status = 'approved', updated_at = NOW()
+            WHERE id = %s AND status = 'pending'
+            RETURNING user_id, amount, id, type, status, screenshot_id, note, created_at, updated_at
+        """, (tx_id,))
         row = c.fetchone()
         if not row:
+            conn.rollback()
             return None
         tx = _row_to_dict(c, row)
         c.execute("""
-            UPDATE transactions SET status = 'approved', updated_at = NOW()
-            WHERE id = %s
-        """, (tx_id,))
-        c.execute("UPDATE users SET balance = balance + %s WHERE user_id = %s",
-                  (tx['amount'], tx['user_id']))
+            UPDATE users
+            SET balance = balance + %s,
+                last_active = NOW()
+            WHERE user_id = %s
+        """, (tx['amount'], tx['user_id']))
         conn.commit()
         return tx
     finally:
@@ -414,18 +434,21 @@ def update_topup_amount(tx_id: int, new_amount: int) -> bool:
 
 
 def reject_topup(tx_id: int) -> dict | None:
+    """Faqat pending chekni bir marta rad etadi."""
     conn = get_conn()
     try:
         c = conn.cursor()
-        c.execute("SELECT * FROM transactions WHERE id = %s AND status = 'pending'", (tx_id,))
+        c.execute("""
+            UPDATE transactions
+            SET status = 'rejected', updated_at = NOW()
+            WHERE id = %s AND status = 'pending'
+            RETURNING user_id, amount, id, type, status, screenshot_id, note, created_at, updated_at
+        """, (tx_id,))
         row = c.fetchone()
         if not row:
+            conn.rollback()
             return None
         tx = _row_to_dict(c, row)
-        c.execute("""
-            UPDATE transactions SET status = 'rejected', updated_at = NOW()
-            WHERE id = %s
-        """, (tx_id,))
         conn.commit()
         return tx
     finally:
@@ -612,8 +635,8 @@ def get_user_topup_state(user_id: int) -> dict | None:
         release_conn(conn)
 
 
-# Modulni import qilganda DB ni ishga tushir
-init_db()
+# DB boshlang'ich sozlamasi import vaqtida emas, ilova ishga tushishida `main()` tomonidan chaqiriladi.
+# Bu testlar, lokal utilitalar va xavfsiz restartlar uchun import side-effect'ini yo'q qiladi.
 
 def get_ai_daily_count(user_id: int) -> int:
     """Bugungi AI savol sonini qaytaradi."""
