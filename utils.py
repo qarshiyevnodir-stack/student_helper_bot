@@ -3,7 +3,6 @@ import logging
 import os
 import copy
 import random
-import time
 import requests
 from io import BytesIO
 from pptx import Presentation
@@ -29,15 +28,6 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 import itertools
 _together_key_lock = __import__('threading').Lock()
 _together_key_idx = [0]  # mutable list — thread-safe index
-# Bir akkauntdagi bir necha kalitni birdaniga urish 429 xatosini ko'paytiradi.
-# Shu sabab barcha Together so'rovlari uchun qisqa global navbat qo'llanadi.
-_together_request_lock = __import__('threading').Lock()
-_together_next_request_at = [0.0]
-_TOGETHER_MIN_REQUEST_INTERVAL = 1.25
-
-
-class GammaImageGenerationError(RuntimeError):
-    """Gamma/Platinum uchun majburiy AI rasmi yaratilmaganda ko'tariladi."""
 
 # Startup: Together.ai kalitlarini tekshirish
 _together_key_1 = os.getenv('TOGETHER_API_KEY_1', '')
@@ -143,48 +133,22 @@ def _build_together_prompt(image_query, style='photo', content_keywords=None, to
     return final_prompt
 
 
-def _wait_for_together_slot():
-    """Together so'rovlarini qisqa oralig' bilan navbatlashtiradi.
-
-    Bir nechta foydalanuvchi yoki bir taqdimotdagi ko'p slayd bir vaqtda
-    so'rov yuborganda Together 429 qaytarishi mumkin. Kalitlar uchta bo'lsa
-    ham, ular bir akkaunt kvotasini bo'lishishi mumkin.
-    """
-    with _together_request_lock:
-        now = time.monotonic()
-        wait_seconds = max(0.0, _together_next_request_at[0] - now)
-        _together_next_request_at[0] = max(now, _together_next_request_at[0]) + _TOGETHER_MIN_REQUEST_INTERVAL
-    if wait_seconds:
-        time.sleep(wait_seconds)
-
-
-def _together_retry_delay(response, attempt):
-    """429/503 javoblari uchun Retry-After yoki progressiv kutish vaqtini qaytaradi."""
-    retry_after = 0.0
-    if response is not None:
-        try:
-            retry_after = float(response.headers.get('Retry-After', 0) or 0)
-        except (TypeError, ValueError):
-            retry_after = 0.0
-    # 429 uchun uzoqroq, 503 uchun yumshoq progressiv kutish.
-    return min(20.0, max(retry_after, 2.0 * (attempt + 1)) + random.uniform(0.1, 0.6))
-
-
 def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None, topic=None):
-    """Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
-
-    Uchta kalit round-robin usulida tanlanadi. 429/503 vaqtinchalik xatosida
-    so'rovlar qisqa interval bilan qayta yuboriladi; kalit yoki token logga
-    yozilmaydi. Muvaffaqiyatda lokal rasm yo'li, aks holda ``None`` qaytaradi.
+    """
+    Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
+    Ikkala kalit round-robin rejimda ishlatiladi.
+    style: 'photo' | 'illustration' | '3d' | 'vector' | 'cinematic'
+    content_keywords: slayd kontent so'zlari (prompt boyitish uchun)
+    topic: asosiy mavzu (promptdan adashib ketmaslik uchun)
+    Qaytaradi: lokal fayl yo'li yoki None.
     """
     import base64
-
-    if not any(os.getenv(name, '') for name in (
-        'TOGETHER_API_KEY_1', 'TOGETHER_API_KEY_2', 'TOGETHER_API_KEY_3',
-    )):
-        logging.warning("[Together.ai] TOGETHER_API_KEY_1/2/3 topilmadi; rasm o'tkazib yuborildi.")
+    key = _get_next_together_key()
+    if not key:
+        logging.warning("TOGETHER_API_KEY yo'q. Rasm o'tkazib yuborildi.")
         return None
     url = 'https://api.together.xyz/v1/images/generations'
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
     prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords, topic=topic)
     data = {
         'model': 'black-forest-labs/FLUX.1-schnell',
@@ -194,53 +158,29 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
         'steps': 4,
         'n': 1,
         'seed': random.randint(1, 2147483647),
-        'response_format': 'b64_json',
+        'response_format': 'b64_json'
     }
-
-    max_attempts = 6
-    for attempt in range(max_attempts):
-        key = _get_next_together_key()
-        if not key:
-            return None
-        response = None
+    # 3 marta urinish — timeout yoki server xatoligida qayta urinish
+    for attempt in range(3):
         try:
-            _wait_for_together_slot()
-            headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-            response = requests.post(url, headers=headers, json=data, timeout=(15, 100))
-            response.raise_for_status()
-            result = response.json()
+            resp = requests.post(url, headers=headers, json=data, timeout=90)
+            resp.raise_for_status()
+            result = resp.json()
             b64 = result['data'][0]['b64_json']
             img_bytes = base64.b64decode(b64)
             img_path = f"/tmp/together_img_{random.randint(0, 9999999)}.jpg"
-            with open(img_path, 'wb') as file_obj:
-                file_obj.write(img_bytes)
-            logging.info('[Together.ai] Rasm generatsiya qilindi: style=%s, attempt=%s', style, attempt + 1)
+            with open(img_path, 'wb') as f:
+                f.write(img_bytes)
+            logging.info(f"[Together.ai] Rasm generatsiya qilindi ({style}): {image_query}")
             return img_path
-        except requests.HTTPError as exc:
-            status_code = response.status_code if response is not None else None
-            is_retryable = status_code in (429, 500, 502, 503, 504)
-            if not is_retryable:
-                logging.error('[Together.ai] Qayta urinilmaydigan HTTP xato: status=%s', status_code)
-                break
-            delay = _together_retry_delay(response, attempt)
-            logging.warning(
-                '[Together.ai] Vaqtinchalik HTTP xato: status=%s, attempt=%s/%s, %.1f soniya kutiladi',
-                status_code, attempt + 1, max_attempts, delay,
-            )
-            if attempt < max_attempts - 1:
-                time.sleep(delay)
+        except Exception as e:
+            logging.warning(f"[Together.ai] Urinish {attempt+1}/3 xatolik ({image_query}): {e}")
+            if attempt < 2:
+                # Keyingi kalitni ishlatib qayta urinish
+                key = _get_next_together_key() or key
+                headers['Authorization'] = f'Bearer {key}'
                 data['seed'] = random.randint(1, 2147483647)
-        except (requests.RequestException, KeyError, IndexError, ValueError, base64.binascii.Error) as exc:
-            delay = _together_retry_delay(response, attempt)
-            logging.warning(
-                '[Together.ai] Vaqtinchalik so\'rov/javob xatosi: %s, attempt=%s/%s, %.1f soniya kutiladi',
-                type(exc).__name__, attempt + 1, max_attempts, delay,
-            )
-            if attempt < max_attempts - 1:
-                time.sleep(delay)
-                data['seed'] = random.randint(1, 2147483647)
-
-    logging.error('[Together.ai] Rasm generatsiyasi %s urinishdan keyin muvaffaqiyatsiz tugadi.', max_attempts)
+    logging.error(f"[Together.ai] 3 urinishdan so'ng ham xatolik: {image_query}")
     return None
 
 # ─────────────────────────────────────────────
@@ -15638,60 +15578,69 @@ SLIDE_TYPE_NAMES_PLATINUM = {
 
 
 def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustration'):
-    """Gamma/Platinum slaydiga AI rasmi joylaydi.
-
-    Gamma stillari uchun AI rasmi majburiy. Rasm generatsiyasi yoki PPTX ichiga
-    joylashtirish muvaffaqiyatsiz bo'lsa, ``GammaImageGenerationError`` ko'taradi.
-    Shu orqali shablondagi eski rasm bilan taqdimot yuborilishining oldi olinadi.
     """
-    import os as _os2
-
-    logger = logging.getLogger(__name__)
+    Gamma1/Gamma2 shabloni uchun universal rasm joylashtirishchi.
+    - topic: asosiy mavzu (masalan 'Puma firmasi')
+    - slide_title: slayd sarlavhasi (masalan 'Brendning tarixi')
+    - style: 'illustration' | '3d' | 'vector'
+    Har chaqiruvda unikal fayl nomi yaratiladi — kesh muammosi yoq.
+    shape.part ishlatiladi — nusxalangan slaydlarda ham ishlaydi.
+    """
+    import uuid, tempfile, os as _os2, logging
+    _logger = logging.getLogger(__name__)
+    
+    # Prompt: mavzu + sarlavha birlashtiriladi
     if slide_title and slide_title.lower() not in str(topic).lower():
         query = f"{topic}, {slide_title}"
     else:
         query = str(topic)
-
-    logger.info('[Gamma] AI rasm so\'rovi: shape=%s, style=%s', shape_name, style)
+    
+    # Together.ai orqali rasm yaratish
+    _logger.info(f"[Gamma] Rasm so'rovi: {shape_name}, query={query[:50]}, style={style}")
     img_path = fetch_image_together(query, style=style, topic=topic)
     if not img_path:
-        raise GammaImageGenerationError(
-            f"Together.ai rasmi yaratilmagan: shape={shape_name}, style={style}"
-        )
-
+        _logger.error(f"[Gamma] fetch_image_together None qaytardi: {shape_name}, query={query[:50]}")
+        return
+    
     try:
-        with open(img_path, 'rb') as image_file:
-            img_data = image_file.read()
+        with open(img_path, 'rb') as _f:
+            img_data = _f.read()
     finally:
-        try:
-            _os2.remove(img_path)
-        except OSError:
-            pass
-
+        try: _os2.remove(img_path)
+        except: pass
+    
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-    target_shape = next((shape for shape in slide.shapes if shape.name == shape_name), None)
-    if target_shape is None:
-        raise GammaImageGenerationError(f"Gamma rasm shakli topilmadi: {shape_name}")
-
-    blips = target_shape._element.findall(f'.//{{{ns_a}}}blip')
-    if not blips:
-        raise GammaImageGenerationError(f"Gamma rasm blipi topilmadi: {shape_name}")
-
-    current_rid = blips[0].get(f'{{{ns_r}}}embed')
-    if not current_rid:
-        raise GammaImageGenerationError(f"Gamma rasm relationshipi topilmadi: {shape_name}")
-
-    try:
-        image_part = target_shape.part.related_part(current_rid)
-        image_part._blob = img_data
-    except Exception as exc:
-        raise GammaImageGenerationError(
-            f"Gamma rasmi PPTXga joylashtirilmadi: shape={shape_name}, error={type(exc).__name__}"
-        ) from exc
-
-    logger.info('[Gamma] AI rasm joylashtirildi: shape=%s, style=%s', shape_name, style)
-    return True
+    
+    for shape in slide.shapes:
+        if shape.name != shape_name:
+            continue
+        blips = shape._element.findall(f'.//{{{ns_a}}}blip')
+        if not blips:
+            _logger.warning(f"[Gamma] blip topilmadi: {shape_name}")
+            return
+        blip = blips[0]
+        
+        # Unikal vaqtinchalik fayl — get_or_add_image_part keshini chetlab otish
+        unique_path = _os2.path.join(tempfile.gettempdir(), f'gamma_{uuid.uuid4().hex}.jpg')
+        with open(unique_path, 'wb') as _f2:
+            _f2.write(img_data)
+        try:
+            # Mavjud rId ni topib, img_part._blob ni yangi rasm bilan almashtirish
+            # Bu usul python-pptx 0.6.x va 1.0.x da ham ishlaydi
+            cur_rId = blip.get(f'{{{ns_r}}}embed')
+            if cur_rId:
+                img_part = shape.part.related_part(cur_rId)
+                img_part._blob = img_data
+                _logger.info(f"[Gamma] Rasm joylashtirildi (blob): {shape_name} ({style})")
+            else:
+                _logger.warning(f"[Gamma] rId topilmadi: {shape_name}")
+        except Exception as _e:
+            _logger.error(f"[Gamma] Rasm joylashtirishda xatolik {shape_name}: {_e}")
+        finally:
+            try: _os2.remove(unique_path)
+            except: pass
+        return
 
 def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
     """Platinum shablon uchun shape ga matn yozish."""
@@ -16167,12 +16116,8 @@ def generate_template_platinum_presentation(prs, topic, requested_slide_count, l
             data['_topic'] = topic
         try:
             func(slide, title, data)
-        except GammaImageGenerationError:
-            # AI rasm majburiy; shablon rasmini qoldirib davom etish mumkin emas.
-            raise
-        except Exception as exc:
-            logger.error('[Platinum] slide %s fill xatolik: %s', slide_idx, exc, exc_info=True)
-            raise
+        except Exception as e:
+            logger.warning(f"[Platinum] slide {slide_idx} fill xatolik: {e}")
 
     # Xulosa slayd (oxirgi)
     if n > 0:
@@ -16589,12 +16534,8 @@ def generate_template_gamma2_presentation(prs, topic, requested_slide_count, lan
             data['_topic'] = topic
         try:
             func(slide, title, data)
-        except GammaImageGenerationError:
-            # AI rasm majburiy; shablon rasmini qoldirib davom etish mumkin emas.
-            raise
-        except Exception as exc:
-            logger.error('[Gamma2] slide %s fill xatolik: %s', slide_idx, exc, exc_info=True)
-            raise
+        except Exception as e:
+            logger.warning(f"[Gamma2] slide {slide_idx} fill xatolik: {e}")
 
     # Xulosa slayd (oxirgi)
     if n > 0:
