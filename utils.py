@@ -32,14 +32,10 @@ _together_key_idx = [0]  # mutable list — thread-safe index
 # Startup: Together.ai kalitlarini tekshirish
 _together_key_1 = os.getenv('TOGETHER_API_KEY_1', '')
 _together_key_2 = os.getenv('TOGETHER_API_KEY_2', '')
-_together_key_3 = os.getenv('TOGETHER_API_KEY_3', '')
-if _together_key_1 or _together_key_2 or _together_key_3:
-    logging.info(
-        '[Together] Kalitlar yuklandi: KEY1=%s, KEY2=%s, KEY3=%s',
-        bool(_together_key_1), bool(_together_key_2), bool(_together_key_3),
-    )
+if _together_key_1 or _together_key_2:
+    logging.info(f'[Together] Kalitlar yuklandi: KEY1={bool(_together_key_1)}, KEY2={bool(_together_key_2)}')
 else:
-    logging.warning('[Together] TOGETHER_API_KEY_1/2/3 env variables topilmadi!')
+    logging.warning('[Together] DIQQAT: TOGETHER_API_KEY_1 va TOGETHER_API_KEY_2 topilmadi!')
 
 
 def _get_next_together_key():
@@ -47,10 +43,9 @@ def _get_next_together_key():
     keys = [k for k in [
         os.getenv("TOGETHER_API_KEY_1", ""),
         os.getenv("TOGETHER_API_KEY_2", ""),
-        os.getenv("TOGETHER_API_KEY_3", ""),
     ] if k]
     if not keys:
-        logging.warning("[Together] TOGETHER_API_KEY_1/2/3 env variables topilmadi!")
+        logging.warning("[Together] TOGETHER_API_KEY_1/2 env variables topilmadi!")
         return None
     with _together_key_lock:
         idx = _together_key_idx[0] % len(keys)
