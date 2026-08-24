@@ -147,7 +147,10 @@ def _build_together_prompt(image_query, style='photo', content_keywords=None, to
     if style in ('illustration', '3d', 'vector'):
         no_photo_note = ' NOT a photograph. NOT photorealistic. Digital art only.'
     
-    final_prompt = f"Digital art illustration: {base}. {suffix}.{no_photo_note} No text, no words, no letters."
+    if style in ('photo', 'cinematic'):
+        final_prompt = f"Photorealistic professional photograph: {base}. {suffix} No text, no words, no letters."
+    else:
+        final_prompt = f"Digital art illustration: {base}. {suffix}.{no_photo_note} No text, no words, no letters."
     return final_prompt
 
 
@@ -727,80 +730,168 @@ def split_text_into_blocks(body_text, n):
         return blocks
 
 
-def fetch_image(image_query):
-    """
-    Rasm olish: Together.ai (primary) -> Pixabay (fallback).
-    Qaytaradi: lokal fayl yo'li yoki None.
-    """
-    # 1. Together.ai (primary)
-    img_path = fetch_image_together(image_query)
-    if img_path:
-        return img_path
+_gold_pixabay_lock = __import__('threading').Lock()
+_gold_recent_pixabay_ids = []
+_GOLD_RECENT_PIXABAY_LIMIT = 120
+_GOLD_STOCK_MIN_SCORE = 0.45
 
-    # 2. Pixabay (fallback)
+
+def _gold_query_terms(image_query):
+    """Gold rasm qidiruvining inglizcha kalit so'zlarini tozalaydi."""
     import re
+
+    ignored = {
+        'and', 'the', 'with', 'for', 'from', 'into', 'about', 'photo', 'image',
+        'photography', 'professional', 'concept', 'presentation', 'background',
+        'illustration', 'slide', 'modern', 'business', 'high', 'quality', 'realistic',
+    }
+    raw_terms = re.findall(r"[a-zA-Z0-9][a-zA-Z0-9'-]{2,}", str(image_query).lower())
+    terms = []
+    for term in raw_terms:
+        if term not in ignored and term not in terms:
+            terms.append(term)
+    return terms[:8]
+
+
+def _gold_stock_score(hit, query_terms):
+    """Pixabay hitining queryga aloqadorligi va texnik sifatini baholaydi."""
+    import math
+
+    tags = str(hit.get('tags', '')).lower()
+    matched = [term for term in query_terms if term in tags]
+    relevance = len(matched) / max(1, len(query_terms))
+
+    width = int(hit.get('imageWidth') or hit.get('webformatWidth') or 0)
+    height = int(hit.get('imageHeight') or hit.get('webformatHeight') or 0)
+    ratio = (width / height) if height else 0.0
+    dimension_score = min(1.0, min(width, height) / 720.0)
+    ratio_score = 1.0 if ratio >= 1.15 else 0.35
+    popularity_score = min(1.0, math.log1p(int(hit.get('likes') or 0) + int(hit.get('downloads') or 0)) / 10.0)
+    editor_score = 1.0 if hit.get('userImageURL') else 0.0
+
+    score = (
+        relevance * 0.64
+        + dimension_score * 0.16
+        + ratio_score * 0.10
+        + popularity_score * 0.07
+        + editor_score * 0.03
+    )
+    return score, matched
+
+
+def _gold_pixabay_url(hit):
+    """PPTX uchun yetarli o'lchamdagi Pixabay URLini qaytaradi."""
+    import re
+
+    return (
+        hit.get('largeImageURL')
+        or re.sub(r'_640\.jpg$', '_960.jpg', hit.get('webformatURL', ''))
+        or hit.get('webformatURL', '')
+    )
+
+
+def _remember_gold_pixabay_id(image_id):
+    if image_id is None:
+        return
+    with _gold_pixabay_lock:
+        _gold_recent_pixabay_ids.append(str(image_id))
+        del _gold_recent_pixabay_ids[:-_GOLD_RECENT_PIXABAY_LIMIT]
+
+
+def _fetch_gold_pixabay_image(image_query):
+    """Gold uchun Pixabaydan mavzuga mos, yirik va takrorlanmagan foto rasmini oladi."""
     if not PIXABAY_API_KEY:
-        logging.warning("[fetch_image] PIXABAY_API_KEY yo'q. Rasm o'tkazib yuborildi.")
+        logging.warning("[Gold/Pixabay] PIXABAY_API_KEY topilmadi; DeepInfra zaxirasiga o'tiladi.")
         return None
+
+    query_terms = _gold_query_terms(image_query)
+    if not query_terms:
+        logging.warning("[Gold/Pixabay] Bo'sh yoki yaroqsiz image_query; DeepInfra zaxirasiga o'tiladi.")
+        return None
+
     try:
-        url = (f"https://pixabay.com/api/"
-               f"?key={PIXABAY_API_KEY}"
-               f"&q={requests.utils.quote(image_query)}"
-               f"&image_type=photo&orientation=horizontal"
-               f"&per_page=5&safesearch=true")
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        hits = resp.json().get("hits", [])
-        if not hits:
-            logging.warning(f"[Pixabay] Rasm topilmadi: {image_query}")
-            return None
-
-        img_data = None
-        img_ext = "jpg"
-
-        for hit in hits:
-            preview_url = hit.get("previewURL", "")
-            if not preview_url:
-                continue
-            if not preview_url.lower().endswith(".jpg"):
-                continue
-            cdn_url = re.sub(r'_\d+\.jpg$', '_640.jpg', preview_url)
-            img_resp = requests.get(cdn_url, timeout=15)
-            if img_resp.status_code == 200 and "image" in img_resp.headers.get("Content-Type", ""):
-                img_data = img_resp.content
-                logging.info(f"[Pixabay] Rasm yuklandi (640px): {image_query}")
-                break
-            img_resp2 = requests.get(preview_url, timeout=15)
-            if img_resp2.status_code == 200 and "image" in img_resp2.headers.get("Content-Type", ""):
-                img_data = img_resp2.content
-                logging.info(f"[Pixabay] Rasm yuklandi (150px fallback): {image_query}")
-                break
-
-        if not img_data:
-            for hit in hits:
-                preview_url = hit.get("previewURL", "")
-                if not preview_url:
-                    continue
-                img_resp = requests.get(preview_url, timeout=15)
-                if img_resp.status_code == 200 and "image" in img_resp.headers.get("Content-Type", ""):
-                    img_data = img_resp.content
-                    ct = img_resp.headers.get("Content-Type", "")
-                    img_ext = "png" if "png" in ct else "jpg"
-                    logging.info(f"[Pixabay] Rasm yuklandi (preview fallback): {image_query}")
-                    break
-
-        if not img_data:
-            logging.warning(f"[Pixabay] Rasm yuklab bo'lmadi: {image_query}")
-            return None
-
-        img_path = f"/tmp/slide_img_{random.randint(0, 99999)}.{img_ext}"
-        with open(img_path, "wb") as f:
-            f.write(img_data)
-        logging.info(f"[Pixabay] Rasm saqlandi: {img_path}")
-        return img_path
-    except Exception as e:
-        logging.error(f"[Pixabay] Rasm yuklashda xatolik ({image_query}): {e}")
+        response = requests.get(
+            'https://pixabay.com/api/',
+            params={
+                'key': PIXABAY_API_KEY,
+                'q': ' '.join(query_terms),
+                'lang': 'en',
+                'image_type': 'photo',
+                'orientation': 'horizontal',
+                'min_width': 960,
+                'min_height': 540,
+                'order': 'popular',
+                'per_page': 10,
+                'safesearch': 'true',
+            },
+            timeout=(5, 12),
+        )
+        response.raise_for_status()
+        hits = response.json().get('hits', [])
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        logging.warning('[Gold/Pixabay] Qidiruv xatosi (%s): %s', image_query, type(exc).__name__)
         return None
+
+    with _gold_pixabay_lock:
+        recent_ids = set(_gold_recent_pixabay_ids)
+
+    ranked = []
+    for hit in hits:
+        image_id = hit.get('id')
+        if image_id is None or str(image_id) in recent_ids:
+            continue
+        url = _gold_pixabay_url(hit)
+        score, matched = _gold_stock_score(hit, query_terms)
+        if not url or not matched or score < _GOLD_STOCK_MIN_SCORE:
+            continue
+        ranked.append((score, hit, url, matched))
+
+    if not ranked:
+        logging.info('[Gold/Pixabay] Yetarlicha mos stock rasm topilmadi: %s', image_query)
+        return None
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    for score, hit, url, matched in ranked[:3]:
+        try:
+            image_response = requests.get(url, timeout=(5, 18))
+            content_type = image_response.headers.get('Content-Type', '').lower()
+            if image_response.status_code != 200 or 'image' not in content_type or len(image_response.content) < 4096:
+                continue
+            extension = 'png' if 'png' in content_type else 'jpg'
+            image_path = f'/tmp/gold_pixabay_{random.randint(0, 9999999)}.{extension}'
+            with open(image_path, 'wb') as image_file:
+                image_file.write(image_response.content)
+            _remember_gold_pixabay_id(hit.get('id'))
+            logging.info(
+                '[Gold/Pixabay] Mos stock rasm tanlandi: score=%.2f, tags=%s, matched=%s',
+                score, hit.get('tags', ''), ','.join(matched),
+            )
+            return image_path
+        except requests.RequestException:
+            continue
+
+    logging.info("[Gold/Pixabay] Mos nomzodlar yuklanmadi; DeepInfra zaxirasiga o'tiladi.")
+    return None
+
+
+def fetch_image(image_query):
+    """Gold rasm oqimi: Pixabaydagi mos foto -> DeepInfra fotorealistik fallback."""
+    stock_image = _fetch_gold_pixabay_image(image_query)
+    if stock_image:
+        return stock_image
+
+    ai_image = fetch_image_deepinfra(
+        image_query,
+        width=1280,
+        height=792,
+        style='photo',
+    )
+    if ai_image:
+        logging.info('[Gold/DeepInfra] Pixabay topmagani uchun fotorealistik rasm yaratildi.')
+        return ai_image
+
+    logging.error('[Gold] Pixabay va DeepInfra rasm bera olmadi: %s', image_query)
+    return None
 
 
 def place_image_in_placeholder(slide, ph_idx, img_path):
