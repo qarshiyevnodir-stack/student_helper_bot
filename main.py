@@ -6312,11 +6312,13 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await file.download_to_memory(buf)
     context.user_data["ob_photo_bytes"] = buf.getvalue()
     format_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📝 DOCX", callback_data="ob_fmt_docx"),
-         InlineKeyboardButton("📄 PDF",  callback_data="ob_fmt_pdf")],
+        [InlineKeyboardButton("📦 DOCX + PDF (ikkalasi)", callback_data="ob_fmt_both")],
+        [InlineKeyboardButton("📝 Faqat DOCX", callback_data="ob_fmt_docx"),
+         InlineKeyboardButton("📄 Faqat PDF",  callback_data="ob_fmt_pdf")],
     ])
     await update.message.reply_text(
-        "✅ *Rasm qabul qilindi\!*\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
+        "✅ *Rasm qabul qilindi\!*\n\n📥 *Formatni tanlang:*\n"
+        "_DOCX + PDF tanlansa, ikkala fayl ham birdaniga yuboriladi\._",
         reply_markup=format_kb,
         parse_mode="MarkdownV2"
     )
