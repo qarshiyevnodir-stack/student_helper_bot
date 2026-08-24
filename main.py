@@ -1262,12 +1262,23 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             if free_left else
             "💰 *Narx: 3 000 so'm*\n\n"
         )
+        mini_app_url = "https://slidegoapp-pyhvxnn2.manus.space/"
+        webapp_keyboard = ReplyKeyboardMarkup(
+            [
+                [KeyboardButton("📋 Obyektivka formasini ochish", web_app=WebAppInfo(url=mini_app_url))],
+                [KeyboardButton("✍️ Chatda to'ldirish")],
+                [KeyboardButton("⬅️ Orqaga")],
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
         await update.message.reply_text(
             "📋 *Ma'lumotnoma / Obyektivka*\n\n"
             "🎁 Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
             f"{free_text}"
             "Hujjat to'ldirilgach *DOCX* yoki *PDF* formatida yuklab olishingiz mumkin.\n\n"
-            "👤 *F.I.Sh.* (to'liq familiya, ism, otasining ismi)ni kiriting:",
+            "Quyidagi tugmadan to'liq formani oching yoki xohlasangiz chatda eski usulda davom eting:",
+            reply_markup=webapp_keyboard,
             parse_mode="Markdown"
         )
         return OB_FISH
@@ -1870,7 +1881,7 @@ async def open_stil_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Mini App dan kelgan shablon tanlash ma'lumotlarini qayta ishlash."""
     import json as _json
-    logger.info(f"webapp_data_handler chaqirildi. update type: {update}")
+    logger.info("webapp_data_handler chaqirildi. update_id=%s", getattr(update, "update_id", "unknown"))
     msg = update.message
     if not msg:
         logger.warning("webapp_data_handler: msg yo'q")
@@ -1878,9 +1889,11 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not msg.web_app_data:
         logger.warning(f"webapp_data_handler: web_app_data yo'q. msg type: {msg}")
         return TEMPLATE_SELECT
-    logger.info(f"webapp_data_handler: web_app_data = {msg.web_app_data.data}")
+    # PII bo'lishi mumkin bo'lgan Web App payloadini logga yozmaymiz.
     try:
         data = _json.loads(msg.web_app_data.data)
+        if data.get("t") == "ob":
+            return await obyektivka_webapp_data_handler(update, context, data)
         template_num = int(data.get("template_num", 35))
     except Exception as e:
         logger.error(f"webapp_data_handler JSON parse xato: {e}")
@@ -1910,6 +1923,93 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         ),
     )
     return SLIDE_COUNT
+
+
+def _clean_webapp_text(value, max_len: int = 320) -> str:
+    """Web App payloadidan kelgan matnni hujjat uchun xavfsiz cheklaydi."""
+    if not isinstance(value, str):
+        return ""
+    return value.replace("\x00", "").strip()[:max_len]
+
+
+async def obyektivka_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, data: dict) -> int:
+    """Mini App Obyektivka payloadini mavjud rasm va format oqimiga uzatadi."""
+    msg = update.message
+    fields = data.get("p")
+    works = data.get("m", [])
+    relatives = data.get("q", [])
+    selected_format = data.get("f", "both")
+
+    if data.get("v") != 1 or not isinstance(fields, list) or len(fields) != 19:
+        await msg.reply_text("❌ Forma ma'lumotlari noto'g'ri keldi. Formani qayta ochib yuboring.")
+        return OB_FISH
+
+    clean_fields = [_clean_webapp_text(item) for item in fields]
+    if not clean_fields[0]:
+        await msg.reply_text("❌ F.I.Sh. kiritilmagan. Formani qayta tekshiring.")
+        return OB_FISH
+
+    clean_works = []
+    if isinstance(works, list):
+        for item in works[:5]:
+            if isinstance(item, list) and len(item) == 2:
+                year, place = _clean_webapp_text(item[0], 120), _clean_webapp_text(item[1])
+                if year and place:
+                    clean_works.append({"yil": year, "joy": place})
+
+    clean_relatives = []
+    if isinstance(relatives, list):
+        for item in relatives[:15]:
+            if isinstance(item, list) and len(item) == 5:
+                relation, fish, birth, work, residence = [_clean_webapp_text(value) for value in item]
+                if relation and fish:
+                    clean_relatives.append({
+                        "munosabat": relation,
+                        "fish": fish,
+                        "tugilgan": birth,
+                        "ish_joyi": work,
+                        "turar_joyi": residence,
+                    })
+
+    context.user_data.clear()
+    context.user_data.update({
+        "mode": "obyektivka",
+        "ob_fish": clean_fields[0],
+        "ob_lavozim": clean_fields[1],
+        "ob_tugilgan_yili": clean_fields[2],
+        "ob_tugilgan_joyi": clean_fields[3],
+        "ob_millati": clean_fields[4],
+        "ob_partiyaviyligi": clean_fields[5],
+        "ob_malumoti": clean_fields[6],
+        "ob_tamomlagan": clean_fields[7],
+        "ob_mutaxassisligi": clean_fields[8],
+        "ob_ilmiy_darajasi": clean_fields[9] or "yo'q",
+        "ob_ilmiy_unvoni": clean_fields[10] or "yo'q",
+        "ob_chet_tillari": clean_fields[11],
+        "ob_harbiy_unvoni": clean_fields[12] or "yo'q",
+        "ob_mukofotlar": clean_fields[13] or "yo'q",
+        "ob_deputatlik": clean_fields[14] or "yo'q",
+        "ob_phone": clean_fields[15],
+        "ob_passport": clean_fields[16],
+        "ob_propiska": clean_fields[17],
+        "ob_extra_note": clean_fields[18],
+        "ob_mehnat": clean_works,
+        "ob_qarindoshlar": clean_relatives,
+        "ob_webapp_format": selected_format if selected_format in ("both", "docx", "pdf") else "both",
+        "ob_extra_step": "photo",
+    })
+
+    from telegram import ReplyKeyboardRemove
+    await msg.reply_text(
+        "✅ *Forma qabul qilindi\!*\n\n"
+        f"👤 F\.I\.Sh\.: *{esc_md(clean_fields[0])}*\n"
+        f"💼 Mehnat faoliyati: *{len(clean_works)} ta*\n"
+        f"👨‍👩‍👧‍👦 Qarindoshlar: *{len(clean_relatives)} ta*\n\n"
+        "📸 Endi ma'lumotnoma uchun 3×4 yoki portret surat yuboring\.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="MarkdownV2",
+    )
+    return OB_PHOTO
 
 async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stil tanlangandan keyin slayd soni va reja orqali taqdimot yaratadi."""
@@ -8825,6 +8925,7 @@ def main() -> None:
             ],
             # ── Ma'lumotnoma / Obyektivka holatlari ──
             OB_FISH: [
+                MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_fish_handler),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
