@@ -27,6 +27,7 @@ SERVICE_PRICES = {
     "krossvord_20": 2000,
     "insho_1": 1000,
     "rezyume": 3000,
+    "obyektivka": 3000,
     "motivatsion": 2000,
     "jadval": 2000,
     "mindmap": 2000,
