@@ -6318,7 +6318,7 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     ])
     await update.message.reply_text(
         "✅ *Rasm qabul qilindi\!*\n\n📥 *Formatni tanlang:*\n"
-        "_DOCX + PDF tanlansa, ikkala fayl ham birdaniga yuboriladi\._",
+        "_DOCX \\+ PDF tanlansa, ikkala fayl ham birdaniga yuboriladi\._",
         reply_markup=format_kb,
         parse_mode="MarkdownV2"
     )
