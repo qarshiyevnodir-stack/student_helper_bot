@@ -16853,6 +16853,7 @@ def generate_obyektivka(data: dict) -> bytes:
       chet_tillari, harbiy_unvoni, mukofotlar, deputatlik,
       mehnat: list of {yil, joy}  (max 5)
       qarindoshlar: list of {munosabat, fish, tugilgan, ish_joyi, turar_joyi}  (max 15)
+      phone, passport, propiska, extra_note: ixtiyoriy qo'shimcha ma'lumotlar
     Returns: docx bytes
     """
     import io as _io
@@ -16900,6 +16901,10 @@ def generate_obyektivka(data: dict) -> bytes:
         "harbiy_unvoni":  data.get("harbiy_unvoni", "yo'q"),
         "mukofotlar":     data.get("mukofotlar", "yo'q"),
         "deputatlik":     data.get("deputatlik", "yo'q"),
+        "phone":          data.get("phone", ""),
+        "passport":       data.get("passport", ""),
+        "propiska":       data.get("propiska", ""),
+        "extra_note":     data.get("extra_note", ""),
         **mehnat_ctx,
         **q_ctx,
     }
@@ -16952,6 +16957,54 @@ def generate_obyektivka(data: dict) -> bytes:
             row_elem.getparent().remove(row_elem)
         except Exception:
             pass
+
+    # --- Qarindoshlar jadvalidan keyingi ixtiyoriy aloqa ma'lumotlari ---
+    # Ma'lumotlar kiritilmagan bo'lsa, hujjatda ortiqcha bo'sh satr chiqmaydi.
+    phone = (data.get("phone") or "").strip()
+    passport = (data.get("passport") or "").strip()
+    propiska = (data.get("propiska") or "").strip()
+    extra_note = (data.get("extra_note") or "").strip()
+    if any((phone, passport, propiska, extra_note)):
+        from docx.shared import Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        def _new_detail_paragraph(parts):
+            paragraph = doc.add_paragraph()
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            paragraph.paragraph_format.space_before = Pt(2)
+            paragraph.paragraph_format.space_after = Pt(0)
+            for label, value in parts:
+                label_run = paragraph.add_run(label)
+                label_run.bold = True
+                label_run.font.name = "Times New Roman"
+                label_run.font.size = Pt(10)
+                value_run = paragraph.add_run(value)
+                value_run.font.name = "Times New Roman"
+                value_run.font.size = Pt(10)
+            return paragraph
+
+        detail_paragraphs = []
+        contact_parts = []
+        if phone:
+            contact_parts.append(("Tel: ", phone))
+        if passport:
+            if contact_parts:
+                contact_parts.append(("    PASPORT: ", passport))
+            else:
+                contact_parts.append(("PASPORT: ", passport))
+        if contact_parts:
+            detail_paragraphs.append(_new_detail_paragraph(contact_parts))
+        if propiska:
+            detail_paragraphs.append(_new_detail_paragraph([("PROPISKA: ", propiska)]))
+        if extra_note:
+            detail_paragraphs.append(_new_detail_paragraph([("QO'SHIMCHA MA'LUMOT: ", extra_note)]))
+
+        # doc.add_paragraph() uni hujjat oxiriga qo'shadi; XML elementlarini
+        # qarindoshlar jadvalidan keyinga ko'chiramiz.
+        anchor = t1._tbl
+        for paragraph in detail_paragraphs:
+            anchor.addnext(paragraph._p)
+            anchor = paragraph._p
 
     # --- Foydalanuvchi rasmini 3x4 sm o'lchamda joylashtirish ---
     photo_bytes = data.get("photo_bytes")

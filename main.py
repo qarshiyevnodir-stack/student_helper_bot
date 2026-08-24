@@ -389,7 +389,11 @@ CV_EDIT_INPUT = 194
     OB_QARINDOSH_TURAR,  # 191 — Qarindosh turar joyi
     OB_FORMAT,           # 192 — Format tanlash (docx/pdf)
     OB_PHOTO,            # 193 — Rasm yuklash
-) = range(170, 194)
+    OB_EXTRA_PHONE,      # 194 — Telefon (ixtiyoriy)
+    OB_EXTRA_PASSPORT,   # 195 — Pasport (ixtiyoriy)
+    OB_EXTRA_PROPISKA,   # 196 — Propiska (ixtiyoriy)
+    OB_EXTRA_NOTE,       # 197 — Qo'shimcha ma'lumot (ixtiyoriy)
+) = range(170, 198)
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -5996,6 +6000,22 @@ def get_qarindosh_keyboard():
     buttons.append([InlineKeyboardButton("👨‍👩‍👧‍👦 Qarindoshlarim bo'ldi, tugatish", callback_data="ob_q_done")])
     return InlineKeyboardMarkup(buttons)
 
+
+def get_ob_extra_skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:
+    """Obyektivkadagi ixtiyoriy qo'shimcha maydonni o'tkazib yuborish tugmasi."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏩ O'tkazib yuborish", callback_data=callback_data)]
+    ])
+
+
+def ob_photo_prompt_text() -> str:
+    """Qo'shimcha ma'lumotlardan keyingi rasm yuborish yo'riqnomasi."""
+    return (
+        "📸 *Endi rasm yuboring:*\n"
+        "_Xotiradan rasm tanlang yoki suratga oling._\n"
+        "_Rasm ma'lumotnomada 3×4 sm o'lchamda joylashtiriladi._"
+    )
+
 async def ob_fish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
     context.user_data["ob_fish"] = text
@@ -6225,12 +6245,14 @@ async def ob_qarindosh_sel_handler(update: Update, context: ContextTypes.DEFAULT
     if data == "ob_q_done":
         n = len(context.user_data.get("ob_qarindoshlar", []))
         await query.edit_message_text(
-            f"✅ *{n} ta qarindosh kiritildi*\n\n📸 *Endi rasm yuboring:*\n"
-            "_Xotiradan rasm tanlang yoki suratga oling._\n"
-            "_Rasm ma'lumotnomada 3×4 sm o'lchamda joylashtiriladi._",
+            f"✅ *{n} ta qarindosh kiritildi*\n\n"
+            "📞 *Telefon raqami (ixtiyoriy):*\n"
+            "_Masalan: +998 90 123 45 67_\n\n"
+            "Kerak bo'lmasa, tugmani bosing:",
+            reply_markup=get_ob_extra_skip_keyboard("ob_extra_phone_skip"),
             parse_mode="Markdown"
         )
-        return OB_PHOTO
+        return OB_EXTRA_PHONE
     munosabat = data.replace("ob_q_", "")
     context.user_data["ob_q_munosabat_temp"] = munosabat
     await query.edit_message_text(
@@ -6278,18 +6300,102 @@ async def ob_qarindosh_turar_handler(update: Update, context: ContextTypes.DEFAU
     n = len(qarindoshlar)
     if n >= 15:
         await update.message.reply_text(
-            f"✅ *{munosabat}* saqlandi\. Jami: {n} ta\n\n📸 *Endi rasm yuboring:*\n"
-            "_Xotiradan rasm tanlang yoki suratga oling\._\n"
-            "_Rasm ma'lumotnomada 3×4 sm o'lchamda joylashtiriladi\._",
-            parse_mode="MarkdownV2"
+            f"✅ *{munosabat}* saqlandi. Jami: {n} ta\n\n"
+            "📞 *Telefon raqami (ixtiyoriy):*\n"
+            "_Masalan: +998 90 123 45 67_\n\n"
+            "Kerak bo'lmasa, tugmani bosing:",
+            reply_markup=get_ob_extra_skip_keyboard("ob_extra_phone_skip"),
+            parse_mode="Markdown"
         )
-        return OB_PHOTO
+        return OB_EXTRA_PHONE
     await update.message.reply_text(
         f"✅ *{esc_md(munosabat)}* saqlandi\. Jami: {n} ta\n\nKeyingi qarindoshni tanlang yoki \"Tayyor\" tugmasini bosing:",
         reply_markup=get_qarindosh_keyboard(),
         parse_mode="MarkdownV2"
     )
     return OB_QARINDOSH_SEL
+
+
+async def ob_extra_phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["ob_phone"] = update.message.text.strip()
+    await update.message.reply_text(
+        "🪪 *Pasport seriyasi va raqami (ixtiyoriy):*\n"
+        "_Masalan: AA 1234567_\n\n"
+        "Kerak bo'lmasa, tugmani bosing:",
+        reply_markup=get_ob_extra_skip_keyboard("ob_extra_passport_skip"),
+        parse_mode="Markdown"
+    )
+    return OB_EXTRA_PASSPORT
+
+
+async def ob_extra_passport_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["ob_passport"] = update.message.text.strip()
+    await update.message.reply_text(
+        "🏠 *Propiska / doimiy yashash manzili (ixtiyoriy):*\n"
+        "_Masalan: Qashqadaryo viloyati, Qarshi tumani, Mustaqillik mahallasi, 12-uy_\n\n"
+        "Kerak bo'lmasa, tugmani bosing:",
+        reply_markup=get_ob_extra_skip_keyboard("ob_extra_propiska_skip"),
+        parse_mode="Markdown"
+    )
+    return OB_EXTRA_PROPISKA
+
+
+async def ob_extra_propiska_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["ob_propiska"] = update.message.text.strip()
+    await update.message.reply_text(
+        "📝 *Qo'shimcha ma'lumot (ixtiyoriy):*\n"
+        "_Kerak bo'lsa yozing; u qarindoshlar jadvalidan keyin chiqariladi._\n\n"
+        "Kerak bo'lmasa, tugmani bosing:",
+        reply_markup=get_ob_extra_skip_keyboard("ob_extra_note_skip"),
+        parse_mode="Markdown"
+    )
+    return OB_EXTRA_NOTE
+
+
+async def ob_extra_note_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["ob_extra_note"] = update.message.text.strip()
+    await update.message.reply_text(ob_photo_prompt_text(), parse_mode="Markdown")
+    return OB_PHOTO
+
+
+async def ob_extra_skip_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ixtiyoriy qo'shimcha maydonlarni bo'sh qoldirib keyingi savolga o'tadi."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data == "ob_extra_phone_skip":
+        context.user_data["ob_phone"] = ""
+        await query.edit_message_text(
+            "🪪 *Pasport seriyasi va raqami (ixtiyoriy):*\n"
+            "_Masalan: AA 1234567_\n\nKerak bo'lmasa, tugmani bosing:",
+            reply_markup=get_ob_extra_skip_keyboard("ob_extra_passport_skip"),
+            parse_mode="Markdown"
+        )
+        return OB_EXTRA_PASSPORT
+    if data == "ob_extra_passport_skip":
+        context.user_data["ob_passport"] = ""
+        await query.edit_message_text(
+            "🏠 *Propiska / doimiy yashash manzili (ixtiyoriy):*\n"
+            "_Masalan: Qashqadaryo viloyati, Qarshi tumani, Mustaqillik mahallasi, 12-uy_\n\nKerak bo'lmasa, tugmani bosing:",
+            reply_markup=get_ob_extra_skip_keyboard("ob_extra_propiska_skip"),
+            parse_mode="Markdown"
+        )
+        return OB_EXTRA_PROPISKA
+    if data == "ob_extra_propiska_skip":
+        context.user_data["ob_propiska"] = ""
+        await query.edit_message_text(
+            "📝 *Qo'shimcha ma'lumot (ixtiyoriy):*\n"
+            "_Kerak bo'lsa yozing; u qarindoshlar jadvalidan keyin chiqariladi._\n\nKerak bo'lmasa, tugmani bosing:",
+            reply_markup=get_ob_extra_skip_keyboard("ob_extra_note_skip"),
+            parse_mode="Markdown"
+        )
+        return OB_EXTRA_NOTE
+
+    context.user_data["ob_extra_note"] = ""
+    await query.edit_message_text(ob_photo_prompt_text(), parse_mode="Markdown")
+    return OB_PHOTO
+
 
 async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Foydalanuvchi rasmini qabul qilib user_data ga saqlaydi, keyin format tanlashga o'tadi"""
@@ -6365,6 +6471,10 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "deputatlik": context.user_data.get("ob_deputatlik", "yo'q"),
         "mehnat": context.user_data.get("ob_mehnat", []),
         "qarindoshlar": context.user_data.get("ob_qarindoshlar", []),
+        "phone": context.user_data.get("ob_phone", ""),
+        "passport": context.user_data.get("ob_passport", ""),
+        "propiska": context.user_data.get("ob_propiska", ""),
+        "extra_note": context.user_data.get("ob_extra_note", ""),
         "photo_bytes": context.user_data.get("ob_photo_bytes", None),
     }
 
@@ -8722,6 +8832,26 @@ def main() -> None:
             ],
             OB_QARINDOSH_TURAR: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_qarindosh_turar_handler),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_EXTRA_PHONE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_extra_phone_handler),
+                CallbackQueryHandler(ob_extra_skip_handler, pattern=r"^ob_extra_phone_skip$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_EXTRA_PASSPORT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_extra_passport_handler),
+                CallbackQueryHandler(ob_extra_skip_handler, pattern=r"^ob_extra_passport_skip$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_EXTRA_PROPISKA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_extra_propiska_handler),
+                CallbackQueryHandler(ob_extra_skip_handler, pattern=r"^ob_extra_propiska_skip$"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
+            OB_EXTRA_NOTE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_extra_note_handler),
+                CallbackQueryHandler(ob_extra_skip_handler, pattern=r"^ob_extra_note_skip$"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             OB_PHOTO: [
