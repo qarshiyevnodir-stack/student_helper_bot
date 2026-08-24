@@ -6,6 +6,7 @@ from io import BytesIO
 import random
 import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from telegram.error import TimedOut
 from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
     generate_presentation,
@@ -6421,12 +6422,45 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="MarkdownV2"
         )
         return OB_PHOTO
-    # Rasmni yuklab olish
-    file = await context.bot.get_file(photo.file_id)
-    import io as _io
-    buf = _io.BytesIO()
-    await file.download_to_memory(buf)
-    context.user_data["ob_photo_bytes"] = buf.getvalue()
+    # Telegram fayl serveridagi vaqtinchalik uzilishlarda rasmni qayta yuklashga uriniladi.
+    image_bytes = None
+    for attempt in range(3):
+        try:
+            file = await context.bot.get_file(
+                photo.file_id,
+                read_timeout=45,
+                write_timeout=45,
+                connect_timeout=20,
+                pool_timeout=20,
+            )
+            import io as _io
+            buf = _io.BytesIO()
+            await file.download_to_memory(
+                buf,
+                read_timeout=60,
+                write_timeout=45,
+                connect_timeout=20,
+                pool_timeout=20,
+            )
+            image_bytes = buf.getvalue()
+            break
+        except TimedOut:
+            logger.warning("Obyektivka rasmi yuklashda timeout: urinish %s/3", attempt + 1)
+            if attempt < 2:
+                await asyncio.sleep(attempt + 1)
+        except Exception as exc:
+            logger.error("Obyektivka rasmi yuklanmadi: %s", exc, exc_info=True)
+            break
+
+    if not image_bytes:
+        await update.message.reply_text(
+            "⚠️ *Rasmni Telegramdan yuklab olishda vaqt tugadi\.*\n\n"
+            "Iltimos, ayni rasmni qayta yuboring yoki kichikroq 3×4 rasm tanlang\.",
+            parse_mode="MarkdownV2",
+        )
+        return OB_PHOTO
+
+    context.user_data["ob_photo_bytes"] = image_bytes
     format_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📦 DOCX + PDF (ikkalasi)", callback_data="ob_fmt_both")],
         [InlineKeyboardButton("📝 Faqat DOCX", callback_data="ob_fmt_docx"),
@@ -6476,8 +6510,9 @@ async def ob_extra_photo_router(update: Update, context: ContextTypes.DEFAULT_TY
     """Rasm qabulini ham qo'shimcha maydonlar oqimiga mustaqil bog'laydi."""
     if context.user_data.get("ob_extra_step") != "photo":
         return
-    await ob_photo_handler(update, context)
-    context.user_data["ob_extra_step"] = "format"
+    next_state = await ob_photo_handler(update, context)
+    # Yuklash muvaffaqiyatsiz bo'lsa format bosqichiga o'tmaydi; foydalanuvchi rasmni qayta yuboradi.
+    context.user_data["ob_extra_step"] = "format" if next_state == OB_FORMAT else "photo"
     raise ApplicationHandlerStop
 
 
