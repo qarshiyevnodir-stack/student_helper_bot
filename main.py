@@ -6244,6 +6244,7 @@ async def ob_qarindosh_sel_handler(update: Update, context: ContextTypes.DEFAULT
     data = query.data
     if data == "ob_q_done":
         n = len(context.user_data.get("ob_qarindoshlar", []))
+        context.user_data["ob_extra_step"] = "phone"
         await query.edit_message_text(
             f"✅ *{n} ta qarindosh kiritildi*\n\n"
             "📞 *Telefon raqami (ixtiyoriy):*\n"
@@ -6299,6 +6300,7 @@ async def ob_qarindosh_turar_handler(update: Update, context: ContextTypes.DEFAU
     context.user_data["ob_qarindoshlar"] = qarindoshlar
     n = len(qarindoshlar)
     if n >= 15:
+        context.user_data["ob_extra_step"] = "phone"
         await update.message.reply_text(
             f"✅ *{munosabat}* saqlandi. Jami: {n} ta\n\n"
             "📞 *Telefon raqami (ixtiyoriy):*\n"
@@ -6318,6 +6320,7 @@ async def ob_qarindosh_turar_handler(update: Update, context: ContextTypes.DEFAU
 
 async def ob_extra_phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ob_phone"] = update.message.text.strip()
+    context.user_data["ob_extra_step"] = "passport"
     await update.message.reply_text(
         "🪪 *Pasport seriyasi va raqami (ixtiyoriy):*\n"
         "_Masalan: AA 1234567_\n\n"
@@ -6330,6 +6333,7 @@ async def ob_extra_phone_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 async def ob_extra_passport_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ob_passport"] = update.message.text.strip()
+    context.user_data["ob_extra_step"] = "propiska"
     await update.message.reply_text(
         "🏠 *Propiska / doimiy yashash manzili (ixtiyoriy):*\n"
         "_Masalan: Qashqadaryo viloyati, Qarshi tumani, Mustaqillik mahallasi, 12-uy_\n\n"
@@ -6342,6 +6346,7 @@ async def ob_extra_passport_handler(update: Update, context: ContextTypes.DEFAUL
 
 async def ob_extra_propiska_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ob_propiska"] = update.message.text.strip()
+    context.user_data["ob_extra_step"] = "note"
     await update.message.reply_text(
         "📝 *Qo'shimcha ma'lumot (ixtiyoriy):*\n"
         "_Kerak bo'lsa yozing; u qarindoshlar jadvalidan keyin chiqariladi._\n\n"
@@ -6354,6 +6359,7 @@ async def ob_extra_propiska_handler(update: Update, context: ContextTypes.DEFAUL
 
 async def ob_extra_note_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ob_extra_note"] = update.message.text.strip()
+    context.user_data["ob_extra_step"] = "photo"
     await update.message.reply_text(ob_photo_prompt_text(), parse_mode="Markdown")
     return OB_PHOTO
 
@@ -6366,6 +6372,7 @@ async def ob_extra_skip_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "ob_extra_phone_skip":
         context.user_data["ob_phone"] = ""
+        context.user_data["ob_extra_step"] = "passport"
         await query.edit_message_text(
             "🪪 *Pasport seriyasi va raqami (ixtiyoriy):*\n"
             "_Masalan: AA 1234567_\n\nKerak bo'lmasa, tugmani bosing:",
@@ -6375,6 +6382,7 @@ async def ob_extra_skip_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return OB_EXTRA_PASSPORT
     if data == "ob_extra_passport_skip":
         context.user_data["ob_passport"] = ""
+        context.user_data["ob_extra_step"] = "propiska"
         await query.edit_message_text(
             "🏠 *Propiska / doimiy yashash manzili (ixtiyoriy):*\n"
             "_Masalan: Qashqadaryo viloyati, Qarshi tumani, Mustaqillik mahallasi, 12-uy_\n\nKerak bo'lmasa, tugmani bosing:",
@@ -6384,6 +6392,7 @@ async def ob_extra_skip_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return OB_EXTRA_PROPISKA
     if data == "ob_extra_propiska_skip":
         context.user_data["ob_propiska"] = ""
+        context.user_data["ob_extra_step"] = "note"
         await query.edit_message_text(
             "📝 *Qo'shimcha ma'lumot (ixtiyoriy):*\n"
             "_Kerak bo'lsa yozing; u qarindoshlar jadvalidan keyin chiqariladi._\n\nKerak bo'lmasa, tugmani bosing:",
@@ -6393,6 +6402,7 @@ async def ob_extra_skip_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return OB_EXTRA_NOTE
 
     context.user_data["ob_extra_note"] = ""
+    context.user_data["ob_extra_step"] = "photo"
     await query.edit_message_text(ob_photo_prompt_text(), parse_mode="Markdown")
     return OB_PHOTO
 
@@ -6429,6 +6439,47 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         parse_mode="MarkdownV2"
     )
     return OB_FORMAT
+
+
+async def ob_extra_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ixtiyoriy obyektivka maydonlarini ConversationHandler holati yo'qolsa ham ushlaydi."""
+    step = context.user_data.get("ob_extra_step")
+    handlers = {
+        "phone": ob_extra_phone_handler,
+        "passport": ob_extra_passport_handler,
+        "propiska": ob_extra_propiska_handler,
+        "note": ob_extra_note_handler,
+    }
+    handler = handlers.get(step)
+    if handler is None:
+        return
+    await handler(update, context)
+    # Shu xabar boshqa global/admin handlerlarda qayta ishlanmasin.
+    raise ApplicationHandlerStop
+
+
+async def ob_extra_callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ixtiyoriy maydonlarning skip va format tugmalarini mustaqil boshqaradi."""
+    step = context.user_data.get("ob_extra_step")
+    if not step:
+        return
+    data = update.callback_query.data
+    if data.startswith("ob_extra_") and data.endswith("_skip"):
+        await ob_extra_skip_handler(update, context)
+        raise ApplicationHandlerStop
+    if step == "format" and data.startswith("ob_fmt_"):
+        await ob_format_handler(update, context)
+        raise ApplicationHandlerStop
+
+
+async def ob_extra_photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Rasm qabulini ham qo'shimcha maydonlar oqimiga mustaqil bog'laydi."""
+    if context.user_data.get("ob_extra_step") != "photo":
+        return
+    await ob_photo_handler(update, context)
+    context.user_data["ob_extra_step"] = "format"
+    raise ApplicationHandlerStop
+
 
 async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Ma'lumotnoma faylini tayyorlaydi, faqat yetkazib berishdan oldin atomik mablag' yechadi.
@@ -8983,6 +9034,18 @@ def main() -> None:
             # qayta qo'shish menyu va suhbat oqimlarini ushlab qolishi mumkin.
         ],
     )
+
+    # Obyektivkaning telefon/pasport/propiska oqimi ConversationHandler
+    # xotirasi uzilgan holatda ham avval ushlanadi.
+    application.add_handler(CallbackQueryHandler(
+        ob_extra_callback_router, pattern=r"^(ob_extra_.*_skip|ob_fmt_)"
+    ), group=-2)
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_extra_text_router
+    ), group=-2)
+    application.add_handler(MessageHandler(
+        filters.PHOTO | filters.Document.IMAGE, ob_extra_photo_router
+    ), group=-2)
 
     # Admin broadcast handler — ConversationHandler dan OLDIN, group=-1 bilan
     application.add_handler(MessageHandler(
