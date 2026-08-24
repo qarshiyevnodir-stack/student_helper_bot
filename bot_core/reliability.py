@@ -10,7 +10,9 @@ from __future__ import annotations
 import logging
 import os
 import re
+from datetime import datetime, timezone
 from typing import Optional
+from uuid import uuid4
 
 
 _SECRET_PATTERNS = (
@@ -78,25 +80,68 @@ def get_safe_logger(name: Optional[str] = None) -> logging.Logger:
     return logger
 
 
-async def global_error_handler(update, context) -> None:
-    """Kutilmagan handler xatosini xavfsiz loglaydi va foydalanuvchiga tushunarli javob beradi."""
+def _new_error_id() -> str:
+    """Support va loglarni bog'lash uchun qisqa, taxmin qilib bo'lmaydigan xato kodi."""
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return f"ERR-{timestamp}-{uuid4().hex[:6].upper()}"
+
+
+async def _notify_admins(context, *, error_id: str, user_id: Optional[int], update_type: str, error: object) -> None:
+    """Adminlarga PII va exception matnini oshkor qilmasdan operatsion signal yuboradi."""
     logger = get_safe_logger("bot.error")
+    application = getattr(context, "application", None)
+    bot_data = getattr(application, "bot_data", {}) if application else {}
+    admin_ids = tuple(bot_data.get("admin_error_ids", ()))
+    bot = getattr(context, "bot", None)
+    if not admin_ids or bot is None:
+        return
+
+    error_name = type(error).__name__ if error else "UnknownError"
+    alert = (
+        "⚠️ *Bot xatosi*\n"
+        f"ID: `{error_id}`\n"
+        f"Foydalanuvchi ID: `{user_id or 'noma’lum'}`\n"
+        f"Update: `{update_type}`\n"
+        f"Turi: `{error_name}`\n\n"
+        "To'liq xavfsiz log Railway jurnalida saqlangan."
+    )
+    for admin_id in admin_ids:
+        try:
+            await bot.send_message(chat_id=admin_id, text=alert, parse_mode="Markdown")
+        except Exception:
+            logger.exception("Admin #%s ga xato signali yuborilmadi", admin_id)
+
+
+async def global_error_handler(update, context) -> None:
+    """Kutilmagan handler xatosini ID bilan loglaydi, adminni ogohlantiradi va foydalanuvchiga tushunarli javob beradi."""
+    logger = get_safe_logger("bot.error")
+    error_id = _new_error_id()
     user_id = getattr(getattr(update, "effective_user", None), "id", None)
     update_type = type(update).__name__ if update else "unknown"
     error = getattr(context, "error", None)
     error_info = (type(error), error, error.__traceback__) if error else None
     logger.error(
-        "Kutilmagan bot xatosi | user_id=%s | update=%s",
+        "[%s] Kutilmagan bot xatosi | user_id=%s | update=%s",
+        error_id,
         user_id,
         update_type,
         exc_info=error_info,
+    )
+
+    await _notify_admins(
+        context,
+        error_id=error_id,
+        user_id=user_id,
+        update_type=update_type,
+        error=error,
     )
 
     message = getattr(update, "effective_message", None) if update else None
     if message:
         try:
             await message.reply_text(
-                "❌ Kutilmagan texnik xato yuz berdi. Iltimos, qayta urinib ko'ring."
+                "❌ Kutilmagan texnik xato yuz berdi. Iltimos, qayta urinib ko'ring.\n"
+                f"Xato kodi: {error_id}"
             )
         except Exception:
-            logger.exception("Foydalanuvchiga xato xabarini yuborib bo'lmadi")
+            logger.exception("[%s] Foydalanuvchiga xato xabarini yuborib bo'lmadi", error_id)

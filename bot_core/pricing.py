@@ -1,4 +1,4 @@
-"""Bot xizmatlari uchun markazlashgan narx sozlamalari."""
+"""Bot xizmatlari uchun markazlashgan narx va foydalanuvchi limitlari."""
 
 SERVICE_PRICES = {
     "slayd": 2500,
@@ -13,7 +13,7 @@ SERVICE_PRICES = {
     "loyiha_ishi": 3000,
     "infografika": 1500,
     "infografika_hd": 3000,
-    "maqola": 3000,
+    "maqola": 2000,
     "tezis": 2000,
     "glossary_small": 1000,
     "glossary_medium": 2000,
@@ -39,6 +39,31 @@ SERVICE_PRICES = {
     "arxivlash": 1000,
     "pdf_convert": 1500,
 }
+
+# Foydalanuvchi uchun bepul foydalanish qoidalari shu yerda yagona saqlanadi.
+AI_FREE_LIMIT = 3
+AI_PRICE_PER_MSG = 200
+OBYEKTIVKA_FREE_LIMIT = 2
+
+
+def format_som(amount: int) -> str:
+    """Summani botda bir xil ko'rinishda chiqaradi."""
+    return f"{amount:,}".replace(",", " ")
+
+
+def get_balance_price_lines() -> str:
+    """Balans menyusidagi amaldagi narx va limitlarni markaziy sozlamadan tuzadi."""
+    return "\n".join((
+        f"• Taqdimot: `{format_som(SERVICE_PRICES['slayd_gold_10'])} - {format_som(SERVICE_PRICES['slayd_plat_30'])}` so'm",
+        f"• Ma'lumotnoma/Obyektivka: `{format_som(SERVICE_PRICES['obyektivka'])}` so'm _(dastlabki {OBYEKTIVKA_FREE_LIMIT} ta bepul)_",
+        f"• Mustaqil ish: `{format_som(SERVICE_PRICES['mustaqil_ish'])}` so'm",
+        f"• Kurs ishi: `{format_som(SERVICE_PRICES['kurs_ishi'])}` so'm",
+        f"• Infografika: `{format_som(SERVICE_PRICES['infografika'])}` so'm",
+        f"• Maqola / Tezis: `{format_som(SERVICE_PRICES['maqola'])}` so'm",
+        f"• Test / Krossvord: `{format_som(SERVICE_PRICES['test_10'])}–{format_som(SERVICE_PRICES['test_50'])}` so'm",
+        f"• Arxivlash: `{format_som(SERVICE_PRICES['arxivlash'])}` so'm",
+        f"• AI yordamchi: (kuniga {AI_FREE_LIMIT} ta bepul; keyin {format_som(AI_PRICE_PER_MSG)} so'm)",
+    ))
 
 
 def get_slayd_price(template_num: int, slide_count: int) -> int:
