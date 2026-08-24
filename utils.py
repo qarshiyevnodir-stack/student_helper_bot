@@ -35,6 +35,14 @@ _together_request_lock = __import__('threading').Lock()
 _together_next_request_at = [0.0]
 _TOGETHER_MIN_REQUEST_INTERVAL = 1.25
 
+# Gamma/Platinum uchun Together 503 holatida umumiy circuit-breaker.
+# Shu paytda har bir slayd yana Togetherga urilib, butun botni sekinlashtirmaydi.
+_together_circuit_lock = __import__('threading').Lock()
+_together_circuit_open_until = [0.0]
+_together_consecutive_failures = [0]
+_TOGETHER_CIRCUIT_FAILURE_THRESHOLD = 2
+_TOGETHER_CIRCUIT_COOLDOWN_SECONDS = 120.0
+
 
 class GammaImageGenerationError(RuntimeError):
     """Gamma/Platinum uchun majburiy AI rasmi yaratilmaganda ko'tariladi."""
@@ -170,7 +178,136 @@ def _together_retry_delay(response, attempt):
     return min(20.0, max(retry_after, 2.0 * (attempt + 1)) + random.uniform(0.1, 0.6))
 
 
-def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None, topic=None):
+def _together_circuit_is_open():
+    """Together circuit-breaker ochiqligini tekshiradi."""
+    with _together_circuit_lock:
+        return time.monotonic() < _together_circuit_open_until[0]
+
+
+def _record_together_success():
+    """Muvaffaqiyatli Together javobidan so'ng circuit-breakerni tiklaydi."""
+    with _together_circuit_lock:
+        _together_consecutive_failures[0] = 0
+        _together_circuit_open_until[0] = 0.0
+
+
+def _record_together_failure():
+    """Ketma-ket Together xatolarini hisoblaydi va kerak bo'lsa circuitni ochadi."""
+    with _together_circuit_lock:
+        _together_consecutive_failures[0] += 1
+        if _together_consecutive_failures[0] >= _TOGETHER_CIRCUIT_FAILURE_THRESHOLD:
+            _together_circuit_open_until[0] = time.monotonic() + _TOGETHER_CIRCUIT_COOLDOWN_SECONDS
+            logging.warning(
+                '[Together] Circuit-breaker %.0f soniyaga ochildi; Gamma rasmlari vaqtincha DeepInfra orqali olinadi.',
+                _TOGETHER_CIRCUIT_COOLDOWN_SECONDS,
+            )
+
+
+def _gamma_image_size_for_shape(shape):
+    """PPTX rasm frame nisbatiga eng yaqin DeepInfra/Together generation o'lchamini qaytaradi."""
+    try:
+        ratio = float(shape.width) / float(shape.height)
+    except (AttributeError, ZeroDivisionError, TypeError, ValueError):
+        ratio = 2.0 / 3.0
+    # Gamma1/Gamma2 katta vertikal slotlari 2:3, kichik keng slotlari ~1.62:1.
+    if ratio <= 0.85:
+        return 768, 1152
+    if ratio >= 1.20:
+        return 1280, 792
+    return 1024, 1024
+
+
+def fetch_image_deepinfra(image_query, width=768, height=1152, style='illustration', content_keywords=None, topic=None):
+    """DeepInfra OpenAI-compatible FLUX.1-schnell endpointidan AI rasmini oladi."""
+    import base64
+
+    api_key = os.getenv('DEEPINFRA_API_KEY', '')
+    if not api_key:
+        logging.error('[DeepInfra] DEEPINFRA_API_KEY topilmadi.')
+        return None
+
+    prompt = _build_together_prompt(
+        image_query,
+        style=style,
+        content_keywords=content_keywords,
+        topic=topic,
+    )
+    payload = {
+        'model': 'black-forest-labs/FLUX-1-schnell',
+        'prompt': prompt,
+        'size': f'{int(width)}x{int(height)}',
+        'n': 1,
+    }
+    try:
+        response = requests.post(
+            'https://api.deepinfra.com/v1/openai/images/generations',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=(10, 60),
+        )
+        if response.status_code != 200:
+            logging.error('[DeepInfra] Rasm so\'rovi xatosi: status=%s', response.status_code)
+            return None
+        result = response.json()
+        b64_image = result.get('data', [{}])[0].get('b64_json', '')
+        if not b64_image:
+            logging.error('[DeepInfra] Javobda b64_json rasmi topilmadi.')
+            return None
+        image_bytes = base64.b64decode(b64_image)
+        if len(image_bytes) < 1000:
+            logging.error('[DeepInfra] Rasm ma\'lumoti yaroqsiz.')
+            return None
+        image_path = f'/tmp/deepinfra_img_{random.randint(0, 9999999)}.jpg'
+        with open(image_path, 'wb') as file_obj:
+            file_obj.write(image_bytes)
+        logging.info('[DeepInfra] FLUX rasmi yaratildi: style=%s, size=%sx%s', style, width, height)
+        return image_path
+    except (requests.RequestException, ValueError, KeyError, IndexError, base64.binascii.Error) as exc:
+        logging.error('[DeepInfra] Rasm yaratish xatosi: %s', type(exc).__name__)
+        return None
+
+
+def fetch_gamma_image(image_query, target_shape, style='illustration', content_keywords=None, topic=None):
+    """Gamma uchun Together primary va DeepInfra fallback rasm oqimi.
+
+    Bir rasm uchun providerlar ketma-ket ishlaydi: Together muvaffaqiyatli bo'lsa
+    DeepInfra chaqirilmaydi. Together aniq muvaffaqiyatsiz bo'lsa, DeepInfra ayni
+    prompt va ayni frame nisbatida rasm yaratadi.
+    """
+    width, height = _gamma_image_size_for_shape(target_shape)
+    if not _together_circuit_is_open():
+        together_path = fetch_image_together(
+            image_query,
+            width=width,
+            height=height,
+            style=style,
+            content_keywords=content_keywords,
+            topic=topic,
+            max_attempts=1,
+            request_timeout=(10, 35),
+        )
+        if together_path:
+            _record_together_success()
+            return together_path, 'together'
+        _record_together_failure()
+    else:
+        logging.info('[Together] Circuit-breaker faol; Gamma rasmi DeepInfra fallbackiga yo\'naltirildi.')
+
+    deepinfra_path = fetch_image_deepinfra(
+        image_query,
+        width=width,
+        height=height,
+        style=style,
+        content_keywords=content_keywords,
+        topic=topic,
+    )
+    if deepinfra_path:
+        return deepinfra_path, 'deepinfra'
+    return None, None
+
+
+def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None, topic=None,
+                         max_attempts=6, request_timeout=(15, 100)):
     """Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
 
     Uchta kalit round-robin usulida tanlanadi. 429/503 vaqtinchalik xatosida
@@ -197,7 +334,6 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
         'response_format': 'b64_json',
     }
 
-    max_attempts = 6
     for attempt in range(max_attempts):
         key = _get_next_together_key()
         if not key:
@@ -206,7 +342,7 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
         try:
             _wait_for_together_slot()
             headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-            response = requests.post(url, headers=headers, json=data, timeout=(15, 100))
+            response = requests.post(url, headers=headers, json=data, timeout=request_timeout)
             response.raise_for_status()
             result = response.json()
             b64 = result['data'][0]['b64_json']
@@ -15638,25 +15774,35 @@ SLIDE_TYPE_NAMES_PLATINUM = {
 
 
 def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustration'):
-    """Gamma/Platinum slaydiga AI rasmi joylaydi.
+    """Gamma/Platinum slaydiga majburiy AI rasmini joylaydi.
 
-    Gamma stillari uchun AI rasmi majburiy. Rasm generatsiyasi yoki PPTX ichiga
-    joylashtirish muvaffaqiyatsiz bo'lsa, ``GammaImageGenerationError`` ko'taradi.
-    Shu orqali shablondagi eski rasm bilan taqdimot yuborilishining oldi olinadi.
+    Together FLUX.1-schnell birinchi tanlov bo'lib qoladi. U 503/429/5xx bilan
+    javob bermasa, ayni prompt va slot nisbatida DeepInfra FLUX.1-schnell
+    avtomatik fallback bo'ladi. Ikkalasi ham muvaffaqiyatsiz bo'lsa PPTX
+    yuborilmaydi, shuning uchun shablon rasmi hech qachon yashirincha qolmaydi.
     """
     import os as _os2
 
     logger = logging.getLogger(__name__)
+    target_shape = next((shape for shape in slide.shapes if shape.name == shape_name), None)
+    if target_shape is None:
+        raise GammaImageGenerationError(f"Gamma rasm shakli topilmadi: {shape_name}")
+
     if slide_title and slide_title.lower() not in str(topic).lower():
         query = f"{topic}, {slide_title}"
     else:
         query = str(topic)
 
     logger.info('[Gamma] AI rasm so\'rovi: shape=%s, style=%s', shape_name, style)
-    img_path = fetch_image_together(query, style=style, topic=topic)
+    img_path, provider = fetch_gamma_image(
+        query,
+        target_shape=target_shape,
+        style=style,
+        topic=topic,
+    )
     if not img_path:
         raise GammaImageGenerationError(
-            f"Together.ai rasmi yaratilmagan: shape={shape_name}, style={style}"
+            f"AI rasmi yaratilmagan: shape={shape_name}, style={style}; Together va DeepInfra javob bermadi"
         )
 
     try:
@@ -15670,10 +15816,6 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
 
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-    target_shape = next((shape for shape in slide.shapes if shape.name == shape_name), None)
-    if target_shape is None:
-        raise GammaImageGenerationError(f"Gamma rasm shakli topilmadi: {shape_name}")
-
     blips = target_shape._element.findall(f'.//{{{ns_a}}}blip')
     if not blips:
         raise GammaImageGenerationError(f"Gamma rasm blipi topilmadi: {shape_name}")
@@ -15690,7 +15832,7 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
             f"Gamma rasmi PPTXga joylashtirilmadi: shape={shape_name}, error={type(exc).__name__}"
         ) from exc
 
-    logger.info('[Gamma] AI rasm joylashtirildi: shape=%s, style=%s', shape_name, style)
+    logger.info('[Gamma] AI rasm joylashtirildi: shape=%s, style=%s, provider=%s', shape_name, style, provider)
     return True
 
 def _pt_clear_write(shape, text, sz=None, bold=None, color=None, align=None):
