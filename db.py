@@ -139,6 +139,17 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
         """)
+        # Ma'lumotnoma/Obyektivka uchun umrboqiy bepul foydalanish hisobi.
+        # Birlamchi kalit parallel so'rovlar orasida limitning atomik saqlanishini ta'minlaydi.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS obyektivka_free_usage (
+                user_id    BIGINT PRIMARY KEY,
+                count      INTEGER NOT NULL DEFAULT 0 CHECK (count >= 0),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
+
         # Topup holati jadvali
         c.execute("""
             CREATE TABLE IF NOT EXISTS user_topup_state (
@@ -651,6 +662,70 @@ def get_ai_daily_count(user_id: int) -> int:
         return row[0] if row else 0
     finally:
         release_conn(conn)
+
+OBYEKTIVKA_FREE_LIMIT = 2
+
+
+def get_obyektivka_free_remaining(user_id: int) -> int:
+    """Foydalanuvchining obyektivka bo'yicha qolgan bepul foydalanish sonini qaytaradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            SELECT count FROM obyektivka_free_usage
+            WHERE user_id = %s
+        """, (user_id,))
+        row = c.fetchone()
+        used = int(row[0]) if row else 0
+        return max(0, OBYEKTIVKA_FREE_LIMIT - used)
+    finally:
+        release_conn(conn)
+
+
+def claim_obyektivka_free_use(user_id: int) -> bool:
+    """Bitta bepul obyektivka yaratishni atomik rezerv qiladi.
+
+    True faqat ikki bepul imkoniyatdan biri muvaffaqiyatli rezerv qilinganda qaytadi.
+    """
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO obyektivka_free_usage (user_id, count, updated_at)
+            VALUES (%s, 1, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET count = obyektivka_free_usage.count + 1,
+                updated_at = NOW()
+            WHERE obyektivka_free_usage.count < %s
+            RETURNING count
+        """, (user_id, OBYEKTIVKA_FREE_LIMIT))
+        claimed = c.fetchone() is not None
+        conn.commit()
+        return claimed
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_conn(conn)
+
+
+def release_obyektivka_free_use(user_id: int) -> None:
+    """Yetkazib berilmagan bepul obyektivka uchun avvalgi rezervni qaytaradi."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            UPDATE obyektivka_free_usage
+            SET count = GREATEST(0, count - 1), updated_at = NOW()
+            WHERE user_id = %s AND count > 0
+        """, (user_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_conn(conn)
+
 
 def increment_ai_daily_count(user_id: int) -> int:
     """AI savol sonini +1 qiladi va yangi sonni qaytaradi."""

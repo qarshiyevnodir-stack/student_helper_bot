@@ -1251,9 +1251,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     elif text == "📋Ma'lumotnoma/Obyektivka✨":
         context.user_data.clear()
         context.user_data["mode"] = "obyektivka"
+        free_left = await asyncio.to_thread(db.get_obyektivka_free_remaining, user.id)
+        free_text = (
+            f"🎁 *Bepul foydalanish qoldi: {free_left}/2*\n\n"
+            if free_left else
+            "💰 *Narx: 3 000 so'm*\n\n"
+        )
         await update.message.reply_text(
             "📋 *Ma'lumotnoma / Obyektivka*\n\n"
-            "💰 *Narx: 3 000 so'm*\n\n"
+            "🎁 Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
+            f"{free_text}"
             "Hujjat to'ldirilgach *DOCX* yoki *PDF* formatida yuklab olishingiz mumkin.\n\n"
             "👤 *F.I.Sh.* (to'liq familiya, ism, otasining ismi)ni kiriting:",
             parse_mode="Markdown"
@@ -1268,7 +1275,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             f"💰 *Balansingiz: {balance:,} so'm*\n\n"
             "📋 *Xizmat narxlari:*\n"
             "• Taqdimot: `2 500 - 5 000` so'm\n"
-            "• Ma'lumotnoma/Obyektivka: `5 000` so'm\n"
+            "• Ma'lumotnoma/Obyektivka: `3 000` so'm _(dastlabki 2 ta bepul)_\n"
             "• Mustaqil ish: `3 000` so'm\n"
             "• Kurs ishi: `12 000` so'm\n"
             "• Infografika: `1 500` so'm\n"
@@ -6325,15 +6332,17 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
     fmt = query.data
     user = query.from_user
-    price = 5000
-    balance = await asyncio.to_thread(db.get_balance, user.id)
-    if balance < price:
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]])
-        await query.edit_message_text(
-            f"❌ *Balansingiz yetarli emas\!*\n\n💰 Joriy balans: *{balance:,} so'm*\n💳 Kerakli summa: *{price:,} so'm*",
-            reply_markup=kb, parse_mode="MarkdownV2"
-        )
-        return OB_FORMAT
+    price = SERVICE_PRICES["obyektivka"]
+    is_free = await asyncio.to_thread(db.claim_obyektivka_free_use, user.id)
+    if not is_free:
+        balance = await asyncio.to_thread(db.get_balance, user.id)
+        if balance < price:
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton("💳 Balans to'ldirish", callback_data="topup_start")]])
+            await query.edit_message_text(
+                f"❌ *Balansingiz yetarli emas\!*\n\n💰 Joriy balans: *{balance:,} so'm*\n💳 Kerakli summa: *{price:,} so'm*",
+                reply_markup=kb, parse_mode="MarkdownV2"
+            )
+            return OB_FORMAT
 
     await query.edit_message_text("⏳ *Hujjat tayyorlanmoqda\.\.\.*", parse_mode="MarkdownV2")
     data = {
@@ -6368,12 +6377,16 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             pdf_bytes = await asyncio.to_thread(obyektivka_to_pdf, docx_bytes)
             files_to_send.append((pdf_bytes, f"Malumotnoma_{fname}.pdf", "📄 *Ma'lumotnoma \(PDF\)*"))
     except Exception as e:
+        if is_free:
+            await asyncio.to_thread(db.release_obyektivka_free_use, user.id)
         logger.error("Ma'lumotnoma fayli yaratilmadi: %s", e, exc_info=True)
         await query.edit_message_text("❌ Hujjat yaratishda xatolik yuz berdi\. Qayta urinib ko'ring\.", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
-    # Yakuniy atomik tekshiruv: parallel buyurtma balansni sarflagan bo'lsa fayl yuborilmaydi.
-    charged = await asyncio.to_thread(db.deduct_balance, user.id, price)
+    # Pullik buyurtmada yakuniy atomik tekshiruv: parallel buyurtma balansni sarflagan bo'lsa fayl yuborilmaydi.
+    charged = True
+    if not is_free:
+        charged = await asyncio.to_thread(db.deduct_balance, user.id, price)
     if not charged:
         await query.edit_message_text(
             "⚠️ Balans buyurtma tayyorlanayotgan paytda o'zgardi\. Iltimos, balansni tekshirib qayta urinib ko'ring\.",
@@ -6394,21 +6407,35 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 parse_mode="MarkdownV2",
             )
     except Exception as e:
-        # Hujjat foydalanuvchiga yetib bormagan bo'lsa mablag' qaytariladi.
-        await asyncio.to_thread(db.add_balance, user.id, price)
-        logger.error("Ma'lumotnoma yetkazib berilmadi; balans qaytarildi: %s", e, exc_info=True)
+        # Hujjat foydalanuvchiga yetib bormagan bo'lsa pullik summa yoki bepul limit qaytariladi.
+        if is_free:
+            await asyncio.to_thread(db.release_obyektivka_free_use, user.id)
+            failure_text = "❌ Hujjat yuborilmadi\. Bepul foydalanish limitingiz saqlanib qoldi\."
+        else:
+            await asyncio.to_thread(db.add_balance, user.id, price)
+            failure_text = "❌ Hujjat yuborilmadi\. Balansingizdan mablag' yechilmadi — summa avtomatik qaytarildi\."
+        logger.error("Ma'lumotnoma yetkazib berilmadi; to'lov/limit qaytarildi: %s", e, exc_info=True)
         await context.bot.send_message(
             chat_id=user.id,
-            text="❌ Hujjat yuborilmadi\. Balansingizdan mablag' yechilmadi — summa avtomatik qaytarildi\.",
+            text=failure_text,
             reply_markup=get_main_menu_keyboard(),
             parse_mode="MarkdownV2",
         )
         return ConversationHandler.END
 
-    new_bal = await asyncio.to_thread(db.get_balance, user.id)
+    if is_free:
+        remaining = await asyncio.to_thread(db.get_obyektivka_free_remaining, user.id)
+        success_text = (
+            "✅ *Ma'lumotnoma tayyor\!*\n\n"
+            "🎁 Bu yaratish bepul amalga oshirildi\.\n"
+            f"🎁 Bepul foydalanish qoldi: *{remaining}/2*"
+        )
+    else:
+        new_bal = await asyncio.to_thread(db.get_balance, user.id)
+        success_text = f"✅ *Ma'lumotnoma tayyor\!*\n\n💰 Yechildi: *{price:,} so'm*\n💳 Qolgan balans: *{new_bal:,} so'm*"
     await context.bot.send_message(
         chat_id=user.id,
-        text=f"✅ *Ma'lumotnoma tayyor\!*\n\n💰 Yechildi: *{price:,} so'm*\n💳 Qolgan balans: *{new_bal:,} so'm*",
+        text=success_text,
         reply_markup=get_main_menu_keyboard(),
         parse_mode="MarkdownV2",
     )
