@@ -19,6 +19,7 @@ from datetime import datetime, date
 import psycopg2
 import psycopg2.extras
 from psycopg2 import pool
+from bot_core.pricing import OBYEKTIVKA_FREE_LIMIT
 
 # ─────────────────────────────────────────────
 # Connection pool
@@ -662,9 +663,6 @@ def get_ai_daily_count(user_id: int) -> int:
         return row[0] if row else 0
     finally:
         release_conn(conn)
-
-OBYEKTIVKA_FREE_LIMIT = 2
-
 
 def get_obyektivka_free_remaining(user_id: int) -> int:
     """Foydalanuvchining obyektivka bo'yicha qolgan bepul foydalanish sonini qaytaradi."""

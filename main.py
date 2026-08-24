@@ -113,7 +113,7 @@ from hujjat_utils import (
 )
 from pptx import Presentation
 from bot_core.reliability import configure_secure_logging, global_error_handler
-from bot_core.pricing import SERVICE_PRICES, get_slayd_price
+from bot_core.pricing import SERVICE_PRICES, get_slayd_price, get_balance_price_lines
 
 # ─────────────────────────────────────────────
 # Admin va narx sozlamalari
@@ -1275,19 +1275,11 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     elif text == "💰 Balans":
         user_data = await asyncio.to_thread(db.get_user, user.id)
         balance = user_data['balance'] if user_data else 0
-        # Xizmat narxlari jadvali
+        # Narx va bepul limitlar faqat bot_core.pricing dan olinadi.
         msg = (
             f"💰 *Balansingiz: {balance:,} so'm*\n\n"
             "📋 *Xizmat narxlari:*\n"
-            "• Taqdimot: `2 500 - 5 000` so'm\n"
-            "• Ma'lumotnoma/Obyektivka: `3 000` so'm _(dastlabki 2 ta bepul)_\n"
-            "• Mustaqil ish: `3 000` so'm\n"
-            "• Kurs ishi: `12 000` so'm\n"
-            "• Infografika: `1 500` so'm\n"
-            "• Maqola / Tezis: `2 000` so'm\n"
-            "• Test / Krossvord: `1 000–3 000` so'm\n"
-            "• Arxivlash: `1 000` so'm\n"
-            "• AI yordamchi: (kuniga 3 ta bepul)\n\n"
+            f"{get_balance_price_lines()}\n\n"
             f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
@@ -8353,6 +8345,8 @@ def main() -> None:
         .concurrent_updates(True)  # Parallel foydalanuvchilar uchun
         .build()
     )
+    # Global xato handleri adminlarga xavfsiz signal yuborishi uchun.
+    application.bot_data["admin_error_ids"] = tuple(ADMIN_IDS)
 
     # ── Slayd yaratish ──
     slayd_handler = ConversationHandler(

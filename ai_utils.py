@@ -1,14 +1,12 @@
 """AI yordamchi — professional akademik suhbat moduli"""
 import os
 from openai import OpenAI
+from bot_core.pricing import AI_FREE_LIMIT, AI_PRICE_PER_MSG
 
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 )
-
-AI_FREE_LIMIT = 5          # Kuniga bepul savollar soni
-AI_PRICE_PER_MSG = 200     # Har qo'shimcha savol narxi (so'm)
 
 SYSTEM_PROMPT = """Sen O'zbekistonning eng yaxshi akademik va professional AI yordamchisisisan. 
 Sening vazifang — talabalar, o'qituvchilar va mutaxassislarga yuqori sifatli, chuqur va aniq javoblar berish.
