@@ -403,13 +403,21 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
     normal.font.size = Pt(10)
     normal.paragraph_format.space_after = Pt(4)
 
-    # Sarlavha va oxirgi qadamda yuborilgan profil rasmi
-    header = document.add_table(rows=1, cols=2)
-    header.autofit = False
-    left_cell, right_cell = header.rows[0].cells
-    left_cell.width = Cm(13.2)
-    right_cell.width = Cm(3.8)
-    p = left_cell.paragraphs[0]
+    # Sarlavha va oxirgi qadamda yuborilgan profil rasmi.
+    # Rasm yo'q bo'lsa ism butun foydali kenglikdan foydalanadi va keraksiz satrga bo'linmaydi.
+    photo = cv_data.get("photo")
+    if photo:
+        header = document.add_table(rows=1, cols=2)
+        header.autofit = False
+        header.columns[0].width = Cm(13.2)
+        header.columns[1].width = Cm(3.8)
+        left_cell, right_cell = header.rows[0].cells
+        left_cell.width = Cm(13.2)
+        right_cell.width = Cm(3.8)
+        p = left_cell.paragraphs[0]
+    else:
+        right_cell = None
+        p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     run = p.add_run(_cv_clean(cv_data.get("fullname")).upper())
     run.bold = True
@@ -417,14 +425,13 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
     run.font.size = Pt(22)
     run.font.color.rgb = accent
     if _cv_clean(cv_data.get("title")):
-        role_p = left_cell.add_paragraph()
+        role_p = left_cell.add_paragraph() if photo else document.add_paragraph()
         role = role_p.add_run(_cv_clean(cv_data.get("title")))
         role.bold = True
         role.font.name = "Arial"
         role.font.size = Pt(12)
 
-    photo = cv_data.get("photo")
-    if photo:
+    if photo and right_cell:
         photo_p = right_cell.paragraphs[0]
         photo_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         photo_p.add_run().add_picture(BytesIO(photo), width=Cm(3.0), height=Cm(4.0))
