@@ -395,6 +395,7 @@ CV_EDIT_INPUT = 194
     OB_EXTRA_PROPISKA,   # 196 — Propiska (ixtiyoriy)
     OB_EXTRA_NOTE,       # 197 — Qo'shimcha ma'lumot (ixtiyoriy)
 ) = range(170, 198)
+OB_LANGUAGE = 199  # Mini Appdan oldingi Obyektivka hujjat tili tanlovi
 
 # ─────────────────────────────────────────────
 # Til nomlari
@@ -411,6 +412,72 @@ LANGUAGE_NAMES = {
     "kaa": "Qoraqalpoq tili",
     "kk":  "Qozoq tili",
 }
+
+
+def get_obyektivka_language_keyboard() -> InlineKeyboardMarkup:
+    """Obyektivka uchun alohida callback prefixli umumiy tillar menyusi."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇺🇿 O'zbek", callback_data="ob_lang_uz"),
+         InlineKeyboardButton("🇬🇧 Ingliz", callback_data="ob_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Rus", callback_data="ob_lang_ru"),
+         InlineKeyboardButton("🇰🇷 Kores", callback_data="ob_lang_ko")],
+        [InlineKeyboardButton("🇨🇳 Xitoy", callback_data="ob_lang_zh"),
+         InlineKeyboardButton("🇩🇪 Nemis", callback_data="ob_lang_de")],
+        [InlineKeyboardButton("🇹🇷 Turk", callback_data="ob_lang_tr"),
+         InlineKeyboardButton("🇹🇯 Tojik", callback_data="ob_lang_tg")],
+        [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="ob_lang_kaa"),
+         InlineKeyboardButton("🇰🇿 Qozoq", callback_data="ob_lang_kk")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="ob_lang_back")],
+    ])
+
+
+def get_obyektivka_webapp_keyboard() -> ReplyKeyboardMarkup:
+    """Til tanlovidan keyin o'zgarishsiz ochiladigan mavjud Obyektivka Mini App klaviaturasi."""
+    return ReplyKeyboardMarkup(
+        [
+            [KeyboardButton("📋 Obyektivka formasini ochish", web_app=WebAppInfo(url="https://slidegoapp-pyhvxnn2.manus.space/"))],
+            [KeyboardButton("✍️ Chatda to'ldirish")],
+            [KeyboardButton("⬅️ Orqaga")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True,
+    )
+
+
+async def ob_get_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Mini Appdan oldin hujjat tilini tanlaydi; formaning o'ziga tegmaydi."""
+    query = update.callback_query
+    await query.answer()
+    if query.data == "ob_lang_back":
+        context.user_data.clear()
+        await query.edit_message_text("❌ Obyektivka tayyorlash bekor qilindi.")
+        return ConversationHandler.END
+
+    lang = query.data.removeprefix("ob_lang_")
+    if lang not in LANGUAGE_NAMES:
+        await query.answer("❌ Til tanlovi noto'g'ri.", show_alert=True)
+        return OB_LANGUAGE
+
+    context.user_data.clear()
+    context.user_data.update({"mode": "obyektivka", "ob_lang": lang})
+    free_left = await asyncio.to_thread(db.get_obyektivka_free_remaining, query.from_user.id)
+    free_text = f"🎁 *Bepul foydalanish qoldi: {free_left}/2*\n\n" if free_left else "💰 *Narx: 3 000 so'm*\n\n"
+    await query.edit_message_text(
+        f"✅ Hujjat tili: *{LANGUAGE_NAMES[lang]}*\n\n"
+        "Mini App formasi avvalgidek o'zgarmaydi. To'ldirilgach DOCX/PDF tanlangan tildagi sarlavhalar bilan tayyorlanadi.",
+        parse_mode="Markdown",
+    )
+    await query.message.reply_text(
+        "📋 *Ma'lumotnoma / Obyektivka*\n\n"
+        "🎁 Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
+        f"{free_text}"
+        "Quyidagi tugmadan hozirgi to'liq formani oching yoki chatda eski usulda davom eting.\n\n"
+        "ℹ️ Tugmalar ko'rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing.",
+        reply_markup=get_obyektivka_webapp_keyboard(),
+        parse_mode="Markdown",
+    )
+    return OB_FISH
 
 # ─────────────────────────────────────────────
 # Klaviaturalar
@@ -1246,34 +1313,13 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     elif text == "📋Ma'lumotnoma/Obyektivka✨":
         context.user_data.clear()
         context.user_data["mode"] = "obyektivka"
-        free_left = await asyncio.to_thread(db.get_obyektivka_free_remaining, user.id)
-        free_text = (
-            f"🎁 *Bepul foydalanish qoldi: {free_left}/2*\n\n"
-            if free_left else
-            "💰 *Narx: 3 000 so'm*\n\n"
-        )
-        mini_app_url = "https://slidegoapp-pyhvxnn2.manus.space/"
-        webapp_keyboard = ReplyKeyboardMarkup(
-            [
-                [KeyboardButton("📋 Obyektivka formasini ochish", web_app=WebAppInfo(url=mini_app_url))],
-                [KeyboardButton("✍️ Chatda to'ldirish")],
-                [KeyboardButton("⬅️ Orqaga")],
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            is_persistent=True,
-        )
         await update.message.reply_text(
             "📋 *Ma'lumotnoma / Obyektivka*\n\n"
-            "🎁 Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
-            f"{free_text}"
-            "Hujjat to'ldirilgach *DOCX* yoki *PDF* formatida yuklab olishingiz mumkin.\n\n"
-            "Quyidagi tugmadan to'liq formani oching yoki xohlasangiz chatda eski usulda davom eting.\n\n"
-            "ℹ️ Tugmalar ko'rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing.",
-            reply_markup=webapp_keyboard,
+            "Avval hujjat tilini tanlang. Mini Appdagi mavjud forma o'zgarmaydi; tanlov yakuniy DOCX/PDF sarlavhalariga qo'llanadi.",
+            reply_markup=get_obyektivka_language_keyboard(),
             parse_mode="Markdown"
         )
-        return OB_FISH
+        return OB_LANGUAGE
 
     elif text == "💰 Balans":
         user_data = await asyncio.to_thread(db.get_user, user.id)
@@ -1965,9 +2011,11 @@ async def obyektivka_webapp_data_handler(update: Update, context: ContextTypes.D
                         "turar_joyi": residence,
                     })
 
+    selected_lang = context.user_data.get("ob_lang", "uz")
     context.user_data.clear()
     context.user_data.update({
         "mode": "obyektivka",
+        "ob_lang": selected_lang if selected_lang in LANGUAGE_NAMES else "uz",
         "ob_fish": clean_fields[0],
         "ob_lavozim": clean_fields[1],
         "ob_tugilgan_yili": clean_fields[2],
@@ -6767,6 +6815,7 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "propiska": context.user_data.get("ob_propiska", ""),
         "extra_note": context.user_data.get("ob_extra_note", ""),
         "photo_bytes": context.user_data.get("ob_photo_bytes", None),
+        "lang": context.user_data.get("ob_lang", "uz"),
     }
 
     try:
@@ -9108,6 +9157,10 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             # ── Ma'lumotnoma / Obyektivka holatlari ──
+            OB_LANGUAGE: [
+                CallbackQueryHandler(ob_get_language, pattern=r"^ob_lang_"),
+                CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
+            ],
             OB_FISH: [
                 MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_FILTER, ob_fish_handler),

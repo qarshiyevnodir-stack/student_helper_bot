@@ -16858,6 +16858,7 @@ def generate_obyektivka(data: dict) -> bytes:
     """
     import io as _io
     from docxtpl import DocxTemplate
+    from obyektivka_i18n import get_obyektivka_labels
 
     template_path = os.path.join(
         os.path.dirname(__file__),
@@ -16921,6 +16922,66 @@ def generate_obyektivka(data: dict) -> bytes:
 
     buf.seek(0)
     doc = Document(buf)
+
+    # --- Tanlangan til: faqat shablondagi doimiy sarlavha va label tarjima qilinadi. ---
+    # Foydalanuvchi kiritgan faktlar (F.I.Sh., ish joyi va boshqalar) aynan o'z holicha qoladi.
+    ob_lang = data.get("lang", "uz")
+    labels = get_obyektivka_labels(ob_lang)
+    static_labels = {
+        "MA’LUMOTNOMA": labels["title"],
+        "MA'LUMOT": labels["information"],
+        "Tug‘ilgan yili:": labels["born_year"],
+        "Tug‘ilgan joyi:": labels["born_place"],
+        "Мillati:": labels["nationality"],
+        "Partiyaviyligi:": labels["party"],
+        "Мa’lumoti:": labels["education"],
+        "Tamomlagan:": labels["graduated"],
+        "Мa’lumoti bo’yicha mutaxassisligi:": labels["specialty"],
+        "Ilmiy darajasi:": labels["degree"],
+        "Ilmiy unvoni:": labels["academic_title"],
+        "Qaysi chet tillarini biladi:": labels["languages"],
+        "Harbiy (maxsus) unvoni:": labels["military"],
+        "Davlat mukofotlari bilan taqdirlanganmi (qanaqa):": labels["awards"],
+        "Xalq deputatlari, respublika, viloyat, shahar va tuman Kengashi deputatimi yoki boshqa saylanadigan organlarning a‘zosimi (to‘liq ko‘rsatilishi lozim)": labels["elected"],
+        "MEHNAT FAOLIYATI": labels["employment"],
+        "Qarindosh-ligi": labels["relationship"],
+        "Familiyasi, ismi va otasining ismi": labels["full_name"],
+        "Tug‘ilgan\nyili va joyi": labels["birth_details"],
+        "Ish joyi va lavozimi": labels["workplace"],
+        "Turar joyi": labels["residence"],
+    }
+
+    def _all_paragraphs(document):
+        for paragraph in document.paragraphs:
+            yield paragraph
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        yield paragraph
+
+    def _set_paragraph_text(paragraph, replacement):
+        if not paragraph.runs:
+            paragraph.add_run(replacement)
+            return
+        paragraph.runs[0].text = replacement
+        for run in paragraph.runs[1:]:
+            run.text = ""
+
+    relatives_suffix = "ning yaqin qarindoshlari to‘g‘risida"
+    for paragraph in _all_paragraphs(doc):
+        current = "".join(run.text for run in paragraph.runs).strip()
+        if current == "Tug‘ilgan":
+            _set_paragraph_text(paragraph, labels["birth_details"].split("\n", 1)[0])
+        elif current == "yili va joyi":
+            birth_parts = labels["birth_details"].split("\n", 1)
+            _set_paragraph_text(paragraph, birth_parts[1] if len(birth_parts) > 1 else "")
+        elif current in static_labels:
+            _set_paragraph_text(paragraph, static_labels[current])
+        elif current.endswith(relatives_suffix):
+            full_name = current.removesuffix(relatives_suffix).strip()
+            translated = f"{full_name}ning {labels['relatives_intro']}" if ob_lang == "uz" else f"{labels['relatives_intro']} {full_name}"
+            _set_paragraph_text(paragraph, translated)
 
     # --- Mehnat faoliyati: bo'sh qatorlarni o'chirish ---
     # Jadval 0 da mehnat qatorlari 16-20 indekslarda (0-based)
@@ -16986,18 +17047,18 @@ def generate_obyektivka(data: dict) -> bytes:
         detail_paragraphs = []
         contact_parts = []
         if phone:
-            contact_parts.append(("Tel: ", phone))
+            contact_parts.append((labels["phone"], phone))
         if passport:
             if contact_parts:
-                contact_parts.append(("    PASPORT: ", passport))
+                contact_parts.append((f"    {labels['passport']}", passport))
             else:
-                contact_parts.append(("PASPORT: ", passport))
+                contact_parts.append((labels["passport"], passport))
         if contact_parts:
             detail_paragraphs.append(_new_detail_paragraph(contact_parts))
         if propiska:
-            detail_paragraphs.append(_new_detail_paragraph([("PROPISKA: ", propiska)]))
+            detail_paragraphs.append(_new_detail_paragraph([(labels["registration"], propiska)]))
         if extra_note:
-            detail_paragraphs.append(_new_detail_paragraph([("QO'SHIMCHA MA'LUMOT: ", extra_note)]))
+            detail_paragraphs.append(_new_detail_paragraph([(labels["additional"], extra_note)]))
 
         # doc.add_paragraph() uni hujjat oxiriga qo'shadi; XML elementlarini
         # qarindoshlar jadvalidan keyinga ko'chiramiz.
