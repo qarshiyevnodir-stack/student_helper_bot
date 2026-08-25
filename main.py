@@ -1072,22 +1072,11 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     elif text == "📄 Rezyume / CV ✨":
         context.user_data.clear()
         context.user_data["mode"] = "cv_webapp"
-        cv_mini_app_url = "https://slidegoapp-pyhvxnn2.manus.space/?service=cv"
-        cv_webapp_keyboard = ReplyKeyboardMarkup(
-            [
-                [KeyboardButton("📄 CV formasini ochish", web_app=WebAppInfo(url=cv_mini_app_url))],
-                [KeyboardButton("⬅️ Orqaga")],
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            is_persistent=True,
-        )
         await update.message.reply_text(
             "📄 *Rezyume / CV*\n\n"
-            "To‘liq CV formasini quyidagi Telegram tugmasidan oching. "
-            "Yakunida profil rasmi va hujjat formatini tanlaysiz.\n\n"
-            "ℹ️ Tugmalar ko‘rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing.",
-            reply_markup=cv_webapp_keyboard,
+            "Avval CV tilini tanlang. Mini App tanlangan tilda ochiladi, "
+            "yakuniy DOCX va PDF ham shu tilda tayyorlanadi:",
+            reply_markup=CV_WEBAPP_LANGUAGE_KEYBOARD,
             parse_mode="Markdown",
         )
         return CV_LANG
@@ -2022,8 +2011,12 @@ async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_T
     msg = update.message
     fields = data.get("p")
     selected_format = data.get("f", "pdf")
+    selected_language = data.get("l", "uz")
     if data.get("v") != 1 or not isinstance(fields, list) or len(fields) != 9:
         await msg.reply_text("❌ CV forma ma’lumotlari noto‘g‘ri keldi. Formani qayta ochib yuboring.")
+        return CV_LANG
+    if selected_language not in {"uz", "en"}:
+        await msg.reply_text("❌ CV tili noto‘g‘ri keldi. Formani qayta ochib yuboring.")
         return CV_LANG
 
     clean_fields = [
@@ -2038,7 +2031,7 @@ async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.clear()
     context.user_data.update({
         "cv_data": {
-            "lang": "uz",
+            "lang": selected_language,
             "fullname": clean_fields[0],
             "email": clean_fields[1],
             "phone": clean_fields[2],
@@ -2060,14 +2053,21 @@ async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_T
     })
 
     from telegram import ReplyKeyboardRemove
-    await msg.reply_text(
-        "✅ *CV formasi qabul qilindi\!*\n\n"
-        f"👤 F\.I\.Sh\.: *{esc_md(clean_fields[0])}*\n"
-        f"💼 Lavozim: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
-        "🖼️ Endi rezyume uchun profil rasmini yuboring yoki rasm qo‘ymoqchi bo‘lmasangiz `-` yozing\.",
-        reply_markup=ReplyKeyboardRemove(),
-        parse_mode="MarkdownV2",
-    )
+    if selected_language == "en":
+        received_text = (
+            "✅ *CV form received\!*\n\n"
+            f"👤 Name: *{esc_md(clean_fields[0])}*\n"
+            f"💼 Role: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
+            "🖼️ Send a profile photo for the CV, or send `-` to continue without one\."
+        )
+    else:
+        received_text = (
+            "✅ *CV formasi qabul qilindi\!*\n\n"
+            f"👤 F\.I\.Sh\.: *{esc_md(clean_fields[0])}*\n"
+            f"💼 Lavozim: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
+            "🖼️ Endi rezyume uchun profil rasmini yuboring yoki rasm qo‘ymoqchi bo‘lmasangiz `-` yozing\."
+        )
+    await msg.reply_text(received_text, reply_markup=ReplyKeyboardRemove(), parse_mode="MarkdownV2")
     return CV_PHOTO
 
 async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -5160,27 +5160,13 @@ async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Rezyume uchun alohida yangi flow
     if service == "rezyume":
-        context.user_data["cv_data"] = {}
+        context.user_data.clear()
+        context.user_data["mode"] = "cv_webapp"
         await query.edit_message_text(
             "📄 *Rezyume / CV yaratish*\n\n"
-            "To‘liq CV formasini quyidagi Telegram tugmasidan oching. "
-            "Yakunda bot sizdan ixtiyoriy profil rasmi va hujjat formatini so‘raydi.",
-            parse_mode="Markdown",
-        )
-        cv_mini_app_url = "https://slidegoapp-pyhvxnn2.manus.space/?service=cv"
-        cv_webapp_keyboard = ReplyKeyboardMarkup(
-            [
-                [KeyboardButton("📄 CV formasini ochish", web_app=WebAppInfo(url=cv_mini_app_url))],
-                [KeyboardButton("⬅️ Orqaga")],
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            is_persistent=True,
-        )
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="👇 *CV formasini ochish* tugmasini bosing.",
-            reply_markup=cv_webapp_keyboard,
+            "Avval CV tilini tanlang. Mini App tanlangan tilda ochiladi, "
+            "yakuniy DOCX va PDF ham shu tilda tayyorlanadi:",
+            reply_markup=CV_WEBAPP_LANGUAGE_KEYBOARD,
             parse_mode="Markdown",
         )
         return CV_LANG
@@ -6927,6 +6913,56 @@ CV_LANG_KEYBOARD = InlineKeyboardMarkup([
     [InlineKeyboardButton("🇺🇿 Qoraqalpoq", callback_data="cv_lang_kaa"),
      InlineKeyboardButton("🇰🇿 Qozoq",       callback_data="cv_lang_kk")],
 ])
+
+CV_WEBAPP_LANGUAGE_KEYBOARD = InlineKeyboardMarkup([
+    [
+        InlineKeyboardButton("🇺🇿 O‘zbekcha", callback_data="cv_webapp_lang_uz"),
+        InlineKeyboardButton("🇬🇧 English", callback_data="cv_webapp_lang_en"),
+    ],
+])
+
+
+async def cv_open_webapp_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Tanlangan o'zbekcha yoki inglizcha tilda CV Mini App tugmasini chiqaradi."""
+    query = update.callback_query
+    await query.answer()
+    language = query.data.replace("cv_webapp_lang_", "")
+    if language not in {"uz", "en"}:
+        await query.edit_message_text("❌ Til tanlovi noto‘g‘ri. Qayta urinib ko‘ring.")
+        return CV_LANG
+
+    context.user_data["mode"] = "cv_webapp"
+    context.user_data["cv_webapp_lang"] = language
+    is_english = language == "en"
+    cv_mini_app_url = f"https://slidegoapp-pyhvxnn2.manus.space/?service=cv&lang={language}"
+    button_text = "📄 Open CV form" if is_english else "📄 CV formasini ochish"
+    cv_webapp_keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton(button_text, web_app=WebAppInfo(url=cv_mini_app_url))], [KeyboardButton("⬅️ Orqaga")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True,
+    )
+    if is_english:
+        text = (
+            "🇬🇧 *English CV*\n\n"
+            "Open the full CV form with the Telegram button below. "
+            "At the end, you can add a profile photo and choose DOCX/PDF.\n\n"
+            "ℹ️ If the buttons are hidden, tap the ⊞ icon next to the message field."
+        )
+    else:
+        text = (
+            "🇺🇿 *O‘zbekcha CV*\n\n"
+            "To‘liq CV formasini quyidagi Telegram tugmasidan oching. "
+            "Yakunida profil rasmi va DOCX/PDF formatini tanlaysiz.\n\n"
+            "ℹ️ Tugmalar ko‘rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing."
+        )
+    await query.edit_message_text(text, parse_mode="Markdown")
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=button_text,
+        reply_markup=cv_webapp_keyboard,
+    )
+    return CV_LANG
 
 CV_TONE_KEYBOARD = InlineKeyboardMarkup([
     [InlineKeyboardButton("💼 Professional", callback_data="cv_tone_professional"),
@@ -9148,6 +9184,7 @@ def main() -> None:
             # ── Rezyume CV holatlari ──
             CV_LANG: [
                 MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
+                CallbackQueryHandler(cv_open_webapp_language, pattern=r"^cv_webapp_lang_(uz|en)$"),
                 CallbackQueryHandler(cv_get_lang, pattern=r"^cv_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
