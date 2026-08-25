@@ -1896,6 +1896,8 @@ async def webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         data = _json.loads(msg.web_app_data.data)
         if data.get("t") == "ob":
             return await obyektivka_webapp_data_handler(update, context, data)
+        if data.get("t") == "cv":
+            return await cv_webapp_data_handler(update, context, data)
         template_num = int(data.get("template_num", 35))
     except Exception as e:
         logger.error(f"webapp_data_handler JSON parse xato: {e}")
@@ -2012,6 +2014,60 @@ async def obyektivka_webapp_data_handler(update: Update, context: ContextTypes.D
         parse_mode="MarkdownV2",
     )
     return OB_PHOTO
+
+
+async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, data: dict) -> int:
+    """Mini App CV payloadini mavjud rezyume rasm va format oqimiga uzatadi."""
+    msg = update.message
+    fields = data.get("p")
+    selected_format = data.get("f", "pdf")
+    if data.get("v") != 1 or not isinstance(fields, list) or len(fields) != 9:
+        await msg.reply_text("❌ CV forma ma’lumotlari noto‘g‘ri keldi. Formani qayta ochib yuboring.")
+        return CV_LANG
+
+    clean_fields = [
+        _clean_webapp_text(value, 1100 if index in (4, 5) else 500)
+        for index, value in enumerate(fields)
+    ]
+    if not clean_fields[0]:
+        await msg.reply_text("❌ F.I.Sh. kiritilmagan. CV formasini qayta tekshiring.")
+        return CV_LANG
+
+    style_map = {"minimal": "minimal", "editorial": "professional", "accent": "creative"}
+    context.user_data.clear()
+    context.user_data.update({
+        "cv_data": {
+            "lang": "uz",
+            "fullname": clean_fields[0],
+            "email": clean_fields[1],
+            "phone": clean_fields[2],
+            "title": clean_fields[3],
+            "summary": clean_fields[4],
+            "experience": clean_fields[5],
+            "skills": clean_fields[6],
+            "languages": clean_fields[7],
+            "style": style_map.get(clean_fields[8].lower(), "professional"),
+            "tone": "professional",
+            "length": 1,
+            "links": "",
+            "location": "",
+            "projects": "",
+            "education": "",
+            "certifications": "",
+        },
+        "cv_webapp_format": selected_format if selected_format in ("both", "docx", "pdf") else "pdf",
+    })
+
+    from telegram import ReplyKeyboardRemove
+    await msg.reply_text(
+        "✅ *CV formasi qabul qilindi\!*\n\n"
+        f"👤 F\.I\.Sh\.: *{esc_md(clean_fields[0])}*\n"
+        f"💼 Lavozim: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
+        "🖼️ Endi rezyume uchun profil rasmini yuboring yoki rasm qo‘ymoqchi bo‘lmasangiz `-` yozing\.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="MarkdownV2",
+    )
+    return CV_PHOTO
 
 async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stil tanlangandan keyin slayd soni va reja orqali taqdimot yaratadi."""
@@ -5106,11 +5162,25 @@ async def hj_get_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         context.user_data["cv_data"] = {}
         await query.edit_message_text(
             "📄 *Rezyume / CV yaratish*\n\n"
-            "Professional rezyumengizni yaratish uchun bir nechta savollarga javob bering.\n"
-            "💰 Narx: 3 000 so'm\n\n"
-            "🌍 Qaysi tilda yaratilsin?",
+            "To‘liq CV formasini quyidagi Telegram tugmasidan oching. "
+            "Yakunda bot sizdan ixtiyoriy profil rasmi va hujjat formatini so‘raydi.",
             parse_mode="Markdown",
-            reply_markup=CV_LANG_KEYBOARD
+        )
+        cv_mini_app_url = "https://slidegoapp-pyhvxnn2.manus.space/?service=cv"
+        cv_webapp_keyboard = ReplyKeyboardMarkup(
+            [
+                [KeyboardButton("📄 CV formasini ochish", web_app=WebAppInfo(url=cv_mini_app_url))],
+                [KeyboardButton("⬅️ Orqaga")],
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True,
+        )
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="👇 *CV formasini ochish* tugmasini bosing.",
+            reply_markup=cv_webapp_keyboard,
+            parse_mode="Markdown",
         )
         return CV_LANG
     service_info = {
@@ -9052,6 +9122,7 @@ def main() -> None:
             ],
             # ── Rezyume CV holatlari ──
             CV_LANG: [
+                MessageHandler(filters.StatusUpdate.WEB_APP_DATA, webapp_data_handler),
                 CallbackQueryHandler(cv_get_lang, pattern=r"^cv_lang_"),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
