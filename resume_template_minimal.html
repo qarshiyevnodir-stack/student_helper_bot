@@ -50,15 +50,15 @@
     align-items: flex-start;
     position: relative; z-index: 1;
   }
-  .header-left { flex: 1; }
-  .header-photo {
-    width: 80px; height: 80px;
-    border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.5);
-    object-fit: cover;
-    margin-left: 20px;
-    flex-shrink: 0;
-  }
+.header-left { flex: 1; }
+.header-photo {
+    width: 132px; height: 170px;
+    border-radius: 8px;
+border: 3px solid rgba(255,255,255,0.5);
+object-fit: cover;
+margin-left: 20px;
+flex-shrink: 0;
+}
   .header-name {
     font-size: 26pt;
     font-weight: 700;
@@ -334,6 +334,19 @@
     color: #aaa;
     font-style: italic;
   }
+  /* Professional Plus scale override for the optional Minimal design. */
+  body { font-size: 10.5pt; }
+  .header { padding: 30px 32px 28px 32px; }
+  .header-name { font-size: 24pt; }
+  .header-title { font-size: 14pt; }
+  .contact-item { font-size: 9.5pt; }
+  .section-title { font-size: 12pt; }
+  .skill-item, .lang-name, .exp-company, .exp-bullet, .edu-school, .proj-desc, .cert-item { font-size: 10.5pt; }
+  .lang-level, .exp-date, .edu-date { font-size: 9pt; }
+  .summary-text { font-size: 10.8pt; }
+  .exp-title, .edu-degree, .proj-name { font-size: 11pt; }
+  .edu-desc, .cert-org { font-size: 10pt; }
+  .cert-date { font-size: 9pt; }
 </style>
 </head>
 <body>

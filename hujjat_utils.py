@@ -223,6 +223,7 @@ def _generate_cv_full_content(cv_data: dict) -> dict:
         "certifications": _cv_clean(cv_data.get("certifications")),
         "skills": _cv_clean(cv_data.get("skills")),
         "languages": _cv_clean(cv_data.get("languages")),
+        "interests": _cv_clean(cv_data.get("interests")),
     }
     tone = cv_data.get("tone", "professional")
 
@@ -251,6 +252,7 @@ Education: {raw['education']}
 Certifications: {raw['certifications']}
 Skills: {raw['skills']}
 Languages: {raw['languages']}
+Interests: {raw['interests']}
 
 Return only this JSON object:
 {{
@@ -258,7 +260,7 @@ Return only this JSON object:
   "skills": [],
   "experience": [{{"title":"","company":"","date":"","bullets":[]}}],
   "education": [{{"degree":"","school":"","date":"","description":""}}],
-  "projects": [{{"name":"","description":""}}],
+  "projects": [{{"name":"","description":"","link":""}}],
   "certifications": [{{"name":"","organization":"","date":""}}],
   "languages": [{{"name":"","level":""}}],
   "interests": []
@@ -273,7 +275,7 @@ Return only this JSON object:
     data = json.loads(resp.choices[0].message.content)
 
     # Qo'shimcha himoya: foydalanuvchi bo'sh qoldirgan bo'limlar hech qachon chiqmaydi.
-    for key in ("summary", "experience", "projects", "education", "certifications", "skills", "languages"):
+    for key in ("summary", "experience", "projects", "education", "certifications", "skills", "languages", "interests"):
         if not raw.get(key):
             data[key] = "" if key == "summary" else []
     data["contact"] = {
@@ -282,7 +284,6 @@ Return only this JSON object:
         "location": raw["location"],
         "links": raw["links"],
     }
-    data["interests"] = []
     return data
 
 def _prepare_cv_for_length(data: dict, length: int) -> dict:
@@ -368,18 +369,20 @@ def _build_cv_full_pdf(data: dict, cv_data: dict) -> BytesIO:
     return buf
 
 def _docx_section_title(document, title: str, accent: RGBColor):
+    """Professional Plus DOCX: readable 12pt headings in a clean one-column ATS-friendly flow."""
     p = document.add_paragraph()
-    p.paragraph_format.space_before = Pt(9)
-    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.space_before = Pt(11)
+    p.paragraph_format.space_after = Pt(5)
+    p.paragraph_format.keep_with_next = True
     run = p.add_run(title.upper())
     run.bold = True
     run.font.name = "Arial"
-    run.font.size = Pt(10)
+    run.font.size = Pt(12)
     run.font.color.rgb = accent
 
 
 def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
-    """Tahrir qilinadigan, professional DOCX CV yaratadi."""
+    """Professional Plus: tahrir qilinadigan, bir ustunli va ATSga qulay DOCX CV yaratadi."""
     data = _prepare_cv_for_length(data, int(cv_data.get("length", 1)))
     lang = cv_data.get("lang", "uz")
     labels = CV_LABELS.get(lang, CV_LABELS["uz"])
@@ -400,8 +403,9 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
 
     normal = document.styles["Normal"]
     normal.font.name = "Arial"
-    normal.font.size = Pt(10)
-    normal.paragraph_format.space_after = Pt(4)
+    normal.font.size = Pt(10.5)
+    normal.paragraph_format.space_after = Pt(5)
+    normal.paragraph_format.line_spacing = 1.12
 
     # Sarlavha va oxirgi qadamda yuborilgan profil rasmi.
     # Rasm yo'q bo'lsa ism butun foydali kenglikdan foydalanadi va keraksiz satrga bo'linmaydi.
@@ -409,11 +413,11 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
     if photo:
         header = document.add_table(rows=1, cols=2)
         header.autofit = False
-        header.columns[0].width = Cm(13.2)
-        header.columns[1].width = Cm(3.8)
+        header.columns[0].width = Cm(12.5)
+        header.columns[1].width = Cm(4.5)
         left_cell, right_cell = header.rows[0].cells
-        left_cell.width = Cm(13.2)
-        right_cell.width = Cm(3.8)
+        left_cell.width = Cm(12.5)
+        right_cell.width = Cm(4.5)
         p = left_cell.paragraphs[0]
     else:
         right_cell = None
@@ -422,19 +426,19 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
     run = p.add_run(_cv_clean(cv_data.get("fullname")).upper())
     run.bold = True
     run.font.name = "Arial"
-    run.font.size = Pt(22)
+    run.font.size = Pt(24)
     run.font.color.rgb = accent
     if _cv_clean(cv_data.get("title")):
         role_p = left_cell.add_paragraph() if photo else document.add_paragraph()
         role = role_p.add_run(_cv_clean(cv_data.get("title")))
         role.bold = True
         role.font.name = "Arial"
-        role.font.size = Pt(12)
+        role.font.size = Pt(14)
 
     if photo and right_cell:
         photo_p = right_cell.paragraphs[0]
         photo_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        photo_p.add_run().add_picture(BytesIO(photo), width=Cm(3.0), height=Cm(4.0))
+        photo_p.add_run().add_picture(BytesIO(photo), width=Cm(3.5), height=Cm(4.5))
 
     contact_values = [
         _cv_clean(cv_data.get("phone")),
@@ -448,11 +452,12 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
         p.paragraph_format.space_before = Pt(4)
         contact_run = p.add_run(contact_text)
         contact_run.font.name = "Arial"
-        contact_run.font.size = Pt(9)
+        contact_run.font.size = Pt(9.5)
 
     if data.get("summary"):
         _docx_section_title(document, labels["summary"], accent)
-        document.add_paragraph(data["summary"])
+        summary_p = document.add_paragraph(data["summary"])
+        summary_p.paragraph_format.line_spacing = 1.16
 
     if data.get("experience"):
         _docx_section_title(document, labels["experience"], accent)
@@ -466,9 +471,11 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
             if exp.get("date"):
                 date = p.add_run(f"    {exp['date']}")
                 date.italic = True
-                date.font.size = Pt(9)
+                date.font.size = Pt(9.5)
             for bullet in exp.get("bullets", []):
                 bullet_p = document.add_paragraph(style="List Bullet")
+                bullet_p.paragraph_format.space_after = Pt(2)
+                bullet_p.paragraph_format.line_spacing = 1.1
                 bullet_p.add_run(bullet)
 
     if data.get("education"):
@@ -481,7 +488,8 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
             if edu.get("date"):
                 p.add_run(f"    {edu['date']}")
             if edu.get("description"):
-                document.add_paragraph(edu["description"])
+                edu_description = document.add_paragraph(edu["description"])
+                edu_description.paragraph_format.space_after = Pt(3)
 
     if data.get("projects"):
         _docx_section_title(document, labels["projects"], accent)
@@ -491,10 +499,24 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
             r.bold = True
             if project.get("description"):
                 p.add_run(f" — {project['description']}")
+            if project.get("link"):
+                link_p = document.add_paragraph(project["link"])
+                link_p.paragraph_format.space_after = Pt(3)
+                for run in link_p.runs:
+                    run.font.size = Pt(9.5)
+                    run.font.color.rgb = accent
 
     if data.get("skills"):
         _docx_section_title(document, labels["skills"], accent)
         document.add_paragraph(" • ".join(data["skills"]))
+
+        if data.get("interests"):
+            interests_p = document.add_paragraph()
+            interests_p.paragraph_format.space_before = Pt(2)
+            interests_label = interests_p.add_run(f"{labels['interests']}: ")
+            interests_label.bold = True
+            interests_label.font.name = "Arial"
+            interests_p.add_run(" • ".join(data["interests"]))
 
     if data.get("languages"):
         _docx_section_title(document, labels["languages"], accent)
@@ -511,6 +533,10 @@ def _build_cv_full_docx(data: dict, cv_data: dict) -> BytesIO:
             if item:
                 document.add_paragraph(item, style="List Bullet")
 
+    if data.get("interests") and not data.get("skills"):
+        _docx_section_title(document, labels["interests"], accent)
+        document.add_paragraph(" • ".join(data["interests"]))
+
     buf = BytesIO()
     document.save(buf)
     buf.seek(0)
@@ -525,6 +551,17 @@ async def generate_cv_full(cv_data: dict) -> BytesIO:
 async def generate_cv_full_docx(cv_data: dict) -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_full_content, cv_data)
     return await asyncio.to_thread(_build_cv_full_docx, data, cv_data)
+
+
+async def generate_cv_full_documents(cv_data: dict, formats: tuple[str, ...]) -> dict[str, BytesIO]:
+    """DOCX/PDF juftligi uchun AI normalizatorini bir marta chaqiradi; faktlar har ikkala faylda bir xil qoladi."""
+    data = await asyncio.to_thread(_generate_cv_full_content, cv_data)
+    outputs = {}
+    if "docx" in formats:
+        outputs["docx"] = await asyncio.to_thread(_build_cv_full_docx, data, cv_data)
+    if "pdf" in formats:
+        outputs["pdf"] = await asyncio.to_thread(_build_cv_full_pdf, data, cv_data)
+    return outputs
 
 async def generate_cv(name: str, profession: str, lang: str, extra: str = "") -> BytesIO:
     data = await asyncio.to_thread(_generate_cv_content, name, profession, lang, extra)

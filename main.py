@@ -107,7 +107,7 @@ from ai_utils import get_ai_response, AI_FREE_LIMIT, AI_PRICE_PER_MSG
 from db import get_ai_daily_count, increment_ai_daily_count
 from insho_utils import generate_insho, INSHO_PRICES, INSHO_TYPES, INSHO_TYPE_LABELS
 from hujjat_utils import (
-    generate_cv_full, generate_cv_full_docx,
+    generate_cv_full, generate_cv_full_docx, generate_cv_full_documents,
     generate_cv, generate_motivation, generate_table, generate_mindmap,
     HUJJAT_PRICES, LANG_LABELS as HJ_LANG_LABELS
 )
@@ -2007,47 +2007,101 @@ async def obyektivka_webapp_data_handler(update: Update, context: ContextTypes.D
 
 
 async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, data: dict) -> int:
-    """Mini App CV payloadini mavjud rezyume rasm va format oqimiga uzatadi."""
+    """Mini App CV payloadini rasm va format oqimiga PII log qilmasdan uzatadi."""
     msg = update.message
     fields = data.get("p")
     selected_format = data.get("f", "pdf")
     selected_language = data.get("l", "uz")
-    if data.get("v") != 1 or not isinstance(fields, list) or len(fields) != 9:
+    version = data.get("v")
+    is_v1 = version == 1 and isinstance(fields, list) and len(fields) == 9
+    is_v2 = version == 2 and isinstance(fields, list) and len(fields) == 11
+    if not (is_v1 or is_v2):
         await msg.reply_text("❌ CV forma ma’lumotlari noto‘g‘ri keldi. Formani qayta ochib yuboring.")
         return CV_LANG
     if selected_language not in {"uz", "en"}:
         await msg.reply_text("❌ CV tili noto‘g‘ri keldi. Formani qayta ochib yuboring.")
         return CV_LANG
 
-    clean_fields = [
-        _clean_webapp_text(value, 1100 if index in (4, 5) else 500)
-        for index, value in enumerate(fields)
-    ]
+    v1_limits = [180, 180, 80, 180, 700, 1100, 500, 180, 32]
+    # v2 limits mirror the Mini App byte budget; no raw resume data is logged.
+    v2_limits = [100, 120, 40, 80, 100, 100, 300, 240, 80, 80, 20]
+    clean_fields = [_clean_webapp_text(value, (v1_limits if is_v1 else v2_limits)[index]) for index, value in enumerate(fields)]
     if not clean_fields[0]:
         await msg.reply_text("❌ F.I.Sh. kiritilmagan. CV formasini qayta tekshiring.")
         return CV_LANG
+
+    def clean_records(raw_records, expected_size: int, max_records: int, limits: list[int], required: tuple[int, ...]) -> list[list[str]]:
+        """Only keep bounded, well-shaped record arrays; malformed optional entries are ignored."""
+        cleaned = []
+        if not isinstance(raw_records, list):
+            return cleaned
+        for raw_record in raw_records[:max_records]:
+            if not isinstance(raw_record, list) or len(raw_record) != expected_size:
+                continue
+            record = [_clean_webapp_text(value, limits[index]) for index, value in enumerate(raw_record)]
+            if all(record[index] for index in required):
+                cleaned.append(record)
+        return cleaned
+
+    experience_records = clean_records(data.get("e", []), 4, 2, [80, 100, 40, 160], (0, 1, 2)) if is_v2 else []
+    education_records = clean_records(data.get("d", []), 4, 2, [100, 120, 40, 100], (0, 1, 2)) if is_v2 else []
+    project_records = clean_records(data.get("r", []), 3, 1, [100, 120, 80], (0, 1)) if is_v2 else []
+    certificate_records = clean_records(data.get("c", []), 3, 1, [100, 100, 40], (0,)) if is_v2 else []
+
+    if is_v2 and (not experience_records or not education_records or not clean_fields[5] or not clean_fields[6] or not clean_fields[7] or not clean_fields[8]):
+        error_text = (
+            "❌ Please complete your profile, at least one experience and one education record, skills and languages before sending."
+            if selected_language == "en" else
+            "❌ Profil, kamida bitta tajriba va ta’lim yozuvi, ko‘nikmalar hamda tillarni to‘ldiring."
+        )
+        await msg.reply_text(error_text)
+        return CV_LANG
+
+    if is_v1:
+        fullname, email, phone, title, summary, experience, skills, languages, style = clean_fields
+        location = links = interests = education = projects = certifications = ""
+    else:
+        fullname, email, phone, location, links, title, summary, skills, languages, interests, style = clean_fields
+        experience = "\n\n".join(
+            " | ".join([record[2], record[0], record[1]]) + (f"\n{record[3]}" if record[3] else "")
+            for record in experience_records
+        )
+        education = "\n".join(
+            " | ".join(part for part in record if part)
+            for record in education_records
+        )
+        projects = "\n".join(
+            " | ".join(part for part in [record[0], record[1], record[2]] if part)
+            for record in project_records
+        )
+        certifications = "\n".join(
+            " | ".join(part for part in record if part)
+            for record in certificate_records
+        )
 
     style_map = {"minimal": "minimal", "editorial": "professional", "accent": "creative"}
     context.user_data.clear()
     context.user_data.update({
         "cv_data": {
             "lang": selected_language,
-            "fullname": clean_fields[0],
-            "email": clean_fields[1],
-            "phone": clean_fields[2],
-            "title": clean_fields[3],
-            "summary": clean_fields[4],
-            "experience": clean_fields[5],
-            "skills": clean_fields[6],
-            "languages": clean_fields[7],
-            "style": style_map.get(clean_fields[8].lower(), "professional"),
+            "fullname": fullname,
+            "email": email,
+            "phone": phone,
+            "title": title,
+            "summary": summary,
+            "experience": experience,
+            "skills": skills,
+            "languages": languages,
+            "style": style_map.get(style.lower(), "professional"),
             "tone": "professional",
-            "length": 1,
-            "links": "",
-            "location": "",
-            "projects": "",
-            "education": "",
-            "certifications": "",
+            # Professional Plus CV naturally uses one or two A4 pages; 2 disables old one-page truncation.
+            "length": 2 if is_v2 else 1,
+            "links": links,
+            "location": location,
+            "projects": projects,
+            "education": education,
+            "certifications": certifications,
+            "interests": interests,
         },
         "cv_webapp_format": selected_format if selected_format in ("both", "docx", "pdf") else "pdf",
     })
@@ -2056,15 +2110,15 @@ async def cv_webapp_data_handler(update: Update, context: ContextTypes.DEFAULT_T
     if selected_language == "en":
         received_text = (
             "✅ *CV form received\!*\n\n"
-            f"👤 Name: *{esc_md(clean_fields[0])}*\n"
-            f"💼 Role: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
+            f"👤 Name: *{esc_md(fullname)}*\n"
+            f"💼 Role: *{esc_md(title) if title else '—'}*\n\n"
             "🖼️ Send a profile photo for the CV, or send `-` to continue without one\."
         )
     else:
         received_text = (
             "✅ *CV formasi qabul qilindi\!*\n\n"
-            f"👤 F\.I\.Sh\.: *{esc_md(clean_fields[0])}*\n"
-            f"💼 Lavozim: *{esc_md(clean_fields[3]) if clean_fields[3] else '—'}*\n\n"
+            f"👤 F\.I\.Sh\.: *{esc_md(fullname)}*\n"
+            f"💼 Lavozim: *{esc_md(title) if title else '—'}*\n\n"
             "🖼️ Endi rezyume uchun profil rasmini yuboring yoki rasm qo‘ymoqchi bo‘lmasangiz `-` yozing\."
         )
     await msg.reply_text(received_text, reply_markup=ReplyKeyboardRemove(), parse_mode="MarkdownV2")
@@ -7396,15 +7450,12 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         import time
         started = time.time()
-        if output_format == "both":
-            documents = [
-                ("docx", "DOCX", await generate_cv_full_docx(cv_data)),
-                ("pdf", "PDF", await generate_cv_full(cv_data)),
-            ]
-        elif output_format == "docx":
-            documents = [("docx", "DOCX", await generate_cv_full_docx(cv_data))]
-        else:
-            documents = [("pdf", "PDF", await generate_cv_full(cv_data))]
+        requested_formats = ("docx", "pdf") if output_format == "both" else (output_format,)
+        generated_documents = await generate_cv_full_documents(cv_data, requested_formats)
+        documents = [
+            (extension, extension.upper(), generated_documents[extension])
+            for extension in requested_formats
+        ]
         elapsed = time.time() - started
     except Exception as e:
         logger.error("CV yaratilmadi: %s", e, exc_info=True)
