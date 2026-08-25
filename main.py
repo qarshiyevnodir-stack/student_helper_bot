@@ -6743,6 +6743,10 @@ async def ob_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def ob_extra_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ixtiyoriy obyektivka maydonlarini ConversationHandler holati yo'qolsa ham ushlaydi."""
     step = context.user_data.get("ob_extra_step")
+    if step == "photo":
+        await update.message.reply_text("📸 *Rasm kerak\\!* Galereyadan 3×4 yoki portret surat tanlang, yoki kamera orqali yangi rasmga tushing\\.", parse_mode="MarkdownV2")
+        raise ApplicationHandlerStop
+
     handlers = {
         "phone": ob_extra_phone_handler,
         "passport": ob_extra_passport_handler,
