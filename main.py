@@ -9172,7 +9172,7 @@ def main() -> None:
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_PHOTO: [
-                MessageHandler(filters.PHOTO | (filters.TEXT & ~filters.COMMAND), cv_get_photo),
+                MessageHandler(filters.PHOTO | filters.Document.IMAGE | (filters.TEXT & ~filters.COMMAND), cv_get_photo),
                 CallbackQueryHandler(topup_start, pattern=r"^topup_start$"),
             ],
             CV_TITLE: [
