@@ -6953,6 +6953,7 @@ CV_PREVIEW_KEYBOARD = InlineKeyboardMarkup([
 ])
 
 CV_FORMAT_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📄 DOCX + PDF (ikkalasi)", callback_data="cv_format_both")],
     [InlineKeyboardButton("📄 PDF", callback_data="cv_format_pdf"),
      InlineKeyboardButton("📝 DOCX", callback_data="cv_format_docx")],
 ])
@@ -7346,12 +7347,15 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         import time
         started = time.time()
-        if output_format == "docx":
-            doc = await generate_cv_full_docx(cv_data)
-            extension, mime_label = "docx", "DOCX"
+        if output_format == "both":
+            documents = [
+                ("docx", "DOCX", await generate_cv_full_docx(cv_data)),
+                ("pdf", "PDF", await generate_cv_full(cv_data)),
+            ]
+        elif output_format == "docx":
+            documents = [("docx", "DOCX", await generate_cv_full_docx(cv_data))]
         else:
-            doc = await generate_cv_full(cv_data)
-            extension, mime_label = "pdf", "PDF"
+            documents = [("pdf", "PDF", await generate_cv_full(cv_data))]
         elapsed = time.time() - started
     except Exception as e:
         logger.error("CV yaratilmadi: %s", e, exc_info=True)
@@ -7372,14 +7376,16 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return ConversationHandler.END
 
-    filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
     try:
-        await context.bot.send_document(
-            chat_id=user.id,
-            document=doc,
-            filename=filename,
-            caption=f"📄 Rezyume / CV\n👤 {fullname}\n🌍 {lang_name} | {mime_label}",
-        )
+        for extension, mime_label, doc in documents:
+            doc.seek(0)
+            filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
+            await context.bot.send_document(
+                chat_id=user.id,
+                document=doc,
+                filename=filename,
+                caption=f"📄 Rezyume / CV\n👤 {fullname}\n🌍 {lang_name} | {mime_label}",
+            )
     except Exception as e:
         # Telegram yuborishi xato qilsa, foydalanuvchi hujjat olmagan bo'ladi — mablag' qaytariladi.
         await asyncio.to_thread(db.add_balance, user.id, price)
@@ -7392,22 +7398,27 @@ async def cv_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return ConversationHandler.END
 
     # Arxivning ishlamasligi foydalanuvchiga yetkazib berilgan faylga ta'sir qilmasligi kerak.
-    try:
-        doc.seek(0)
-        archive_doc = BytesIO(doc.read())
-        archive_doc.seek(0)
-        await archive_send_document(
-            bot=context.bot, user=user, service_name="Rezyume / CV", topic=fullname,
-            language=lang_name, page_count=cv_data.get("length", 1), price=price,
-            document_bytes=archive_doc, filename=filename,
-        )
-    except Exception as e:
-        logger.warning("CV arxivga yuborilmadi, foydalanuvchiga fayl yetkazildi: %s", e, exc_info=True)
+    for extension, _mime_label, doc in documents:
+        filename = f"rezyume_{fullname[:20].replace(' ', '_')}.{extension}"
+        try:
+            doc.seek(0)
+            archive_doc = BytesIO(doc.read())
+            archive_doc.seek(0)
+            await archive_send_document(
+                bot=context.bot, user=user, service_name="Rezyume / CV", topic=fullname,
+                language=lang_name, page_count=cv_data.get("length", 1), price=price,
+                document_bytes=archive_doc, filename=filename,
+            )
+        except Exception as e:
+            logger.warning("CV arxivga yuborilmadi, foydalanuvchiga fayl yetkazildi: %s", e, exc_info=True)
 
     await asyncio.to_thread(db.log_generation, user.id, "rezyume", fullname, price)
     await context.bot.send_message(
         chat_id=user.id,
-        text=f"🎉 Tayyor! ({elapsed:.1f} soniya)\n💰 Balansingizdan {price:,} so'm yechildi.",
+        text=(
+            f"🎉 {'DOCX va PDF tayyor' if output_format == 'both' else 'Tayyor'}! ({elapsed:.1f} soniya)\n"
+            f"💰 Balansingizdan {price:,} so'm yechildi."
+        ),
         reply_markup=get_main_menu_keyboard(),
     )
     context.user_data.pop("cv_data", None)
