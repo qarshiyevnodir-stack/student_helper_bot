@@ -432,7 +432,7 @@ def get_obyektivka_language_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_obyektivka_webapp_keyboard() -> ReplyKeyboardMarkup:
-    """Til tanlovidan keyin o'zgarishsiz ochiladigan mavjud Obyektivka Mini App klaviaturasi."""
+    """Faqat o'zbekcha Obyektivka Mini App klaviaturasi."""
     return ReplyKeyboardMarkup(
         [
             [KeyboardButton("📋 Obyektivka formasini ochish", web_app=WebAppInfo(url="https://slidegoapp-pyhvxnn2.manus.space/"))],
@@ -1310,16 +1310,24 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
             parse_mode="Markdown"
         )
         return PDF_RECEIVE
-    elif text == "📋Ma'lumotnoma/Obyektivka✨":
+    elif text in {
+        "📋Ma'lumotnoma/Obyektivka✨",
+        "Ma'lumotnoma/Obyektivka",
+        "Ma'lumotnoma / Obyektivka",
+    }:
         context.user_data.clear()
-        context.user_data["mode"] = "obyektivka"
+        context.user_data.update({"mode": "obyektivka", "ob_lang": "uz"})
         await update.message.reply_text(
             "📋 *Ma'lumotnoma / Obyektivka*\n\n"
-            "Avval hujjat tilini tanlang. Mini Appdagi mavjud forma o'zgarmaydi; tanlov yakuniy DOCX/PDF sarlavhalariga qo'llanadi.",
-            reply_markup=get_obyektivka_language_keyboard(),
+            "Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
+            "Narx: 3 000 so'm\n\n"
+            "Hujjat to'ldirilgach DOCX yoki PDF formatida yuklab olishingiz mumkin.\n\n"
+            "Quyidagi tugmadan to'liq formani oching yoki xohlasangiz chatda eski usulda davom eting.\n\n"
+            "ℹ️ Tugmalar ko'rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing.",
+            reply_markup=get_obyektivka_webapp_keyboard(),
             parse_mode="Markdown"
         )
-        return OB_LANGUAGE
+        return OB_FISH
 
     elif text == "💰 Balans":
         user_data = await asyncio.to_thread(db.get_user, user.id)
@@ -2012,6 +2020,10 @@ async def obyektivka_webapp_data_handler(update: Update, context: ContextTypes.D
                     })
 
     selected_lang = context.user_data.get("ob_lang", "uz")
+    payload_lang = data.get("l")
+    if payload_lang is not None and payload_lang != selected_lang:
+        await msg.reply_text("❌ Forma tili mos kelmadi. Tilni qayta tanlab, formani yangidan oching.")
+        return OB_FISH
     context.user_data.clear()
     context.user_data.update({
         "mode": "obyektivka",
