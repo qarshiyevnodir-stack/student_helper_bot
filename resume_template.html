@@ -16,8 +16,9 @@
   .eyebrow { margin-bottom: 2.5mm; color: #b8e2d8; font-size: 8pt; font-weight: 700; letter-spacing: 1.3pt; text-transform: uppercase; }
   .header-name { color: #ffffff; font-size: 24pt; font-weight: 700; line-height: 1.08; letter-spacing: -.35pt; }
   .header-title { margin-top: 2.4mm; color: #e3f4ef; font-size: 14pt; font-weight: 500; line-height: 1.25; }
-  .contact-bar { display: flex; flex-wrap: wrap; gap: 2.3mm 5mm; margin-top: 6mm; }
-  .contact-item { display: inline-flex; align-items: center; gap: 1.5mm; max-width: 74mm; color: #ffffff; font-size: 9.5pt; line-height: 1.35; overflow-wrap: break-word; }
+  .contact-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.4mm 4mm; margin-top: 6mm; }
+  .contact-item { display: grid; grid-template-columns: 3.4mm minmax(0, 1fr); align-items: start; gap: 1.7mm; min-width: 0; padding: 1.1mm 2mm; color: #ffffff; background: rgba(255,255,255,.075); border-left: .65mm solid rgba(184,226,216,.78); font-size: 9.5pt; line-height: 1.36; }
+  .contact-item > span:last-child { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
   .contact-mark { width: 3.4mm; height: 3.4mm; flex: 0 0 3.4mm; border: 1px solid rgba(255,255,255,.65); border-radius: 50%; }
   .header-photo { width: 35mm; height: 45mm; flex: 0 0 35mm; object-fit: cover; border: 1.2mm solid rgba(255,255,255,.82); border-radius: 2mm; }
   .resume-body { padding: 9mm 15mm 12mm; }
