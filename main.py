@@ -7058,8 +7058,17 @@ async def cv_get_links(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def cv_get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Preview tasdiqlangandan keyingi yakuniy profil rasmi."""
     if update.message.photo:
-        photo = update.message.photo[-1]
-        file = await photo.get_file()
+        telegram_file = update.message.photo[-1]
+    elif update.message.document and (
+        (update.message.document.mime_type or "").startswith("image/")
+        or (update.message.document.file_name or "").lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+    ):
+        telegram_file = update.message.document
+    else:
+        telegram_file = None
+
+    if telegram_file:
+        file = await telegram_file.get_file()
         import io as _io
         photo_bytes = _io.BytesIO()
         await file.download_to_memory(photo_bytes)
@@ -7068,7 +7077,11 @@ async def cv_get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     elif update.message.text and update.message.text.strip() == "-":
         context.user_data["cv_data"]["photo"] = None
     else:
-        await update.message.reply_text("Iltimos, rasm yuboring yoki rasm qo'ymoqchi bo'lmasangiz `-` yozing.", parse_mode="Markdown")
+        await update.message.reply_text(
+            "Iltimos, rasm yuboring — foto yoki JPG/PNG rasm fayli bo'lishi mumkin. "
+            "Rasm qo'ymoqchi bo'lmasangiz `-` yozing.",
+            parse_mode="Markdown",
+        )
         return CV_PHOTO
     await update.message.reply_text(
         "✅ Rasm qabul qilindi.\n\n📥 *Qaysi formatda yuklab olmoqchisiz?*",
