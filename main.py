@@ -1270,14 +1270,16 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
                 [KeyboardButton("⬅️ Orqaga")],
             ],
             resize_keyboard=True,
-            one_time_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True,
         )
         await update.message.reply_text(
             "📋 *Ma'lumotnoma / Obyektivka*\n\n"
             "🎁 Dastlabki 2 ta yaratish bepul. Keyingilari 3 000 so'm.\n"
             f"{free_text}"
             "Hujjat to'ldirilgach *DOCX* yoki *PDF* formatida yuklab olishingiz mumkin.\n\n"
-            "Quyidagi tugmadan to'liq formani oching yoki xohlasangiz chatda eski usulda davom eting:",
+            "Quyidagi tugmadan to'liq formani oching yoki xohlasangiz chatda eski usulda davom eting.\n\n"
+            "ℹ️ Tugmalar ko'rinmasa, xabar yozish maydoni yonidagi ⊞ ikonkasini bosing.",
             reply_markup=webapp_keyboard,
             parse_mode="Markdown"
         )
