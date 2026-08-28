@@ -121,7 +121,18 @@ from bot_core.pricing import SERVICE_PRICES, get_slayd_price, get_balance_price_
 ADMIN_IDS = {6813160650}
 ADMIN_USERNAME = "Slidego_adminbot"  # Admin telegram username (@ belgisisiz)
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
-REQUIRED_CHANNEL = "@slidego"  # Majburiy obuna kanali
+REQUIRED_CHANNELS = (
+    {
+        "chat_id": "@kerakli_kitob_lar",
+        "title": "Kerakli kitoblar",
+        "url": "https://t.me/kerakli_kitob_lar",
+    },
+    {
+        "chat_id": "@maktabgacha_va_maktab_yangilik",
+        "title": "Maktabgacha va maktab ta'lim yangiliklari",
+        "url": "https://t.me/maktabgacha_va_maktab_yangilik",
+    },
+)  # Majburiy obuna kanallari
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 # Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
@@ -739,7 +750,7 @@ _subscription_cache: dict = {}
 SUBSCRIPTION_CACHE_TTL = 600  # 10 daqiqa (soniyada)
 
 async def check_subscription(bot, user_id: int, force: bool = False) -> bool:
-    """Foydalanuvchi REQUIRED_CHANNEL ga a'zo ekanligini tekshiradi.
+    """Foydalanuvchi barcha majburiy kanallarga a'zo ekanligini tekshiradi.
     Natija 10 daqiqa cache da saqlanadi."""
     import time
     now = time.time()
@@ -750,27 +761,45 @@ async def check_subscription(bot, user_id: int, force: bool = False) -> bool:
         if now - cached_time < SUBSCRIPTION_CACHE_TTL:
             return cached_result
 
-    # API ga so'rov yuborish
+    # Har bir majburiy kanal uchun API ga so'rov yuborish.
     try:
-        member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
-        result = member.status in ("member", "administrator", "creator")
+        result = True
+        for channel in REQUIRED_CHANNELS:
+            member = await bot.get_chat_member(chat_id=channel["chat_id"], user_id=user_id)
+            if member.status not in ("member", "administrator", "creator", "owner"):
+                result = False
+                break
     except Exception as e:
         logger.warning(f"Obuna tekshirishda xatolik: {e}")
         # Xatolikda eski cache natijasini qaytarish (agar mavjud bo'lsa)
         if user_id in _subscription_cache:
             return _subscription_cache[user_id][0]
-        return True  # Xatolikda botdan foydalanishga ruxsat berish
+        return False  # Yangi foydalanuvchi tekshiruvsiz botdan foydalana olmaydi
 
     # Cache ga saqlash
     _subscription_cache[user_id] = (result, now)
     return result
 
 def get_subscription_keyboard():
-    """Kanalga a'zo bo'lish tugmasi."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📢 Kanalga a'zo bo'lish", url="https://t.me/slidego")],
-        [InlineKeyboardButton("✅ A'zo bo'ldim, tekshir", callback_data="check_sub")],
-    ])
+    """Barcha majburiy kanallarga a'zo bo'lish tugmalari."""
+    rows = [
+        [InlineKeyboardButton(f"📢 {channel['title']}", url=channel["url"])]
+        for channel in REQUIRED_CHANNELS
+    ]
+    rows.append([InlineKeyboardButton("✅ A'zo bo'ldim, tekshir", callback_data="check_sub")])
+    return InlineKeyboardMarkup(rows)
+
+
+def get_subscription_prompt() -> str:
+    """Majburiy kanallar uchun bitta aniq foydalanuvchi xabari."""
+    channel_lines = "\n".join(
+        f"• {channel['chat_id']}" for channel in REQUIRED_CHANNELS
+    )
+    return (
+        "Botdan foydalanish uchun avval quyidagi kanallarga a'zo bo'lishingiz kerak:\n"
+        f"{channel_lines}\n\n"
+        "A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:"
+    )
 
 # ─────────────────────────────────────────────
 # Handlerlar — Umumiy
@@ -798,10 +827,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_subscribed = await check_subscription(context.bot, user.id)
     if not is_subscribed:
         await update.message.reply_text(
-            f"Salom, {user.first_name}! 👋\n\n"
-            f"Botdan foydalanish uchun avval kanalimizga a'zo bo'lishingiz kerak:\n"
-            f"📢 @slidego\n\n"
-            f"A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:",
+            f"Salom, {user.first_name}! 👋\n\n{get_subscription_prompt()}",
             reply_markup=get_subscription_keyboard()
         )
         return LANGUAGE_SELECTION
@@ -857,9 +883,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     is_subscribed = await check_subscription(context.bot, user.id)
     if not is_subscribed:
         await update.message.reply_text(
-            f"Botdan foydalanish uchun avval kanalimizga a'zo bo'lishingiz kerak:\n"
-            f"📢 @slidego\n\n"
-            f"A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:",
+            get_subscription_prompt(),
             reply_markup=get_subscription_keyboard()
         )
         return LANGUAGE_SELECTION
@@ -7607,11 +7631,11 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     is_subscribed = await check_subscription(context.bot, user.id, force=True)
     if is_subscribed:
-        await query.answer(text="✅ Tabriklaymiz! Kanalga a'zo bo'ldingiz.", show_alert=False)
+        await query.answer(text="✅ Tabriklaymiz! Barcha majburiy kanallarga a'zo bo'ldingiz.", show_alert=False)
         # A'zo bo'ldi — start ni qayta ishga tushirish
         try:
             await query.edit_message_text(
-                f"✅ Rahmat, {user.first_name}! Kanalga a'zo bo'ldingiz.\n\n"
+                f"✅ Rahmat, {user.first_name}! Barcha majburiy kanallarga a'zo bo'ldingiz.\n\n"
                 f"Endi botdan to'liq foydalanishingiz mumkin!"
             )
         except Exception:
@@ -7624,7 +7648,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     else:
         await query.answer(
-            text="⚠️ Siz hali @slidego kanaliga a'zo bo'lmagansiz! Avval a'zo bo'ling, so'ng qayta tekshiring.",
+            text="⚠️ Siz hali barcha majburiy kanallarga a'zo bo'lmagansiz! Avval ikkala kanalga a'zo bo'ling, so'ng qayta tekshiring.",
             show_alert=True
         )
 
