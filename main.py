@@ -6915,6 +6915,30 @@ async def ob_format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return ConversationHandler.END
 
+    # Foydalanuvchi hujjatlarni muvaffaqiyatli olgandan keyingina arxivga nusxalanadi.
+    # Arxiv kanalidagi nosozlik asosiy yetkazib berish, to'lov yoki bepul limitga ta'sir qilmaydi.
+    for content, filename, _caption in files_to_send:
+        try:
+            archive_doc = BytesIO(content)
+            archive_doc.seek(0)
+            await archive_send_document(
+                bot=context.bot,
+                user=user,
+                service_name="Ma'lumotnoma / Obyektivka",
+                topic=fish,
+                language="O'zbek",
+                page_count=1,
+                price=0 if is_free else price,
+                document_bytes=archive_doc,
+                filename=filename,
+            )
+        except Exception as e:
+            logger.warning(
+                "Obyektivka arxivga yuborilmadi, foydalanuvchiga fayl yetkazildi: %s",
+                e,
+                exc_info=True,
+            )
+
     if is_free:
         remaining = await asyncio.to_thread(db.get_obyektivka_free_remaining, user.id)
         success_text = (
