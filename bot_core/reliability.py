@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+from telegram.error import NetworkError
+
 
 _SECRET_PATTERNS = (
     # Telegram bot tokenlari: 123456789:AA... ko'rinishi
@@ -119,6 +121,17 @@ async def global_error_handler(update, context) -> None:
     user_id = getattr(getattr(update, "effective_user", None), "id", None)
     update_type = type(update).__name__ if update else "unknown"
     error = getattr(context, "error", None)
+
+    # `update=None` — Telegram polling infratuzilmasida, foydalanuvchi oqimidan
+    # tashqarida yuz bergan hodisa. NetworkError/502 retry bilan tiklanadi; uni
+    # admin chatiga yuborish shovqin beradi, ammo logda xavfsiz qayd qoladi.
+    if update is None and isinstance(error, NetworkError):
+        logger.warning(
+            "Telegram pollingda vaqtinchalik tarmoq xatosi: %s",
+            type(error).__name__,
+        )
+        return
+
     error_info = (type(error), error, error.__traceback__) if error else None
     logger.error(
         "[%s] Kutilmagan bot xatosi | user_id=%s | update=%s",
