@@ -5,6 +5,10 @@ import asyncio
 from io import BytesIO
 import random
 import db
+from persistent_db_migration import (
+    PersistentDatabaseMigrationError,
+    copy_to_empty_persistent_target,
+)
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, WebAppInfo
 from telegram.error import TimedOut
 from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
@@ -166,6 +170,39 @@ FINANCIAL_MAINTENANCE_MESSAGE = (
     "qabul qilinmaydi. Iltimos, hozir to'lov yubormang va buyurtma bermang. "
     "Tekshiruv yakunlangach bot orqali xabar beriladi."
 )
+
+# Faqat administrator tomonidan vaqtincha yoqilganda ishlaydi. Bu flag default
+# holatda o'chiq; migration bir marta tekshirilib bo'lgach o'chirilishi shart.
+DATABASE_MIGRATION_MODE = os.getenv("DATABASE_MIGRATION_MODE", "false").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+
+
+def run_persistent_database_migration_if_requested() -> None:
+    """Source DBni yangi volume-backed targetga nusxalaydi va sonlarni tekshiradi.
+
+    Muvaffaqiyatdan keyin ham DATABASE_URL avtomatik almashtirilmaydi. Bu
+    cutoverdan oldin admin tekshirishi uchun copy va verification bosqichini
+    alohida saqlaydi.
+    """
+    if not DATABASE_MIGRATION_MODE:
+        return
+    if not FINANCIAL_MAINTENANCE_MODE:
+        raise PersistentDatabaseMigrationError(
+            "Migration faqat financial maintenance rejimida ishga tushishi mumkin"
+        )
+
+    counts = copy_to_empty_persistent_target(
+        os.getenv("DATABASE_URL", ""),
+        os.getenv("TARGET_DATABASE_URL", ""),
+    )
+    logger.info(
+        "Persistent database copy verified | users=%s transactions=%s generations=%s metadata=%s",
+        counts["users"],
+        counts["transactions"],
+        counts["generations"],
+        counts["system_metadata"],
+    )
 
 
 async def _send_financial_maintenance_notice(update: Update) -> None:
@@ -8845,6 +8882,15 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────
 
 def main() -> None:
+    # Mavjud source DBni yangi, volume-backed targetga faqat explicit flag bilan
+    # nusxalaymiz. Bu yerda xato bo'lsa bot fail-closed holatda to'xtaydi va
+    # DATABASE_URL source qiymatida qoladi.
+    try:
+        run_persistent_database_migration_if_requested()
+    except PersistentDatabaseMigrationError as exc:
+        logger.error("Persistent database migration failed safely: %s", exc)
+        return
+
     # Database migratsiyalaridan oldin aynan kutilgan Postgres instance ekanini
     # tekshiramiz. Volume yo'qolib yangi initdb bo'lsa, guard mavjud bo'lmaydi va
     # bot foydalanuvchi/bonus/to'lov yozmasdan fail-closed holatda to'xtaydi.
