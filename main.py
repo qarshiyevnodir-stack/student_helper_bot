@@ -5,6 +5,14 @@ import asyncio
 from io import BytesIO
 import random
 import db
+from database_backup import (
+    BackupReport,
+    DatabaseBackupError,
+    EmptyDatabaseRegression,
+    backup_interval_seconds,
+    backups_enabled,
+    create_encrypted_backup,
+)
 from persistent_db_migration import (
     PersistentDatabaseMigrationError,
     copy_to_empty_persistent_target,
@@ -202,6 +210,54 @@ def run_persistent_database_migration_if_requested() -> None:
         counts["transactions"],
         counts["generations"],
     )
+
+
+async def _notify_backup_failure(context: ContextTypes.DEFAULT_TYPE, error: Exception) -> None:
+    """Sends one generic safety signal to admins without exposing backup details."""
+    fingerprint = f"{type(error).__name__}:{error}"
+    if context.application.bot_data.get("database_backup_last_alert") == fingerprint:
+        return
+    context.application.bot_data["database_backup_last_alert"] = fingerprint
+
+    if isinstance(error, EmptyDatabaseRegression):
+        message = (
+            "⚠️ *Database backup xavfsizlik signali*\n\n"
+            "Oldingi tasdiqlangan backupdan keyin muhim jadval kutilmaganda bo'shlandi. "
+            "Yangi bo'sh holat backup sifatida saqlanmadi. Railway logini tekshiring; "
+            "tiklash faqat alohida database'ga va tasdiq bilan bajariladi."
+        )
+    else:
+        message = (
+            "⚠️ *Database backup bajarilmadi*\n\n"
+            "Oxirgi tasdiqlangan backup saqlanib qoldi. Xavfsiz sabab Railway logida qayd etildi; "
+            "maxfiy database yoki storage ma'lumoti bu xabarda ko'rsatilmaydi."
+        )
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await context.bot.send_message(admin_id, message, parse_mode="Markdown")
+        except Exception:
+            logger.exception("Database backup signali admin chatiga yuborilmadi")
+
+
+async def scheduled_database_backup(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Creates one encrypted external backup; restoring is intentionally never automatic."""
+    if not backups_enabled():
+        return
+    try:
+        report: BackupReport = await asyncio.to_thread(create_encrypted_backup)
+        context.application.bot_data.pop("database_backup_last_alert", None)
+        logger.info(
+            "Encrypted database backup verified and uploaded | key=%s | created_at=%s",
+            report.object_key,
+            report.created_at,
+        )
+    except DatabaseBackupError as exc:
+        logger.error("Encrypted database backup failed safely: %s", exc)
+        await _notify_backup_failure(context, exc)
+    except Exception as exc:
+        logger.exception("Unexpected encrypted database backup failure")
+        await _notify_backup_failure(context, exc)
 
 
 async def _send_financial_maintenance_notice(update: Update) -> None:
@@ -8922,6 +8978,28 @@ def main() -> None:
     )
     # Global xato handleri adminlarga xavfsiz signal yuborishi uchun.
     application.bot_data["admin_error_ids"] = tuple(ADMIN_IDS)
+
+    # Tashqi backup faqat explicit private sozlama bilan yoqiladi. Birinchi nusxa
+    # startupdan keyin olinadi; restore hech qachon bu jarayonda avtomatik emas.
+    if backups_enabled():
+        try:
+            interval_seconds = backup_interval_seconds()
+            if application.job_queue is None:
+                raise DatabaseBackupError("python-telegram-bot JobQueue mavjud emas")
+            application.job_queue.run_repeating(
+                scheduled_database_backup,
+                interval=interval_seconds,
+                first=90,
+                name="encrypted-postgres-backup",
+            )
+            logger.info(
+                "Encrypted database backup schedule enabled | interval_seconds=%s",
+                interval_seconds,
+            )
+        except DatabaseBackupError as exc:
+            # Backup configidagi xato foydalanuvchi botini to'xtatmaydi, ammo
+            # xavfsizlik holati loggerda ochiq qayd qilinadi.
+            logger.error("Encrypted database backup schedule was not enabled: %s", exc)
 
     # ── Slayd yaratish ──
     slayd_handler = ConversationHandler(
