@@ -140,7 +140,7 @@ WELCOME_BONUS_AMOUNT = 2000
 REFERRAL_BONUS_AMOUNT = 2000
 RECOVERY_CREDIT_AMOUNT = 2000
 RECOVERY_CREDIT_GRANT_KEY = "recovery_credit_all_existing_users_20260917_v1"
-RECOVERY_CREDIT_NOTE = "2026-09-17: barcha mavjud foydalanuvchilarga bir martalik recovery krediti"
+RECOVERY_CREDIT_NOTE = "2026-09-17: yangi o'quv yili uchun barcha mavjud foydalanuvchilarga bir martalik bonus"
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -8650,14 +8650,15 @@ async def apply_recovery_credit_20260917(update: Update, context: ContextTypes.D
         return
 
     await update.message.reply_text(
-        f"⏳ {len(recipient_ids)} ta mavjud foydalanuvchiga {RECOVERY_CREDIT_AMOUNT:,} so'm "
-        "recovery krediti qo'shildi. Xabarnomalar yuborilmoqda..."
+        f"⏳ {len(recipient_ids)} ta mavjud foydalanuvchiga yangi o'quv yili uchun "
+        f"{RECOVERY_CREDIT_AMOUNT:,} so'm bonus qo'shildi. Xabarnomalar yuborilmoqda..."
     )
     notified = 0
     failed = 0
     notification = (
-        "ℹ️ *SlideGo balans yangilanishi*\n\n"
-        f"Balansingizga bir martalik *{RECOVERY_CREDIT_AMOUNT:,} so'm* kredit qo'shildi. "
+        "🎓 *Yangi o'quv yili bonusi*\n\n"
+        f"Yangi o'quv yili munosabati bilan balansingizga *{RECOVERY_CREDIT_AMOUNT:,} so'm* "
+        "bonus qo'shildi. "
         "Xizmatlar ma'lumotlar xavfsizligi tekshiruvi tugaguncha vaqtincha yopiq qoladi. "
         "Iltimos, hozircha to'lov yubormang."
     )
@@ -8675,7 +8676,7 @@ async def apply_recovery_credit_20260917(update: Update, context: ContextTypes.D
             failed += 1
 
     await update.message.reply_text(
-        f"✅ Recovery krediti bir martalik audit bilan qo'llandi.\n"
+        f"✅ Yangi o'quv yili bonusi bir martalik audit bilan qo'llandi.\n"
         f"💰 Har bir foydalanuvchiga: {RECOVERY_CREDIT_AMOUNT:,} so'm\n"
         f"📨 Xabar yuborildi: {notified}\n"
         f"⚠️ Yetkazilmadi: {failed}\n\n"
