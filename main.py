@@ -5,7 +5,7 @@ import asyncio
 from io import BytesIO
 import random
 import db
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, WebAppInfo
 from telegram.error import TimedOut
 from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
@@ -164,10 +164,14 @@ FINANCIAL_MAINTENANCE_MESSAGE = (
 
 
 async def _send_financial_maintenance_notice(update: Update) -> None:
-    """Yangi moliyaviy yozuv yaratmasdan vaqtinchalik holatni bildiradi."""
+    """Yangi yozuv yaratmasdan blok holatini bildiradi va eski klaviaturani yashiradi."""
     message = update.effective_message
     if message:
-        await message.reply_text(FINANCIAL_MAINTENANCE_MESSAGE, parse_mode="Markdown")
+        await message.reply_text(
+            FINANCIAL_MAINTENANCE_MESSAGE,
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove(),
+        )
 
 
 async def financial_maintenance_message_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
