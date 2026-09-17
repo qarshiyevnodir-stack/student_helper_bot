@@ -8781,11 +8781,23 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────
 
 def main() -> None:
-    # Database migratsiyalari va jadvallarini faqat bot ishga tushayotganda tayyorlaymiz.
+    # Database migratsiyalaridan oldin aynan kutilgan Postgres instance ekanini
+    # tekshiramiz. Volume yo'qolib yangi initdb bo'lsa, guard mavjud bo'lmaydi va
+    # bot foydalanuvchi/bonus/to'lov yozmasdan fail-closed holatda to'xtaydi.
     try:
+        bootstrap_requested = os.getenv("DATABASE_GUARD_BOOTSTRAP", "false").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
+        db.verify_database_guard(
+            os.getenv("DATABASE_GUARD_TOKEN", ""),
+            # Marker faqat xizmatlar allaqachon yopilgan maintenance holatida
+            # yaratilishi mumkin. Shunda unutilgan bootstrap flag yangi bo'sh DBni
+            # pulli rejimda yashirin qabul qila olmaydi.
+            allow_bootstrap=bootstrap_requested and FINANCIAL_MAINTENANCE_MODE,
+        )
         db.init_db()
     except Exception:
-        logger.exception("Database boshlang'ich sozlamasi bajarilmadi")
+        logger.exception("Database identifikatsiyasi yoki boshlang'ich sozlamasi bajarilmadi")
         return
 
     token = os.getenv("BOT_TOKEN")

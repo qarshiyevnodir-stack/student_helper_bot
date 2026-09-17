@@ -14,6 +14,7 @@ Muhit o'zgaruvchisi:
 import os
 import random
 import string
+import hmac
 from datetime import datetime, date
 
 import psycopg2
@@ -59,6 +60,75 @@ def get_conn():
 def release_conn(conn):
     """Ulanishni pool ga qaytaradi."""
     _get_pool().putconn(conn)
+
+
+# ─────────────────────────────────────────────
+# Database identity guard
+# ─────────────────────────────────────────────
+
+def verify_database_guard(expected_token: str, *, allow_bootstrap: bool = False) -> None:
+    """Bo'sh/almashtirilgan DB bilan botning yashirin ishga tushishini to'xtatadi.
+
+    Token bot service environmentida saqlanadi, uning nusxasi esa faqat shu
+    Postgres instance ichida bo'ladi. Volume yo'qolib, yangi Postgres initdb
+    bo'lsa bu jadval ham yo'qoladi va bootstrap ruxsatisiz bot fail-closed
+    holatda to'xtaydi. Token hech qachon logga chiqarilmaydi.
+    """
+    if not expected_token:
+        raise RuntimeError(
+            "DATABASE_GUARD_TOKEN topilmadi; database identifikatsiyasi tasdiqlanmadi."
+        )
+
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT to_regclass('public.system_metadata')")
+        metadata_table = c.fetchone()[0]
+
+        if metadata_table is None:
+            if not allow_bootstrap:
+                raise RuntimeError(
+                    "Database guard yozuvi topilmadi. Ehtimol yangi bo'sh database ulangan; "
+                    "tekshiruvsiz ishga tushish bloklandi."
+                )
+            c.execute("""
+                CREATE TABLE system_metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            c.execute("""
+                INSERT INTO system_metadata (key, value)
+                VALUES ('database_guard_token', %s)
+            """, (expected_token,))
+            conn.commit()
+            return
+
+        c.execute(
+            "SELECT value FROM system_metadata WHERE key = 'database_guard_token'"
+        )
+        row = c.fetchone()
+        if row is None:
+            if not allow_bootstrap:
+                raise RuntimeError(
+                    "Database guard yozuvi topilmadi. Ehtimol database almashtirilgan; "
+                    "tekshiruvsiz ishga tushish bloklandi."
+                )
+            c.execute("""
+                INSERT INTO system_metadata (key, value)
+                VALUES ('database_guard_token', %s)
+            """, (expected_token,))
+            conn.commit()
+            return
+
+        if not hmac.compare_digest(str(row[0]), expected_token):
+            raise RuntimeError(
+                "Database guard mos kelmadi. Boshqa yoki qayta yaratilgan database "
+                "ulangani ehtimoli bor; tekshiruvsiz ishga tushish bloklandi."
+            )
+    finally:
+        release_conn(conn)
 
 
 # ─────────────────────────────────────────────
