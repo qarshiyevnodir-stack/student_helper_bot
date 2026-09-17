@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from telegram.error import NetworkError
+from telegram.error import Conflict, NetworkError
 
 
 _SECRET_PATTERNS = (
@@ -123,11 +123,13 @@ async def global_error_handler(update, context) -> None:
     error = getattr(context, "error", None)
 
     # `update=None` — Telegram polling infratuzilmasida, foydalanuvchi oqimidan
-    # tashqarida yuz bergan hodisa. NetworkError/502 retry bilan tiklanadi; uni
-    # admin chatiga yuborish shovqin beradi, ammo logda xavfsiz qayd qoladi.
-    if update is None and isinstance(error, NetworkError):
+    # tashqarida yuz bergan hodisa. NetworkError/502 retry bilan tiklanadi.
+    # Conflict ham deploy paytida oldingi polling instance hali tugamaganida
+    # qisqa paydo bo'ladi. Ikkalasi ham foydalanuvchi buyurtmasi emas: admin
+    # chatiga yuborish shovqin beradi, ammo xavfsiz logda qayd qoladi.
+    if update is None and isinstance(error, (NetworkError, Conflict)):
         logger.warning(
-            "Telegram pollingda vaqtinchalik tarmoq xatosi: %s",
+            "Telegram pollingdagi qayta tiklanadigan infratuzilma xatosi: %s",
             type(error).__name__,
         )
         return
