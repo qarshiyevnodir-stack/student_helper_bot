@@ -197,11 +197,10 @@ def run_persistent_database_migration_if_requested() -> None:
         os.getenv("TARGET_DATABASE_URL", ""),
     )
     logger.info(
-        "Persistent database copy verified | users=%s transactions=%s generations=%s metadata=%s",
+        "Persistent database copy verified | users=%s transactions=%s generations=%s",
         counts["users"],
         counts["transactions"],
         counts["generations"],
-        counts["system_metadata"],
     )
 
 

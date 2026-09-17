@@ -21,7 +21,6 @@ REQUIRED_TABLES = (
     "users",
     "transactions",
     "generations",
-    "system_metadata",
 )
 
 
