@@ -136,6 +136,11 @@ REQUIRED_CHANNELS = (
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 # Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
+WELCOME_BONUS_AMOUNT = 2000
+REFERRAL_BONUS_AMOUNT = 2000
+RECOVERY_CREDIT_AMOUNT = 2000
+RECOVERY_CREDIT_GRANT_KEY = "recovery_credit_all_existing_users_20260917_v1"
+RECOVERY_CREDIT_NOTE = "2026-09-17: barcha mavjud foydalanuvchilarga bir martalik recovery krediti"
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -900,25 +905,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_row = await asyncio.to_thread(db.get_or_create_user, user.id, user.username, user.full_name, ref_by)
 
     # Yangi foydalanuvchiga bir martalik xush kelibsiz bonusi
-    bonus_given = await asyncio.to_thread(db.give_welcome_bonus, user.id, 4000)
+    bonus_given = await asyncio.to_thread(db.give_welcome_bonus, user.id, WELCOME_BONUS_AMOUNT)
 
     if bonus_given:
-        # Yangi foydalanuvchi — taklif qiluvchiga 1000 so'm bonus
+        # Yangi foydalanuvchi — taklif qiluvchiga ham 2 000 so'm bonus
         if ref_by:
-            await asyncio.to_thread(db.add_balance, ref_by, 1000)
-            logger.info(f"Referral bonus: {ref_by} ga 1000 so'm berildi (yangi user: {user.id})")
+            await asyncio.to_thread(db.add_balance, ref_by, REFERRAL_BONUS_AMOUNT)
+            logger.info(f"Referral bonus: {ref_by} ga {REFERRAL_BONUS_AMOUNT} so'm berildi (yangi user: {user.id})")
             try:
                 await context.bot.send_message(
                     chat_id=ref_by,
                     text=f"🎉 Siz taklif qilgan do'stingiz botga qo'shildi!\n"
-                         f"💰 Balansingizga 1,000 so'm bonus qo'shildi."
+                         f"💰 Balansingizga {REFERRAL_BONUS_AMOUNT:,} so'm bonus qo'shildi."
                 )
             except Exception as e:
                 logger.error(f"Referral bonus xabari yuborishda xatolik: {e}")
 
         await update.message.reply_text(
             f"Assalomu alaykum, {user.first_name}! 👋\n\n"
-            f"🎁 Xush kelibsiz bonusi: 4,000 so'm balansingizga qo'shildi!\n"
+            f"🎁 Xush kelibsiz bonusi: {WELCOME_BONUS_AMOUNT:,} so'm balansingizga qo'shildi!\n"
             f"Bu bonus faqat bir marta beriladi.\n\n"
             f"Quyidagi xizmatlardan birini tanlang:",
             reply_markup=get_main_menu_keyboard()
@@ -8620,6 +8625,64 @@ async def admin_delete_user_message(update: Update, context: ContextTypes.DEFAUL
     return await handle_main_menu_selection(update, context)
 
 
+async def apply_recovery_credit_20260917(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tasdiqlangan 2 000 so'mlik recovery kreditini faqat bir marta qo'llaydi."""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    if not FINANCIAL_MAINTENANCE_MODE:
+        await update.message.reply_text(
+            "⚠️ Recovery krediti faqat financial maintenance rejimida qo'llanadi."
+        )
+        return
+
+    result = await asyncio.to_thread(
+        db.grant_recovery_credit_to_all_existing_users,
+        RECOVERY_CREDIT_AMOUNT,
+        RECOVERY_CREDIT_GRANT_KEY,
+        RECOVERY_CREDIT_NOTE,
+    )
+    recipient_ids = result["recipient_ids"]
+    if not result["applied"]:
+        await update.message.reply_text(
+            "ℹ️ Recovery krediti avval qo'llangan yoki hozircha kredit beriladigan foydalanuvchi yo'q. "
+            "Balanslar qayta qo'shilmagan."
+        )
+        return
+
+    await update.message.reply_text(
+        f"⏳ {len(recipient_ids)} ta mavjud foydalanuvchiga {RECOVERY_CREDIT_AMOUNT:,} so'm "
+        "recovery krediti qo'shildi. Xabarnomalar yuborilmoqda..."
+    )
+    notified = 0
+    failed = 0
+    notification = (
+        "ℹ️ *SlideGo balans yangilanishi*\n\n"
+        f"Balansingizga bir martalik *{RECOVERY_CREDIT_AMOUNT:,} so'm* kredit qo'shildi. "
+        "Xizmatlar ma'lumotlar xavfsizligi tekshiruvi tugaguncha vaqtincha yopiq qoladi. "
+        "Iltimos, hozircha to'lov yubormang."
+    )
+    for recipient_id in recipient_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=recipient_id,
+                text=notification,
+                parse_mode="Markdown",
+            )
+            notified += 1
+        except Exception:
+            # Foydalanuvchi botni bloklagan bo'lishi mumkin. Kredit allaqachon
+            # audit bilan yozilgan; xabar xatosi sabab qayta kredit bermaymiz.
+            failed += 1
+
+    await update.message.reply_text(
+        f"✅ Recovery krediti bir martalik audit bilan qo'llandi.\n"
+        f"💰 Har bir foydalanuvchiga: {RECOVERY_CREDIT_AMOUNT:,} so'm\n"
+        f"📨 Xabar yuborildi: {notified}\n"
+        f"⚠️ Yetkazilmadi: {failed}\n\n"
+        "Xizmatlar financial maintenance rejimida yopiq qoladi."
+    )
+
+
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha foydalanuvchilarga xabar yuboradi — 2 bosqich: avval /broadcast, keyin matn"""
     if update.effective_user.id not in ADMIN_IDS:
@@ -9573,6 +9636,9 @@ def main() -> None:
     # Har qanday kutilmagan xato markazlashgan va maxfiy ma'lumotsiz qayd qilinadi.
     application.add_error_handler(global_error_handler)
     # Admin handlerlari
+    application.add_handler(CommandHandler(
+        "apply_recovery_credit_20260917", apply_recovery_credit_20260917
+    ), group=-1)
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("admin_addbal", admin_add_balance))
     application.add_handler(CommandHandler("broadcast", admin_broadcast))

@@ -415,7 +415,7 @@ def get_users_page(page: int = 1, per_page: int = 15, sort_by: str = 'joined_at'
         release_conn(conn)
 
 
-def give_welcome_bonus(user_id: int, amount: int = 6000) -> bool:
+def give_welcome_bonus(user_id: int, amount: int = 2000) -> bool:
     """Yangi foydalanuvchiga bir martalik xush kelibsiz bonusini beradi.
     
     Returns:
@@ -435,6 +435,67 @@ def give_welcome_bonus(user_id: int, amount: int = 6000) -> bool:
         updated = c.rowcount  # 1 — yangilandi, 0 — allaqachon berilgan
         conn.commit()
         return updated > 0
+    finally:
+        release_conn(conn)
+
+
+def grant_recovery_credit_to_all_existing_users(
+    amount: int,
+    grant_key: str,
+    note: str,
+) -> dict:
+    """Mavjud foydalanuvchilarga bir martalik recovery krediti beradi.
+
+    `system_metadata` dagi grant_key atomik to'siq bo'lib xizmat qiladi:
+    admin buyrug'i yoki deploy qayta bajarilsa, balans ikkinchi marta
+    qo'shilmaydi. Har bir kredit tasdiqlangan audit transaction sifatida
+    yoziladi; bu haqiqiy topup/tushum emas.
+    """
+    if amount <= 0:
+        raise ValueError("Recovery krediti musbat bo'lishi kerak")
+    if not grant_key:
+        raise ValueError("Recovery credit audit kaliti kiritilishi kerak")
+
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "SELECT value FROM system_metadata WHERE key = %s FOR UPDATE",
+            (grant_key,),
+        )
+        if c.fetchone() is not None:
+            conn.rollback()
+            return {"applied": False, "recipient_ids": []}
+
+        c.execute("""
+            WITH credited AS (
+                UPDATE users
+                SET balance = balance + %s,
+                    last_active = NOW()
+                RETURNING user_id
+            )
+            INSERT INTO transactions (user_id, amount, type, status, note, updated_at)
+            SELECT user_id, %s, 'recovery_credit', 'approved', %s, NOW()
+            FROM credited
+            RETURNING user_id
+        """, (amount, amount, note))
+        recipient_ids = [row[0] for row in c.fetchall()]
+
+        # Bo'sh DBni "bajarildi" deb belgilamaymiz: keyin haqiqiy user paydo
+        # bo'lsa admin buyruqni faqat ongli ravishda qayta ishga tushira oladi.
+        if not recipient_ids:
+            conn.rollback()
+            return {"applied": False, "recipient_ids": []}
+
+        c.execute(
+            "INSERT INTO system_metadata (key, value) VALUES (%s, %s)",
+            (grant_key, str(len(recipient_ids))),
+        )
+        conn.commit()
+        return {"applied": True, "recipient_ids": recipient_ids}
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_conn(conn)
 
