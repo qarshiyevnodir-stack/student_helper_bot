@@ -149,6 +149,53 @@ logging.basicConfig(
 configure_secure_logging()
 logger = logging.getLogger(__name__)
 
+# Ma'lumotlar tiklanishi davomida yangi bo'sh DBga bonus, to'lov yoki buyurtma
+# yozilmasin. Default yoqilgan; tiklash yakunlangach Railway Variables ichida
+# FINANCIAL_MAINTENANCE_MODE=false berib, alohida code deploysiz o'chiriladi.
+FINANCIAL_MAINTENANCE_MODE = os.getenv("FINANCIAL_MAINTENANCE_MODE", "true").strip().lower() not in {
+    "0", "false", "no", "off",
+}
+FINANCIAL_MAINTENANCE_MESSAGE = (
+    "⚠️ *Xizmatlar vaqtincha to'xtatilgan*\n\n"
+    "Ma'lumotlar tiklanishi tekshirilayotgani sabab balans, bonus va to'lovlar hozircha "
+    "qabul qilinmaydi. Iltimos, hozir to'lov yubormang va buyurtma bermang. "
+    "Tekshiruv yakunlangach bot orqali xabar beriladi."
+)
+
+
+async def _send_financial_maintenance_notice(update: Update) -> None:
+    """Yangi moliyaviy yozuv yaratmasdan vaqtinchalik holatni bildiradi."""
+    message = update.effective_message
+    if message:
+        await message.reply_text(FINANCIAL_MAINTENANCE_MESSAGE, parse_mode="Markdown")
+
+
+async def financial_maintenance_message_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Xizmat, Mini App va chek xabarlarini recovery tugaguncha bloklaydi."""
+    if not FINANCIAL_MAINTENANCE_MODE:
+        return
+    await _send_financial_maintenance_notice(update)
+    raise ApplicationHandlerStop
+
+
+async def financial_maintenance_callback_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Inline tugmalar orqali buyurtma yoki balans yozilishini bloklaydi."""
+    if not FINANCIAL_MAINTENANCE_MODE:
+        return
+    query = update.callback_query
+    if query:
+        await query.answer("Xizmatlar vaqtincha to'xtatilgan", show_alert=True)
+    await _send_financial_maintenance_notice(update)
+    raise ApplicationHandlerStop
+
+
+async def financial_maintenance_command_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Chek va admin balans-buyruqlarini recovery tugaguncha bloklaydi."""
+    if not FINANCIAL_MAINTENANCE_MODE:
+        return
+    await _send_financial_maintenance_notice(update)
+    raise ApplicationHandlerStop
+
 # ─────────────────────────────────────────────
 # Suhbat holatlari — Balans to'ldirish
 # ─────────────────────────────────────────────
@@ -831,6 +878,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             reply_markup=get_subscription_keyboard()
         )
         return LANGUAGE_SELECTION
+
+    # Fresh DB eski foydalanuvchini yangi deb bilib, noto'g'ri bonus berishi
+    # mumkin. Maintenance rejimida hatto user row yaratish ham qilinmaydi.
+    if FINANCIAL_MAINTENANCE_MODE:
+        await _send_financial_maintenance_notice(update)
+        return ConversationHandler.END
 
     # Referral tekshirish
     ref_by = None
@@ -9479,6 +9532,20 @@ def main() -> None:
     application.add_handler(MessageHandler(
         filters.PHOTO | filters.Document.IMAGE, ob_extra_photo_router
     ), group=-2)
+
+    # DB recovery tekshirilayotganda barcha foydalanuvchi xabarlari va inline
+    # tugmalarini ConversationHandler hamda admin handlerlaridan oldin to'xtatadi.
+    # /start faqat maintenance holatini ko'rsatadi; /chekyubor va qo'lda balans
+    # qo'shish buyruqlari esa alohida bloklanadi.
+    application.add_handler(MessageHandler(
+        filters.ALL & ~filters.COMMAND, financial_maintenance_message_guard
+    ), group=-3)
+    application.add_handler(CallbackQueryHandler(
+        financial_maintenance_callback_guard
+    ), group=-3)
+    application.add_handler(CommandHandler(
+        ["chekyubor", "admin_addbal"], financial_maintenance_command_guard
+    ), group=-3)
 
     # Admin broadcast handler — ConversationHandler dan OLDIN, group=-1 bilan
     application.add_handler(MessageHandler(
