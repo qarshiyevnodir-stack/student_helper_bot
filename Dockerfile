@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# The source and target are PostgreSQL 16. A matching client is required for
-# pg_dump/pg_restore during the explicit one-time persistent-volume migration.
+# The persistent Railway target is PostgreSQL 18. The dump client must be at
+# least that major version or PostgreSQL safely rejects an incompatible backup.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
@@ -36,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" \
        > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && apt-get install -y --no-install-recommends postgresql-client-18 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
