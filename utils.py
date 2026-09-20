@@ -311,7 +311,7 @@ def fetch_gamma_image(image_query, target_shape, style='illustration', content_k
 
 def fetch_image_together(image_query, width=1024, height=768, style='photo', content_keywords=None, topic=None,
                          max_attempts=6, request_timeout=(15, 100)):
-    """Together.ai Flux.1-schnell orqali mavzuga mos rasm generatsiya qiladi.
+    """Together.ai FLUX.2-dev orqali mavzuga mos rasm generatsiya qiladi.
 
     Uchta kalit round-robin usulida tanlanadi. 429/503 vaqtinchalik xatosida
     so'rovlar qisqa interval bilan qayta yuboriladi; kalit yoki token logga
@@ -327,11 +327,11 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
     url = 'https://api.together.xyz/v1/images/generations'
     prompt = _build_together_prompt(image_query, style=style, content_keywords=content_keywords, topic=topic)
     data = {
-        'model': 'black-forest-labs/FLUX.1-schnell',
+        'model': 'black-forest-labs/FLUX.2-dev',
         'prompt': prompt,
         'width': width,
         'height': height,
-        'steps': 4,
+        'steps': 20,
         'n': 1,
         'seed': random.randint(1, 2147483647),
         'response_format': 'b64_json',
@@ -15866,8 +15866,7 @@ SLIDE_TYPE_NAMES_PLATINUM = {
 
 def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustration'):
     """Gamma/Platinum slaydiga majburiy AI rasmini joylaydi.
-
-    Together FLUX.1-schnell birinchi tanlov bo'lib qoladi. U 503/429/5xx bilan
+    Together FLUX.2-dev birinchi tanlov bo'lib qoladi. U 503/429/5xx bilan
     javob bermasa, ayni prompt va slot nisbatida DeepInfra FLUX.1-schnell
     avtomatik fallback bo'ladi. Ikkalasi ham muvaffaqiyatsiz bo'lsa PPTX
     yuborilmaydi, shuning uchun shablon rasmi hech qachon yashirincha qolmaydi.
