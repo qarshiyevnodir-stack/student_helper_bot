@@ -331,10 +331,10 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
         'prompt': prompt,
         'width': width,
         'height': height,
-        'steps': 20,
+        
         'n': 1,
         'seed': random.randint(1, 2147483647),
-        'response_format': 'b64_json',
+        'response_format': 'base64',
     }
 
     for attempt in range(max_attempts):
@@ -353,7 +353,7 @@ def fetch_image_together(image_query, width=1024, height=768, style='photo', con
             img_path = f"/tmp/together_img_{random.randint(0, 9999999)}.jpg"
             with open(img_path, 'wb') as file_obj:
                 file_obj.write(img_bytes)
-            logging.info('[Together.ai] Rasm generatsiya qilindi: style=%s, attempt=%s', style, attempt + 1)
+            logging.info('[Together.ai] FLUX.2 Dev rasm generatsiya qilindi: model=%s, style=%s, attempt=%s', data['model'], style, attempt + 1)
             return img_path
         except requests.HTTPError as exc:
             status_code = response.status_code if response is not None else None
