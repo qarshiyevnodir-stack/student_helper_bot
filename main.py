@@ -955,8 +955,11 @@ def get_subscription_prompt() -> str:
 
 
 # Barcha menyu tugmalarini ushlovchi filter — conversation ichida menyu bosilganda state handlerlar ishlamasin
+# Eski Telegram klientlari yoki qo'lda yuborilgan xabarlar ba'zan tugma emojisiz
+# matnini yuboradi. Bu ikkala ko'rinish ham bir xil taqdimot oqimini boshlashi kerak.
+SLIDE_MENU_TEXTS = {"🪄 Slayd yaratish ✨", "Slayd yaratish"}
 MENU_REGEX = (
-    r"^(🪄 Slayd yaratish ✨|📄 Mustaqil ish ✨|📚 Referat ✨|📁 Loyiha ishi ✨|"
+    r"^(🪄 Slayd yaratish ✨|Slayd yaratish|📄 Mustaqil ish ✨|📚 Referat ✨|📁 Loyiha ishi ✨|"
     r"📊 Infografika ✨|💰 Balans|🔗 Referral|🤖 AI yordamchi 💬|📰 Maqola ✨|"
     r"🎓 Kurs ishi / BMI 📝|📜 Tezis ✨|💡 Glossary ✨|🔠 Test tuzish|"
 r"🧩 Krossvord ✨|✍️ Insho / Esse ✨|📄 Rezyume / CV ✨|"
@@ -1047,7 +1050,7 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
     if text not in balans_tugmalari:
         _set_topup_state(context, user.id, None)
 
-    if text == "🪄 Slayd yaratish ✨":
+    if text in SLIDE_MENU_TEXTS:
         context.user_data.clear()
         context.user_data["mode"] = "slayd"
         await update.message.reply_text(
