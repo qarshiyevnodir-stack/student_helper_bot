@@ -15910,13 +15910,22 @@ def _gamma_place_image(slide, shape_name, topic, slide_title, style='illustratio
     if not blips:
         raise GammaImageGenerationError(f"Gamma rasm blipi topilmadi: {shape_name}")
 
-    current_rid = blips[0].get(f'{{{ns_r}}}embed')
-    if not current_rid:
+    original_rid = blips[0].get(f'{{{ns_r}}}embed')
+    if not original_rid:
         raise GammaImageGenerationError(f"Gamma rasm relationshipi topilmadi: {shape_name}")
 
     try:
-        image_part = target_shape.part.related_part(current_rid)
-        image_part._blob = img_data
+        # Platinum's repeated content slides originate from the same template
+        # relationships. Mutating the existing image part would therefore
+        # overwrite every clone that shares it. Create a fresh image part and
+        # repoint this one shape only, so pages such as 5/10/15 stay distinct.
+        from pptx.parts.image import Image, ImagePart
+        from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+
+        image = Image.from_file(BytesIO(img_data))
+        image_part = ImagePart.new(target_shape.part.package, image)
+        new_rid = target_shape.part.relate_to(image_part, RT.IMAGE)
+        blips[0].set(f'{{{ns_r}}}embed', new_rid)
     except Exception as exc:
         raise GammaImageGenerationError(
             f"Gamma rasmi PPTXga joylashtirilmadi: shape={shape_name}, error={type(exc).__name__}"
