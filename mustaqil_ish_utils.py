@@ -43,6 +43,11 @@ def add_page_border(document):
 
 def strip_markdown(text: str) -> str:
     """GPT javobidagi markdown belgilarini tozalaydi."""
+    # Ayrim model javoblari bo'sh qatorni haqiqiy satr tashlash o'rniga
+    # literal "\\n" belgilari bilan qaytaradi. DOCX ichida ular oddiy matn
+    # ko'rinishida chiqib qolmasligi uchun avval haqiqiy satr tashlashga o'tkazamiz.
+    text = text.replace('\\r\\n', '\n').replace('\\n', '\n').replace('\\r', '\n')
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
     # Sarlavha belgilari: ###, ##, #
     text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
     # Qalin va kursiv: **text**, __text__, *text*, _text_
@@ -55,6 +60,28 @@ def strip_markdown(text: str) -> str:
     # Ortiqcha bo'sh qatorlarni birlashtirish
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
+
+
+_EMBEDDED_CONCLUSION_HEADING = re.compile(
+    r'(?im)^[\t ]*(?:#{1,6}\s*)?(?:\d{1,2}\s*[.)]\s*)?'
+    r'(?:xulosa|hulosa|заключение|вывод|выводы|conclusion|concluding remarks)'
+    r'\s*[:\-–—]?\s*(?:\n|$)'
+)
+
+
+def remove_embedded_conclusion_section(text: str) -> str:
+    """Asosiy bo'limga model qo'shib yuborgan yakuniy bo'limni olib tashlaydi.
+
+    Referatning haqiqiy Xulosasi alohida reja bandi sifatida keyinroq yaratiladi.
+    Shu bois asosiy band oxirida mustaqil sarlavha bo'lib kelgan Xulosa/Conclusion
+    yoki Заключение bo'limi takror bo'lmasligi kerak.
+    """
+    match = _EMBEDDED_CONCLUSION_HEADING.search(text)
+    if not match:
+        return text.strip()
+
+    logging.info("Asosiy Referat bo'limidan rejasiz xulosa olib tashlandi")
+    return text[:match.start()].rstrip()
 
 def set_paragraph_font(paragraph, font_name='Times New Roman', font_size=14, bold=False, italic=False):
     """Sets font for all runs in a paragraph."""
@@ -290,9 +317,14 @@ def create_main_content(document, topic, plan_items, page_count, language):
     system_msg = f"You are an academic assistant writing a research paper in {language}. Write a detailed, academic text of about {words_per_item} words."
     for item in main_plan_items:
         add_formatted_paragraph(document, item, font_size=14, bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(12))
-        prompt = f"Mavzu: '{topic}'. Rejaning quyidagi bandi bo'yicha {words_per_item} so'z atrofida batafsil ilmiy matn yozib ber: \n{item}\n\nMuhim: Matn oxirida 'Xulosa', 'Hulosa', 'Conclusion' kabi bo'lim qo'shma. Faqat shu band bo'yicha asosiy matn yoz. Har bir yangi fikrni yangi avzasdan boshlash uchun \\n\\n ishlatib avzaslarni ajrat."
-        item_content = generate_content_from_gpt(prompt, language, system_msg)
-        add_formatted_paragraph(document, item_content)
+        prompt = f"Mavzu: '{topic}'. Rejaning quyidagi bandi bo'yicha {words_per_item} so'z atrofida batafsil ilmiy matn yozib ber: \n{item}\n\nMuhim: Matn oxirida 'Xulosa', 'Hulosa', 'Conclusion' kabi bo'lim qo'shma. Faqat shu band bo'yicha asosiy matn yoz. Har bir yangi fikr alohida abzatsda bo'lsin va abzatslar orasida bo'sh satr qoldir. Matnga literal teskari chiziq belgilarini kiritma."
+        # generate_content_from_gpt odatda matnni tozalaydi, ammo bu yakuniy
+        # himoya provider yoki test adapteri literal "\\n" qaytarsa ham ularni
+        # Word hujjatiga yozilishidan oldin haqiqiy abzats ajratgichiga aylantiradi.
+        item_content = strip_markdown(generate_content_from_gpt(prompt, language, system_msg))
+        item_content = remove_embedded_conclusion_section(item_content)
+        if item_content:
+            add_formatted_paragraph(document, item_content)
         document.add_paragraph() # Add space
 
     document.add_page_break()
