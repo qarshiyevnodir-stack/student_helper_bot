@@ -148,6 +148,25 @@ REQUIRED_CHANNELS = (
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 # Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
+NEW_USER_TOPUP_BONUS_ANNOUNCEMENT = (
+    "🚀 *BALANS TO'LDIRING VA BONUSGA EGA BO'LING!* 🎁\n\n"
+    "Endi botimizda balans to'ldirish yanada foydali!\n\n"
+    "💰 Har *10 000 so'm* uchun *+1 000 so'm BONUS!*\n\n"
+    "✅ 10 000 so'm → +1 000 bonus\n"
+    "✅ 20 000 so'm → +2 000 bonus\n"
+    "✅ 30 000 so'm → +3 000 bonus\n"
+    "✅ 40 000 so'm → +4 000 bonus\n"
+    "✅ 50 000 so'm → +5 000 bonus\n"
+    "✅ 60 000 so'm → +6 000 bonus\n"
+    "✅ 70 000 so'm → +7 000 bonus\n"
+    "✅ 80 000 so'm → +8 000 bonus\n"
+    "✅ 90 000 so'm → +9 000 bonus\n"
+    "✅ 100 000 so'm → +10 000 bonus 🎉\n\n"
+    "🔥 Qancha ko'p balans to'ldirsangiz, shuncha ko'p bonus olasiz!\n\n"
+    "📌 Chekni yuboring — to'lov summasi 10% bonus balansingizga qo'shiladi.\n\n"
+    "⏳ Aksiyani o'tkazib yubormang!\n"
+    "🤖 @slidego_bot"
+)
 WELCOME_BONUS_AMOUNT = 2000
 REFERRAL_BONUS_AMOUNT = 2000
 RECOVERY_CREDIT_AMOUNT = 2000
@@ -969,6 +988,16 @@ r"📋 Annotatsiya ✨|📝 Taqriz ✨|📦 Ziplash/Arxivlash 🗄️|📄 PDF K
 )
 MENU_FILTER = filters.Regex(MENU_REGEX)
 
+
+async def send_new_user_topup_bonus_announcement(bot, user_id: int) -> None:
+    """Yangi foydalanuvchiga joriy top-up aksiyasini bir marta ko'rsatadi."""
+    await bot.send_message(
+        chat_id=user_id,
+        text=NEW_USER_TOPUP_BONUS_ANNOUNCEMENT,
+        parse_mode="Markdown",
+    )
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Botni ishga tushiradi va asosiy menyu ko'rsatadi."""
     context.user_data.clear()
@@ -1023,6 +1052,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             f"Quyidagi xizmatlardan birini tanlang:",
             reply_markup=get_main_menu_keyboard()
         )
+        await send_new_user_topup_bonus_announcement(context.bot, user.id)
     else:
         await update.message.reply_text(
             f"Assalomu alaykum, {user.first_name}! 👋\n\nBotga xush kelibsiz! Quyidagi xizmatlardan birini tanlang:",
@@ -7813,6 +7843,9 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     is_subscribed = await check_subscription(context.bot, user.id, force=True)
     if is_subscribed:
         await query.answer(text="✅ Tabriklaymiz! Barcha majburiy kanallarga a'zo bo'ldingiz.", show_alert=False)
+        if FINANCIAL_MAINTENANCE_MODE:
+            await _send_financial_maintenance_notice(update)
+            return
         # A'zo bo'ldi — start ni qayta ishga tushirish
         try:
             await query.edit_message_text(
@@ -7821,12 +7854,32 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         except Exception:
             pass
+
+        # Obunadan keyin user ro'yxatdan o'tadi. Welcome-bonus atomik bo'lgani
+        # uchun e'lon faqat shu haqiqatan yangi foydalanuvchi uchun chiqadi.
+        await asyncio.to_thread(
+            db.get_or_create_user, user.id, user.username, user.full_name
+        )
+        bonus_given = await asyncio.to_thread(
+            db.give_welcome_bonus, user.id, WELCOME_BONUS_AMOUNT
+        )
+        welcome_text = (
+            f"Assalomu alaykum, {user.first_name}! 👋\n\n"
+            f"🎁 Xush kelibsiz bonusi: {WELCOME_BONUS_AMOUNT:,} so'm balansingizga qo'shildi!\n"
+            "Bu bonus faqat bir marta beriladi.\n\n"
+            "Quyidagi xizmatlardan birini tanlang:"
+            if bonus_given
+            else f"Assalomu alaykum, {user.first_name}! 👋\n\n"
+            "Quyidagi xizmatlardan birini tanlang:"
+        )
         # Asosiy menyuni yuborish
         await context.bot.send_message(
             chat_id=user.id,
-            text=f"Assalomu alaykum, {user.first_name}! 👋\n\nQuyidagi xizmatlardan birini tanlang:",
+            text=welcome_text,
             reply_markup=get_main_menu_keyboard()
         )
+        if bonus_given:
+            await send_new_user_topup_bonus_announcement(context.bot, user.id)
     else:
         await query.answer(
             text="⚠️ Siz hali barcha majburiy kanallarga a'zo bo'lmagansiz! Avval ikkala kanalga a'zo bo'ling, so'ng qayta tekshiring.",
