@@ -148,25 +148,6 @@ REQUIRED_CHANNELS = (
 CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 # Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
-TOPUP_BONUS_PROMO_TEXT = (
-    "🚀 *BALANS TO'LDIRING VA BONUSGA EGA BO'LING!* 🎁\n"
-    "Endi botimizda balans to'ldirish yanada foydali!\n\n"
-    "💰 Har *10 000 so'm* uchun *+1 000 so'm BONUS!*\n"
-    "✅ 10 000 so'm → +1 000 bonus\n"
-    "✅ 20 000 so'm → +2 000 bonus\n"
-    "✅ 30 000 so'm → +3 000 bonus\n"
-    "✅ 40 000 so'm → +4 000 bonus\n"
-    "✅ 50 000 so'm → +5 000 bonus\n"
-    "✅ 60 000 so'm → +6 000 bonus\n"
-    "✅ 70 000 so'm → +7 000 bonus\n"
-    "✅ 80 000 so'm → +8 000 bonus\n"
-    "✅ 90 000 so'm → +9 000 bonus\n"
-    "✅ 100 000 so'm → +10 000 bonus 🎉\n\n"
-    "🔥 Qancha ko'p balans to'ldirsangiz, shuncha ko'p bonus olasiz!\n"
-    "📌 Chekni yuboring — admin tekshirganidan so'ng to'lov summasi va bonus "
-    "balansingizga qo'lda qo'shiladi.\n"
-    "⏳ Aksiyani o'tkazib yubormang!"
-)
 WELCOME_BONUS_AMOUNT = 2000
 REFERRAL_BONUS_AMOUNT = 2000
 RECOVERY_CREDIT_AMOUNT = 2000
@@ -1535,7 +1516,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         # Narx va bepul limitlar faqat bot_core.pricing dan olinadi.
         msg = (
             f"💰 *Balansingiz: {balance:,} so'm*\n\n"
-            f"{TOPUP_BONUS_PROMO_TEXT}\n\n"
             "📋 *Xizmat narxlari:*\n"
             f"{get_balance_price_lines()}\n\n"
             f"🏦 *To'lov kartasi:*\n"
@@ -1585,7 +1565,6 @@ async def handle_main_menu_selection(update: Update, context: ContextTypes.DEFAU
         db.set_user_topup_state(user.id, 'amount', 0)
         msg = (
             f"💳 *Balans to'ldirish*\n\n"
-            f"{TOPUP_BONUS_PROMO_TEXT}\n\n"
             f"🏦 *To'lov kartasi:*\n"
             f"`{CARD_NUMBER}`\n"
             f"👤 Abramatova Madina\n\n"
@@ -7927,7 +7906,6 @@ async def topup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Balans to'ldirish boshlaydi — callback yoki message orqali."""
     msg = (
         f"💳 *Balans to'ldirish*\n\n"
-        f"{TOPUP_BONUS_PROMO_TEXT}\n\n"
         f"🏦 Karta raqami:\n`{CARD_NUMBER}`\n"
         f"👤 Abramatova Madina\n\n"
         f"⚠️ Minimal to'lov: *{MIN_TOPUP:,} so'm*\n\n"
