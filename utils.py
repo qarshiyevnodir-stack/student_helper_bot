@@ -657,6 +657,9 @@ def fetch_image_preview_urls(image_query, count=3):
     Qaytaradi: list of cdn_url yoki []
     """
     import re
+    image_query = str(image_query or '').strip()
+    if not image_query:
+        return []
     if not PIXABAY_API_KEY:
         return []
     try:
@@ -876,6 +879,10 @@ def _fetch_gold_pixabay_image(image_query):
 
 def fetch_image(image_query):
     """Gold rasm oqimi: Pixabaydagi mos foto -> DeepInfra fotorealistik fallback."""
+    image_query = str(image_query or '').strip()
+    if not image_query:
+        logging.warning('[Gold] Bo\'sh image_query sabab rasm so\'rovi o\'tkazib yuborildi.')
+        return None
     stock_image = _fetch_gold_pixabay_image(image_query)
     if stock_image:
         return stock_image
@@ -14674,8 +14681,6 @@ def fill_t33_slide_8_conclusion(slide, data):
 
 def build_slide_structure_33(prs, requested_slide_count):
     import logging
-    from pptx.oxml.ns import qn
-    import copy
     if len(prs.slides) < 8:
         logging.error("T33 shablonida kamida 8 ta slayd bo'lishi kerak.")
         return
@@ -14686,18 +14691,10 @@ def build_slide_structure_33(prs, requested_slide_count):
     if needed > 0:
         for extra in range(needed):
             src_idx = content_templates[extra % len(content_templates)]
-            src_slide = prs.slides[src_idx]
-            xml_str = src_slide._element.xml
-            from lxml import etree
-            new_el = etree.fromstring(xml_str)
-            rId = prs.slides._sldIdLst[-1].get(
-                '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
-            ) or prs.slides._sldIdLst[-1].get('r:id')
-            # Oddiy duplicate — oxirgi content slaydni nusxalash
-            from pptx.util import Inches
-            slide_layout = src_slide.slide_layout
-            new_slide = prs.slides.add_slide(slide_layout)
-            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+            duplicate_slide_with_rels(prs, src_idx)
+        # Xulosa asl shablonda 8-slayd (index 7) edi; qo'shilgan kontentdan
+        # keyin u yakuniy slayd bo'lib qolishi uchun oxirga suriladi.
+        move_slide(prs, 7, len(prs.slides) - 1)
     elif needed < 0:
         remove_count = -needed
         indices_to_remove = sorted(
@@ -14768,7 +14765,6 @@ def generate_template_33_presentation(prs, topic, requested_slide_count, languag
 
 def build_slide_structure_34(prs, requested_slide_count):
     import logging
-    import copy
     if len(prs.slides) < 8:
         logging.error("T34 shablonida kamida 8 ta slayd bo'lishi kerak.")
         return
@@ -14779,10 +14775,8 @@ def build_slide_structure_34(prs, requested_slide_count):
     if needed > 0:
         for extra in range(needed):
             src_idx = content_templates[extra % len(content_templates)]
-            src_slide = prs.slides[src_idx]
-            slide_layout = src_slide.slide_layout
-            new_slide = prs.slides.add_slide(slide_layout)
-            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+            duplicate_slide_with_rels(prs, src_idx)
+        move_slide(prs, 7, len(prs.slides) - 1)
     elif needed < 0:
         remove_count = -needed
         indices_to_remove = sorted(
@@ -14874,7 +14868,6 @@ def _t34_clear_and_write(txBody, paras_data):
 
 def build_slide_structure_34(prs, requested_slide_count):
     import logging
-    import copy
     if len(prs.slides) < 8:
         logging.error("T34 shablonida kamida 8 ta slayd bo'lishi kerak.")
         return
@@ -14885,10 +14878,8 @@ def build_slide_structure_34(prs, requested_slide_count):
     if needed > 0:
         for extra in range(needed):
             src_idx = content_templates[extra % len(content_templates)]
-            src_slide = prs.slides[src_idx]
-            slide_layout = src_slide.slide_layout
-            new_slide = prs.slides.add_slide(slide_layout)
-            new_slide._element.getparent().replace(new_slide._element, copy.deepcopy(src_slide._element))
+            duplicate_slide_with_rels(prs, src_idx)
+        move_slide(prs, 7, len(prs.slides) - 1)
     elif needed < 0:
         remove_count = -needed
         indices_to_remove = sorted(

@@ -2508,7 +2508,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
             for i, item in enumerate(content_data_list):
                 stype = i % 5
                 if stype in image_slide_types:
-                    q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
+                    q = str(item.get("image_query") or "").strip() if isinstance(item, dict) else ""
                     if q:
                         image_queries.append(q)
         template_file_names = {35: 'oddiy1.pptx', 36: 'oddiy2.pptx', 37: 'platinum.pptx', 38: 'gamma2.pptx'}
@@ -2744,7 +2744,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             for i, item in enumerate(content_data_list):
                 stype = i % 5
                 if stype in image_slide_types:
-                    q = item.get("image_query", "").strip() if isinstance(item, dict) else ""
+                    q = str(item.get("image_query") or "").strip() if isinstance(item, dict) else ""
                     if q:
                         image_queries.append(q)
         logger.info(f"Shablon {template_num}: {len(image_queries)} ta rasm joyi aniqlandi")
