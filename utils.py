@@ -12914,6 +12914,20 @@ def _t29_replace_picture(slide, shape_idx, img_path):
         logging.error(f"[T29] Rasm almashtirish xatosi: {e}")
         return False
 
+
+def _t29_find_picture_placeholder(slide):
+    """Rasm shape yoki bo'sh picture-placeholder indeksini qaytaradi."""
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    for index, shape in enumerate(slide.shapes):
+        if shape._element.findall(f'.//{{{ns_a}}}blip'):
+            return index
+        placeholder = shape._element.find(f'.//{{{ns_p}}}ph')
+        if placeholder is not None and placeholder.get('type') == 'pic':
+            return index
+    return None
+
+
 def fill_t29_slide_1_cover(slide, topic, name_surname):
     # shapes[0] = sarlavha (54pt bold FFFFFF left)
     # shapes[1] = subtitle (18pt bold FFFFFF left)
@@ -12995,12 +13009,7 @@ def fill_t29_slide_5_img_left(slide, data, img_arg=None):
     title = data.get("title", "") if isinstance(data, dict) else ""
     body_text = _t29_get_body_text(data)
     
-    pic_shape_idx = None
-    for i, s in enumerate(slide.shapes):
-        blips = s._element.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
-        if blips:
-            pic_shape_idx = i
-            break
+    pic_shape_idx = _t29_find_picture_placeholder(slide)
     if pic_shape_idx is not None and img_arg:
         _t29_replace_picture(slide, pic_shape_idx, img_arg)
         
@@ -13081,6 +13090,34 @@ def fill_t29_slide_6_img_right(slide, data, img_arg=None):
             {'algn': 'l', 'runs': [{'sz': 3600, 'b': 1, 'color': '000000', 'text': title.upper()}]}
         ])
 
+def fill_t29_slide_7_img_right(slide, data, img_arg=None):
+    """7-slayd: matn chapda, rasm o'ngda; har takrorlangan blokda bir xil ishlaydi."""
+    title = data.get("title", "") if isinstance(data, dict) else ""
+    body_text = _t29_get_body_text(data)
+    pic_shape_idx = _t29_find_picture_placeholder(slide)
+    if pic_shape_idx is not None and img_arg:
+        _t29_replace_picture(slide, pic_shape_idx, img_arg)
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    text_shapes = []
+    for index, shape in enumerate(slide.shapes):
+        if shape._element.findall(f'.//{{{ns_a}}}blip'):
+            continue
+        if hasattr(shape, 'has_text_frame') and shape.has_text_frame:
+            text_shapes.append((shape.top or 0, index))
+    text_shapes.sort(key=lambda item: item[0])
+    if text_shapes:
+        title_idx = text_shapes[0][1]
+        _t29_clear_and_write(slide.shapes[title_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 3600, 'b': 1, 'color': '000000', 'text': title.upper()}]}
+        ])
+    if len(text_shapes) >= 2:
+        body_idx = text_shapes[1][1]
+        _t29_clear_and_write(slide.shapes[body_idx].text_frame._txBody, [
+            {'algn': 'l', 'runs': [{'sz': 1800, 'b': 0, 'color': '000000', 'text': body_text}]}
+        ])
+
+
 def fill_t29_slide_7_conclusion(slide, data):
     # shapes[0] = xulosa_matn (60pt bold FFFFFF center)
     if len(slide.shapes) > 0 and slide.shapes[0].has_text_frame:
@@ -13090,7 +13127,7 @@ def fill_t29_slide_7_conclusion(slide, data):
 
 def build_slide_structure_29(prs, requested_slide_count):
     import logging
-    from utils import duplicate_slide, move_slide
+    from utils import duplicate_slide_with_rels, move_slide
     if len(prs.slides) < 8:
         logging.error("[T29] Shablon slaydlari yetarli emas")
         return
@@ -13109,7 +13146,7 @@ def build_slide_structure_29(prs, requested_slide_count):
     
     for s_idx in range(sets_needed):
         for idx in template_indices:
-            new_slide = duplicate_slide(prs, idx)
+            duplicate_slide_with_rels(prs, idx)
             # Yangi slaydni xulosadan oldinga qo'yish
             move_slide(prs, len(prs.slides) - 1, len(prs.slides) - 2)
         logging.info(f"  [T29] {s_idx+1}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
@@ -13138,11 +13175,12 @@ def generate_template_29_presentation(prs, topic, requested_slide_count, languag
         fill_t29_slide_3_title_text,
         fill_t29_slide_4_two_col,
         fill_t29_slide_5_img_left,
-        fill_t29_slide_6_img_right
+        fill_t29_slide_6_img_right,
+        fill_t29_slide_7_img_right,
     ]
     
-    # Slayd 5 (index 4) va 7 (index 6) da rasm bor -> slide_type 2 va 3
-    img_slide_types = {2, 3}
+    # 5-slayd (index 4) va 7-slayd (index 6) rasmli; har 5 slaydda qaytariladi.
+    img_slide_types = {2, 4}
     
     img_counter = 0
     for i, data in enumerate(content_data_list):

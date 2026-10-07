@@ -2497,7 +2497,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
             14:[0,1,2,3,4],15:[0,1,2,3,4],16:[0,1,2,3,4],17:[0,1,2,3,4],
             18:[0,2,4],19:[0,1,2,3,4],20:[3,4],21:[],22:[2,3],
             23:[0,1,2,3,4],24:[0,2,3],25:[0,1,2,3,4],26:[0,1,2,3,4],
-            27:[0,1,2],28:[1,2,3],29:[2,3],30:[2,4],31:[2,4],
+            27:[0,1,2],28:[1,2,3],29:[2,4],30:[2,4],31:[2,4],
             32:[0,1,2,3,4],33:[0,1,2],34:[2,3],35:[],36:[],
             37:[],  # platinum: rasm funksiya ichida yuklanadi
             38:[],  # gamma2: rasm funksiya ichida yuklanadi
@@ -2728,7 +2728,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             26: [0, 1, 2, 3, 4],  # T26: barcha kontent slaydlarda Freeform blip rasm bor
             27: [0, 1, 2],  # T27: slayd3 (idx 0), slayd4 (idx 1), slayd5 (idx 2) da Freeform blip rasm bor
             28: [1, 2, 3],  # T28: slayd4 (idx 1), slayd5 (idx 2), slayd6 (idx 3) da Picture rasm bor
-            29: [2, 3],  # T29: slayd5 (idx 2), slayd7 (idx 3) da Picture rasm bor
+            29: [2, 4],  # T29: slayd5 (idx 2), slayd7 (idx 4) da Picture rasm bor
             30: [2, 4],  # T30: slayd5 (idx 2), slayd7 (idx 4) da Picture rasm bor
             31: [2, 4],  # T31: slayd5 img_left (idx 2), slayd7 img_right (idx 4) da Picture rasm bor
             32: [0, 1, 2, 3, 4],  # T32: barcha kontent slaydlarda rasm bor
