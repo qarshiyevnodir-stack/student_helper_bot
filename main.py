@@ -18,7 +18,7 @@ from persistent_db_migration import (
     copy_to_empty_persistent_target,
 )
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, WebAppInfo
-from telegram.error import TimedOut
+from telegram.error import BadRequest, TimedOut
 from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes, ConversationHandler
 from utils import (
     generate_presentation,
@@ -149,9 +149,9 @@ CARD_NUMBER = "9860 1606 3105 8700"  # Abramatova Madina
 # Narxlar `bot_core.pricing` modulida markazlashgan.
 MIN_TOPUP = 2500
 NEW_USER_TOPUP_BONUS_ANNOUNCEMENT = (
-    "🚀 *BALANS TO'LDIRING VA BONUSGA EGA BO'LING!* 🎁\n\n"
+    "🚀 BALANS TO'LDIRING VA BONUSGA EGA BO'LING! 🎁\n\n"
     "Endi botimizda balans to'ldirish yanada foydali!\n\n"
-    "💰 Har *10 000 so'm* uchun *+1 000 so'm BONUS!*\n\n"
+    "💰 Har 10 000 so'm uchun +1 000 so'm BONUS!\n\n"
     "✅ 10 000 so'm → +1 000 bonus\n"
     "✅ 20 000 so'm → +2 000 bonus\n"
     "✅ 30 000 so'm → +3 000 bonus\n"
@@ -990,12 +990,18 @@ MENU_FILTER = filters.Regex(MENU_REGEX)
 
 
 async def send_new_user_topup_bonus_announcement(bot, user_id: int) -> None:
-    """Yangi foydalanuvchiga joriy top-up aksiyasini bir marta ko'rsatadi."""
-    await bot.send_message(
-        chat_id=user_id,
-        text=NEW_USER_TOPUP_BONUS_ANNOUNCEMENT,
-        parse_mode="Markdown",
-    )
+    """Yangi foydalanuvchiga joriy top-up aksiyasini bir marta ko'rsatadi.
+
+    Aksiya xabari ixtiyoriy: Telegram uni rad etsa, asosiy onboarding oqimi
+    va foydalanuvchining boshqa bot amallari to'xtamasligi kerak.
+    """
+    try:
+        await bot.send_message(
+            chat_id=user_id,
+            text=NEW_USER_TOPUP_BONUS_ANNOUNCEMENT,
+        )
+    except BadRequest:
+        logger.warning("Yangi foydalanuvchi aksiyasi yuborilmadi")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
