@@ -73,7 +73,7 @@ async def assert_direct_start_shows_promotion_once():
     assert "Xush kelibsiz bonusi" in message.replies[0][0]
     assert len(context.bot.messages) == 1
     assert context.bot.messages[0]["text"] == main.NEW_USER_TOPUP_BONUS_ANNOUNCEMENT
-    assert context.bot.messages[0]["parse_mode"] == "Markdown"
+    assert "parse_mode" not in context.bot.messages[0]
 
 
 async def assert_existing_direct_start_skips_promotion_once():
@@ -141,6 +141,7 @@ async def run_test():
 
     assert "admin tekshirganidan" not in main.NEW_USER_TOPUP_BONUS_ANNOUNCEMENT
     assert "to'lov summasi 10% bonus" in main.NEW_USER_TOPUP_BONUS_ANNOUNCEMENT
+    assert "*" not in main.NEW_USER_TOPUP_BONUS_ANNOUNCEMENT
     print("NEW_USER_BONUS_ANNOUNCEMENT_TEST_OK")
 
 
