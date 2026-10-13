@@ -8313,6 +8313,37 @@ SLIDE_TYPE_NAMES_T15 = {
 }
 CONTENT_SLIDE_TEMPLATE_INDICES_T15 = [2, 3, 4, 5, 6]
 
+
+def _duplicate_t15_slide_with_background(prs, template_slide_index):
+    """15-shablon slaydini rasm relationshiplari va aniq fon bilan nusxalaydi.
+
+    15-shablonning 5-slaydida ``p:bg`` ichida yashil fon berilgan. Oddiy
+    shape-copy bu elementni olib o'tmaydi, shuning uchun 10-, 15-, 20-, 25-
+    va 30-slaydlar oq fon bo'lib qolardi. Bu yordamchi faqat T15 qaytariqlari
+    uchun shu fonni slaydning yuqori XML qatlamida ham nusxalaydi.
+    """
+    import copy as _copy
+
+    ns_p = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    template_slide = prs.slides[template_slide_index]
+    new_slide = duplicate_slide_with_rels(prs, template_slide_index)
+
+    template_c_sld = template_slide._element.find(f'{{{ns_p}}}cSld')
+    new_c_sld = new_slide._element.find(f'{{{ns_p}}}cSld')
+    if template_c_sld is None or new_c_sld is None:
+        return new_slide
+
+    template_bg = template_c_sld.find(f'{{{ns_p}}}bg')
+    if template_bg is None:
+        return new_slide
+
+    existing_bg = new_c_sld.find(f'{{{ns_p}}}bg')
+    if existing_bg is not None:
+        new_c_sld.remove(existing_bg)
+    new_c_sld.insert(0, _copy.deepcopy(template_bg))
+    return new_slide
+
+
 def build_slide_structure_15(prs, requested_content_count):
     n_templates = len(CONTENT_SLIDE_TEMPLATE_INDICES_T15)
     full_repeats = max(1, round(requested_content_count / n_templates))
@@ -8322,7 +8353,7 @@ def build_slide_structure_15(prs, requested_content_count):
     extra_sets_needed = full_repeats - 1
     for set_num in range(extra_sets_needed):
         for slide_template_idx in CONTENT_SLIDE_TEMPLATE_INDICES_T15:
-            duplicate_slide(prs, slide_template_idx)
+            _duplicate_t15_slide_with_background(prs, slide_template_idx)
         logging.info(f"  [T15] {set_num + 2}-to'plam qo'shildi. Jami slaydlar: {len(prs.slides)}")
     last_index = len(prs.slides) - 1
     move_slide(prs, conclusion_current_index, last_index)
