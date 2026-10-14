@@ -6709,6 +6709,60 @@ SLIDE_TYPE_NAMES_T11 = {
 CONTENT_SLIDE_TEMPLATE_INDICES_T11 = [2, 3, 4, 5, 6]  # 0-indexed: slayd 3,4,5,6,7
 
 
+def ensure_template_11_content(topic, language, total_content_slides, content_data_list, slide_titles=None):
+    """11-shablonning barcha kontent slaydlari uchun ma'lumot borligini kafolatlaydi.
+
+    Uzun taqdimotlarda yagona LLM javobi oxirgi elementlarsiz qaytishi mumkin. Shunda
+    takrorlangan slaydlar bo'sh qolmasligi uchun faqat yetishmagan kontent yakka so'rov
+    bilan to'ldiriladi; avval olingan kontent o'zgartirilmaydi.
+    """
+    prepared = list(content_data_list) if isinstance(content_data_list, list) else []
+    titles = list(slide_titles) if isinstance(slide_titles, list) else []
+
+    for index, item in enumerate(prepared):
+        if not isinstance(item, dict):
+            title = titles[index].strip() if index < len(titles) and isinstance(titles[index], str) else f"{topic} — {index + 1}"
+            prepared[index] = {"title": title, "content": [str(item)] if item else [], "image_query": topic}
+
+    fallback_texts = {
+        "uz": (
+            "Ushbu bo'lim mavzuning asosiy tushunchalari va ularning o'zaro bog'liqligini izohlaydi.",
+            "Masala amaliy misollar hamda izchil tahlil asosida yoritiladi.",
+        ),
+        "ru": (
+            "Этот раздел раскрывает ключевые понятия темы и их взаимосвязь.",
+            "Вопрос рассматривается на основе последовательного анализа и практических примеров.",
+        ),
+        "en": (
+            "This section explains the key concepts of the topic and their relationship.",
+            "The subject is explored through a structured analysis and practical examples.",
+        ),
+        "de": (
+            "Dieser Abschnitt erläutert die wichtigsten Begriffe des Themas und ihre Zusammenhänge.",
+            "Das Thema wird anhand einer strukturierten Analyse und praktischer Beispiele dargestellt.",
+        ),
+    }
+
+    for index in range(len(prepared), total_content_slides):
+        planned_title = titles[index].strip() if index < len(titles) and isinstance(titles[index], str) and titles[index].strip() else f"{topic} — {index + 1}"
+        slide_type = index % len(CONTENT_SLIDE_TEMPLATE_INDICES_T11)
+        # T11 6-slaydi ikki ustunli ko'rinishdan foydalana oladi; qolganlari ikki paragrafli format bilan to'ladi.
+        requested_type = "two_columns" if slide_type == 3 else None
+        generated = generate_slide_content(
+            topic, index + 3, total_content_slides + 3, language, slide_type=requested_type
+        )
+        if not isinstance(generated, dict):
+            generated = {}
+        generated["title"] = planned_title
+        if not generated.get("content") and not (generated.get("col1") or generated.get("col2")):
+            generated["content"] = list(fallback_texts.get(language, fallback_texts["uz"]))
+        generated["image_query"] = generated.get("image_query") or topic
+        prepared.append(generated)
+        logging.warning("[T11] Yetishmagan %s-kontent slaydi to'ldirildi.", index + 1)
+
+    return prepared[:total_content_slides]
+
+
 def build_slide_structure_11(prs, requested_content_count):
     """
     11-shablon uchun slayd tuzilmasini yaratadi.
@@ -6890,8 +6944,10 @@ def fill_t11_slide_4_image_left(slide, content_data, image_query=None):
         if len(slide.shapes) > shape_idx and slide.shapes[shape_idx].has_text_frame:
             tf = slide.shapes[shape_idx].text_frame
             tf.word_wrap = True
-            total_chars = sum(len(s) for s in item_list)
-            font_pt = calc_body_font_pt(total_chars, base_pt=12, min_pt=9, max_pt=15)
+            # Takrorlangan slaydlarda ikkala blok ustma-ust kelmasligi uchun
+            # kenglik 8,30 sm, shrift esa 13 pt qilib bir xil saqlanadi.
+            slide.shapes[shape_idx].width = Cm(8.3)
+            font_pt = 13
             txBody = tf._txBody
             for lst in txBody.findall(f'{{{ns_a}}}lstStyle'):
                 lst.clear()
@@ -6943,6 +6999,7 @@ def fill_t11_slide_5_quote_image(slide, content_data, image_query=None):
     Shape[2]: PICTURE: left=13.1851, top=1.6425, w=10.4369, h=10.4648
     """
     from pptx.util import Pt, Cm
+    from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN
     from lxml import etree
     ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
@@ -6967,6 +7024,7 @@ def fill_t11_slide_5_quote_image(slide, content_data, image_query=None):
         run.text = title
         run.font.size = Pt(22)
         run.font.bold = True
+        run.font.color.rgb = RGBColor(73, 73, 73)
     # Matn/Quote (Shape[1]) - placeholder idx=1
     # Barcha placeholder larni ko'rib chiqib, idx=1 ni topish
     target_shape = None
@@ -7190,12 +7248,16 @@ def fill_t11_slide_8_conclusion(slide, content_data):
 
 
 def generate_template_11_presentation(prs, topic, requested_slide_count, language,
-                                       name_surname, plan, content_data_list, user_images=None):
+                                       name_surname, plan, content_data_list, user_images=None,
+                                       slide_titles=None):
     """
     11-shablon asosida to'liq prezentatsiya yaratadi.
     """
     import io
     total_content_slides = build_slide_structure_11(prs, requested_slide_count)
+    content_data_list = ensure_template_11_content(
+        topic, language, total_content_slides, content_data_list, slide_titles
+    )
     plan_dict = plan if isinstance(plan, dict) else {}
     # Slayd 1 — Muqova
     fill_t11_slide_1_cover(prs.slides[0], topic, name_surname)

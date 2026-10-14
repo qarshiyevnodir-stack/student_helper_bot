@@ -62,6 +62,7 @@ from utils import (
     generate_template_gamma2_presentation,
     generate_plan_with_titles,
     generate_all_content,
+    ensure_template_11_content,
     fetch_image_preview_urls,
     save_user_image_to_tmp,
     SLIDE_TYPE_NAMES,
@@ -2497,6 +2498,13 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
             )
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi")
+        if template_num == 11:
+            content_data_list = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: ensure_template_11_content(
+                    topic, language, slide_count, content_data_list, slide_titles
+                ),
+            )
         TEMPLATE_IMAGE_SLIDE_TYPES_WA = {
             1:[2,4],2:[4],3:[3,4],4:[3],5:[0,3],6:[],7:[0,4],8:[0,2],
             9:[1,2,3,4],10:[0,1,2,3,4],11:[1,2],12:[1,4],13:[0,1,3,4],
@@ -2521,6 +2529,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
         template_file = template_file_names.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file)
         prs = Presentation(template_path)
+        template_extra_options = {"slide_titles": slide_titles} if template_num == 11 else {}
         async def fetch_one_preview_wa(q):
             urls = await asyncio.get_event_loop().run_in_executor(
                 None, lambda qq=q: fetch_image_preview_urls(qq, count=1)
@@ -2532,6 +2541,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
                 prs=prs, topic=topic, requested_slide_count=slide_count,
                 language=language, name_surname=name_surname,
                 plan=plan_dict, content_data_list=content_data_list, user_images=[],
+                **template_extra_options,
             )
         )
         image_tasks = [fetch_one_preview_wa(q) for q in image_queries]
@@ -2545,7 +2555,7 @@ async def webapp_data_handler_generate(update: Update, context: ContextTypes.DEF
         context.user_data["pending_presentation"] = {
             "bytes": presentation_bytes, "filename": filename,
             "content_data_list": content_data_list, "template_num": template_num,
-            "template_generate_func_name": template_num,
+            "template_generate_func_name": template_num, "slide_titles": slide_titles,
         }
         context.user_data["pending_image_queries"] = image_queries
         context.user_data["pending_preview_urls"] = preview_urls
@@ -2703,6 +2713,13 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
         if not content_data_list:
             raise ValueError("generate_all_content bo'sh qaytdi (2 marta urinildi)")
+        if template_num == 11:
+            content_data_list = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: ensure_template_11_content(
+                    topic, language, slide_count, content_data_list, slide_titles
+                ),
+            )
 
         # Har bir shablon uchun rasm ishlatadigan slide_type lar
         TEMPLATE_IMAGE_SLIDE_TYPES = {
@@ -2766,6 +2783,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         template_file = template_file_names.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file)
         prs = Presentation(template_path)
+        template_extra_options = {"slide_titles": slide_titles} if template_num == 11 else {}
 
         async def fetch_one_preview(q):
             urls = await asyncio.get_event_loop().run_in_executor(
@@ -2785,6 +2803,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 plan=plan_dict,
                 content_data_list=content_data_list,
                 user_images=[],
+                **template_extra_options,
             )
         )
         image_tasks = [fetch_one_preview(q) for q in image_queries]
@@ -2807,6 +2826,7 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "content_data_list": content_data_list,
             "template_num": template_num,
             "template_generate_func_name": template_num,
+            "slide_titles": slide_titles,
         }
 
         context.user_data["pending_image_queries"] = image_queries
@@ -3028,6 +3048,7 @@ async def _rebuild_and_send_presentation_with_user_images(
     pending = context.user_data.get("pending_presentation", {})
     template_num = pending.get("template_num", 1)
     content_data_list = pending.get("content_data_list", [])
+    slide_titles = pending.get("slide_titles", [])
     name_surname = context.user_data.get("name_surname", "")
     language = context.user_data.get("language", "uz")
     stage1 = context.user_data.get("stage1_result", {})
@@ -3084,6 +3105,7 @@ async def _rebuild_and_send_presentation_with_user_images(
         template_file2 = template_file_names2.get(template_num, f"{template_num}.pptx")
         template_path = os.path.join(os.path.dirname(__file__), "templates", "shablonlar", template_file2)
         prs = Presentation(template_path)
+        template_extra_options = {"slide_titles": slide_titles} if template_num == 11 else {}
 
         presentation_bytes = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -3096,6 +3118,7 @@ async def _rebuild_and_send_presentation_with_user_images(
                 plan=plan_dict,
                 content_data_list=content_data_list,
                 user_images=user_images_bytes,
+                **template_extra_options,
             )
         )
 
