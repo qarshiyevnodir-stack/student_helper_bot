@@ -136,11 +136,7 @@ ADMIN_USERNAME = "Slidego_adminbot"  # Admin telegram username (@ belgisisiz)
 ARCHIVE_CHANNEL = -1003599976854  # Arxiv kanal ID
 REQUIRED_CHANNELS = (
     {
-        "chat_id": "@kerakli_kitob_lar",
-        "title": "Kerakli kitoblar",
-        "url": "https://t.me/kerakli_kitob_lar",
-    },
-    {
+        
         "chat_id": "@maktabgacha_va_maktab_yangilik",
         "title": "Maktabgacha va maktab ta'lim yangiliklari",
         "url": "https://t.me/maktabgacha_va_maktab_yangilik",
