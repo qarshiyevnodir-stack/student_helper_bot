@@ -7907,7 +7907,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_new_user_topup_bonus_announcement(context.bot, user.id)
     else:
         await query.answer(
-            text="⚠️ Siz hali barcha majburiy kanallarga a'zo bo'lmagansiz! Avval ikkala kanalga a'zo bo'ling, so'ng qayta tekshiring.",
+            text="⚠️ Siz hali barcha majburiy kanallarga a'zo bo'lmagansiz! Avval kanalga a'zo bo'ling, so'ng qayta tekshiring.",
             show_alert=True
         )
 
