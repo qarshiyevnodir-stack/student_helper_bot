@@ -9336,18 +9336,38 @@ SLIDE_TYPE_NAMES_T18 = {
 }
 
 def build_slide_structure_18(prs, requested_content_count):
-    content_slide_types = [
-        "image_left_two_texts",
-        "text_center_two_texts",
-        "image_right_text_left",
-        "text_center_two_texts_shape",
-        "image_right_text_left_colored",
+    """18-shablon uchun 3-7-slaydlarni kerakli miqdorda takrorlaydi."""
+    from utils import duplicate_slide_with_rels, move_slide
+
+    if len(prs.slides) < 8:
+        logging.error("T18 shablonida kamida 8 ta slayd bo'lishi kerak.")
+        return []
+
+    content_slide_indices = [2, 3, 4, 5, 6]
+    requested_content_count = max(5, int(requested_content_count or 5))
+    needed = requested_content_count - len(content_slide_indices)
+
+    if needed > 0:
+        for extra in range(needed):
+            src_idx = content_slide_indices[extra % len(content_slide_indices)]
+            duplicate_slide_with_rels(prs, src_idx)
+            content_slide_indices.append(len(prs.slides) - 1)
+        # 8-slayd o'zgarmaydigan yakuniy slayd sifatida eng oxirida qoladi.
+        move_slide(prs, 7, len(prs.slides) - 1)
+    elif needed < 0:
+        remove_count = -needed
+        for idx in sorted(content_slide_indices[len(content_slide_indices) - remove_count:], reverse=True):
+            sld_id = prs.slides._sldIdLst[idx]
+            r_id = sld_id.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+            if r_id:
+                prs.part.drop_rel(r_id)
+            del prs.slides._sldIdLst[idx]
+
+    return [
+        "cover", "plan",
+        *[content_slide_indices[i % len(content_slide_indices)] for i in range(requested_content_count)],
+        "conclusion",
     ]
-    structure = ["cover", "plan"]
-    for i in range(requested_content_count):
-        structure.append(content_slide_types[i % len(content_slide_types)])
-    structure.append("conclusion")
-    return structure
 
 def _t18_clear_and_write(txBody, paragraphs_data):
     from lxml import etree
@@ -9613,6 +9633,7 @@ def generate_template_18_presentation(prs, topic, requested_slide_count, languag
                                        name_surname="", plan=None, content_data_list=None,
                                        user_images=None):
     import io
+    build_slide_structure_18(prs, requested_slide_count)
     slides = prs.slides
     if len(slides) < 2:
         logging.error("[T18] Shablon slaydlari yetarli emas")
