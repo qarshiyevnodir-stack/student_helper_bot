@@ -15592,6 +15592,110 @@ def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
 
 
 
+
+def fill_oddiy1_slide_5_three_col(slide, title, col1_text, col2_text, col3_text):
+    """5-slayd: sarlavha va uchta matn ustuni."""
+    text_shapes = [s for s in slide.shapes if hasattr(s, "has_text_frame") and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {"text": title.upper() if title else "", "sz": 3200, "b": 1, "color": "003366", "algn": "ctr"}
+        ])
+    for shape_idx, col_text in enumerate((col1_text, col2_text, col3_text), 1):
+        if len(text_shapes) <= shape_idx:
+            continue
+        col_str = col_text if isinstance(col_text, str) else str(col_text or "")
+        paras = [
+            {"text": line.strip(), "sz": 1800, "b": 0, "color": "334155", "algn": "just"}
+            for line in col_str.split("\n") if line.strip()
+        ]
+        if not paras:
+            paras = [{"text": col_str, "sz": 1800, "b": 0, "color": "334155", "algn": "just"}]
+        _oddiy1_clear_and_write(text_shapes[shape_idx].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_6_two_col_bold(slide, title, col1_text, col2_text):
+    """6-slayd: sarlavha va ikki ustun; birinchi qatorlar ajratib ko‘rsatiladi."""
+    text_shapes = [s for s in slide.shapes if hasattr(s, "has_text_frame") and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {"text": title or "", "sz": 3200, "b": 1, "color": "003366", "algn": "ctr"}
+        ])
+    for shape_idx, col_text in ((1, col1_text), (2, col2_text)):
+        if len(text_shapes) <= shape_idx:
+            continue
+        lines = col_text.split("\n") if isinstance(col_text, str) else [str(col_text or "")]
+        paras = [
+            {
+                "text": line.strip(),
+                "sz": 1800,
+                "b": 1 if i == 0 else 0,
+                "color": "003366" if i == 0 else "334155",
+                "algn": "just",
+            }
+            for i, line in enumerate(lines) if line.strip()
+        ]
+        if not paras:
+            paras = [{"text": str(col_text or ""), "sz": 1800, "b": 0, "color": "334155", "algn": "just"}]
+        _oddiy1_clear_and_write(text_shapes[shape_idx].text_frame._txBody, paras)
+
+
+def fill_oddiy1_slide_7_single_body(slide, title, body_text, image_path=None):
+    """7-slayd: sarlavha va bitta asosiy matn bloki."""
+    text_shapes = [s for s in slide.shapes if hasattr(s, "has_text_frame") and s.has_text_frame]
+    if len(text_shapes) >= 1:
+        _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
+            {"text": title.upper() if title else "", "sz": 3200, "b": 1, "color": "003366", "algn": "ctr"}
+        ])
+    if len(text_shapes) >= 2:
+        body = body_text if isinstance(body_text, str) else str(body_text or "")
+        paras = [
+            {"text": line.strip(), "sz": 1800, "b": 0, "color": "334155", "algn": "l"}
+            for line in body.split("\n") if line.strip()
+        ]
+        if not paras:
+            paras = [{"text": body, "sz": 1800, "b": 0, "color": "334155", "algn": "l"}]
+        _oddiy1_clear_and_write(text_shapes[1].text_frame._txBody, paras)
+
+
+def _oddiy1_is_outro_slide(slide):
+    """Oddiy1 yakuniy slaydini matn bo‘yicha aniqlaydi."""
+    parts = []
+    for shape in slide.shapes:
+        if getattr(shape, "has_text_frame", False):
+            parts.append(shape.text or "")
+    text = " ".join(parts).upper().replace("’", "'")
+    return "E'TIBORINGIZ" in text and "RAHMAT" in text
+
+
+def _normalize_oddiy1_slide_order(prs):
+    """1-2 boshida, 8-yakuniy slayd oxirida bo‘lishini kafolatlaydi.
+
+    Eski Oddiy1 oqimida 8-slayd nusxasi kontent slaydlari orasida qolib,
+    yakuniy slayd yana oxirida ham paydo bo‘lardi. Oraliq yakuniy slayd
+    topilsa olib tashlanadi; oxirgi yakuniy slayd saqlanadi.
+    """
+    if len(prs.slides) < 8:
+        return
+    # Shablonning asl 8-slaydi (index 7) yakuniy slayd bo‘lsa, uni
+    # kontent oqimidan olib tashlaymiz. Oxirgi slayd yagona outro bo‘lib qoladi.
+    if len(prs.slides) > 8 and _oddiy1_is_outro_slide(prs.slides[7]):
+        sld_id = prs.slides._sldIdLst[7]
+        r_id = sld_id.get("r:id") or sld_id.get(
+            "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+        )
+        if r_id:
+            try:
+                prs.part.drop_rel(r_id)
+            except Exception:
+                pass
+        prs.slides._sldIdLst.remove(sld_id)
+
+
+def fill_oddiy1_slide_8_outro(slide):
+    """8-slayd: shablonning tayyor yakuniy slaydi; mavjud dizaynni o‘zgartirmaydi."""
+    return None
+
+
 def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, language,
                                            name_surname, plan, content_data_list,
                                            user_images=None):
@@ -15605,6 +15709,7 @@ def generate_template_oddiy1_presentation(prs, topic, requested_slide_count, lan
 
     logger = logging.getLogger(__name__)
 
+    _normalize_oddiy1_slide_order(prs)
     fill_oddiy1_slide_1_cover(prs.slides[0], topic, name_surname)
     fill_oddiy1_slide_2_plan(prs.slides[1], plan)
 
