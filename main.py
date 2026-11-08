@@ -904,6 +904,31 @@ def presentation_to_pdf(presentation_bytes: bytes) -> bytes:
             raise RuntimeError("Yaratilgan PDF fayl bo'sh")
         return pdf_bytes
 
+
+async def send_presentation_document_with_retry(bot, chat_id, file_bytes, filename, caption):
+    """Katta PPTX/PDF faylni Telegramga ketma-ket va barqaror yuboradi."""
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            return await bot.send_document(
+                chat_id=chat_id,
+                document=BytesIO(file_bytes),
+                filename=filename,
+                caption=caption,
+                parse_mode="Markdown",
+                connect_timeout=30,
+                read_timeout=300,
+                write_timeout=300,
+                pool_timeout=30,
+            )
+        except (TimedOut, asyncio.TimeoutError) as exc:
+            last_error = exc
+            if attempt < 3:
+                await asyncio.sleep(attempt * 2)
+                continue
+            raise TimeoutError(f"{filename} faylini Telegramga yuborish vaqti tugadi") from exc
+    raise last_error or TimeoutError(f"{filename} faylini yuborib bo'lmadi")
+
 async def archive_send_photo(
     bot,
     user,
@@ -2911,9 +2936,10 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
         pdf_bytes = await asyncio.to_thread(presentation_to_pdf, pptx_bytes)
         pdf_filename = f"{os.path.splitext(filename)[0]}.pdf"
 
-        sent_msg = await context.bot.send_document(
+        sent_msg = await send_presentation_document_with_retry(
+            bot=context.bot,
             chat_id=chat_id,
-            document=BytesIO(pptx_bytes),
+            file_bytes=pptx_bytes,
             filename=filename,
             caption=(
                 f"✅ *{esc_md(topic)}* — taqdimot tayyor!\n"
@@ -2922,14 +2948,13 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
                 f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
-            parse_mode="Markdown"
         )
-        await context.bot.send_document(
+        await send_presentation_document_with_retry(
+            bot=context.bot,
             chat_id=chat_id,
-            document=BytesIO(pdf_bytes),
+            file_bytes=pdf_bytes,
             filename=pdf_filename,
             caption=f"📄 *{esc_md(topic)}* — PDF nusxa",
-            parse_mode="Markdown"
         )
         _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         _lang_name = context.user_data.get('language_name', context.user_data.get('language', 'uz'))
@@ -2969,7 +2994,11 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
         try:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ Taqdimot yuborishda xatolik yuz berdi:\n`{str(e)[:200]}`\n\nIltimos, qayta urinib ko'ring.",
+                text=(
+                    f"❌ Taqdimot yuborishda xatolik yuz berdi:\n`{str(e)[:200]}`\n\n"
+                    "PPTX va PDF fayllari ketma-ket yuboriladi; balans yechilmadi. "
+                    "Iltimos, qayta urinib ko'ring."
+                ),
                 reply_markup=get_main_menu_keyboard(),
                 parse_mode="Markdown"
             )
