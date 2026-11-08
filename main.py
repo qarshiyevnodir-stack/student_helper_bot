@@ -874,6 +874,36 @@ async def archive_send_document(
     except Exception as e:
         logger.warning(f"Arxiv kanalga yuborishda xatolik: {e}", exc_info=True)
 
+
+def presentation_to_pdf(presentation_bytes: bytes) -> bytes:
+    """PPTX baytlarini LibreOffice yordamida PDF baytlariga aylantiradi."""
+    import subprocess
+    import tempfile
+
+    if not isinstance(presentation_bytes, (bytes, bytearray)) or not presentation_bytes:
+        raise ValueError("PPTX ma'lumotlari topilmadi")
+
+    with tempfile.TemporaryDirectory(prefix="slidego_pptx_pdf_") as tmpdir:
+        pptx_path = os.path.join(tmpdir, "presentation.pptx")
+        pdf_path = os.path.join(tmpdir, "presentation.pdf")
+        with open(pptx_path, "wb") as stream:
+            stream.write(presentation_bytes)
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", "pdf",
+             "--outdir", tmpdir, pptx_path],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+        if result.returncode != 0 or not os.path.isfile(pdf_path):
+            raise RuntimeError("PPTX faylini PDF formatiga o'tkazib bo'lmadi")
+        with open(pdf_path, "rb") as stream:
+            pdf_bytes = stream.read()
+        if not pdf_bytes:
+            raise RuntimeError("Yaratilgan PDF fayl bo'sh")
+        return pdf_bytes
+
 async def archive_send_photo(
     bot,
     user,
@@ -2864,22 +2894,26 @@ async def template_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def _send_final_presentation(update, context, chat_id, user_id, topic, slide_count, price, presentation_bytes, filename):
-    """Taqdimotni foydalanuvchiga yuboradi, balansdan yechadi, arxivga saqlaydi."""
+    """Taqdimotni PPTX va PDF ko'rinishida yuboradi, so'ng balansdan yechadi."""
     try:
         if presentation_bytes is None:
             raise ValueError("Taqdimot ma'lumotlari topilmadi (None). Iltimos, qayta urinib ko'ring.")
-        # bytes bo'lsa BytesIO ga aylantirish
         if isinstance(presentation_bytes, (bytes, bytearray)):
-            doc_to_send = BytesIO(presentation_bytes)
-            doc_to_send.name = filename
+            pptx_bytes = bytes(presentation_bytes)
+        elif hasattr(presentation_bytes, 'getvalue'):
+            pptx_bytes = presentation_bytes.getvalue()
         elif hasattr(presentation_bytes, 'seek'):
             presentation_bytes.seek(0)
-            doc_to_send = presentation_bytes
+            pptx_bytes = presentation_bytes.read()
         else:
-            doc_to_send = presentation_bytes
+            raise TypeError("Taqdimot ma'lumotlari noto'g'ri formatda")
+
+        pdf_bytes = await asyncio.to_thread(presentation_to_pdf, pptx_bytes)
+        pdf_filename = f"{os.path.splitext(filename)[0]}.pdf"
+
         sent_msg = await context.bot.send_document(
             chat_id=chat_id,
-            document=doc_to_send,
+            document=BytesIO(pptx_bytes),
             filename=filename,
             caption=(
                 f"✅ *{esc_md(topic)}* — taqdimot tayyor!\n"
@@ -2888,6 +2922,13 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
                 f"🤖 @slidego\n"
                 f"📢 t.me/slidego"
             ),
+            parse_mode="Markdown"
+        )
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=BytesIO(pdf_bytes),
+            filename=pdf_filename,
+            caption=f"📄 *{esc_md(topic)}* — PDF nusxa",
             parse_mode="Markdown"
         )
         _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
@@ -2900,8 +2941,19 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
             language=_lang_name,
             page_count=f"{slide_count} slayd",
             price=price,
-            document_bytes=presentation_bytes,
+            document_bytes=pptx_bytes,
             filename=filename,
+        )
+        await archive_send_document(
+            bot=context.bot,
+            user=update.effective_user,
+            service_name="🪄 Slayd yaratish — PDF",
+            topic=topic,
+            language=_lang_name,
+            page_count=f"{slide_count} slayd",
+            price=price,
+            document_bytes=pdf_bytes,
+            filename=pdf_filename,
         )
         await asyncio.to_thread(db.deduct_balance, user_id, price)
         await asyncio.to_thread(db.log_generation, user_id, 'slayd', topic, price, _file_id, filename)
