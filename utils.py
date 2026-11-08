@@ -14453,7 +14453,7 @@ def fill_t32_slide_8_conclusion(slide, data):
 
 def build_slide_structure_32(prs, requested_slide_count):
     import logging
-    from utils import duplicate_slide, move_slide
+    from utils import duplicate_slide_with_rels, move_slide
     if len(prs.slides) < 8:
         logging.error("T32 shablonida kamida 8 ta slayd bo'lishi kerak.")
         return
@@ -14464,7 +14464,7 @@ def build_slide_structure_32(prs, requested_slide_count):
     if needed > 0:
         for extra in range(needed):
             src = content_slide_indices[extra % len(content_slide_indices)]
-            duplicate_slide(prs, src)
+            duplicate_slide_with_rels(prs, src)
             content_slide_indices.append(len(prs.slides) - 1)
         # 8-slayd (tayyor outro) nusxalangan kontent slaydlaridan keyin
         # doim oxirgi slayd bo‘lib qolishi kerak.
