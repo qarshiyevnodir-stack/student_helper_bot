@@ -1368,13 +1368,8 @@ def generate_plan_with_titles(topic, slide_count, language, template_num=None):
       "slide_titles": ["Sarlavha 1", "Sarlavha 2", ...]  # kontent slaydlar uchun
     }
     """
-    # Slayd soniga mos reja punktlari soni
-    plan_count_map = {5: 3, 10: 4, 15: 4, 20: 5, 25: 5, 30: 5}
-    # Platinum1 (37) va Gamma2 (38) uchun doim 3 ta reja
-    if template_num in (37, 38):
-        plan_count = 3
-    else:
-        plan_count = plan_count_map.get(slide_count, 4)
+    # Avtomatik reja barcha shablon va slayd sonlarida aynan 3 ta banddan iborat.
+    plan_count = 3
 
     # Kontent slaydlar soni (5 ta shablon × takrorlash)
     content_count = slide_count  # 5, 10, 15, 20, 25, 30
@@ -1427,7 +1422,16 @@ def generate_plan_with_titles(topic, slide_count, language, template_num=None):
             if not re.match(r'^\d+\.', cleaned):
                 cleaned = f"{idx+1}. {cleaned}"
             clean_plan.append(cleaned)
-        result["plan"] = clean_plan
+        # Model kamroq band qaytarsa ham foydalanuvchiga doim to'liq 3 band ko'rsatiladi.
+        fallback_plan = [
+            f"{topic}ning asosiy tushunchalari",
+            f"{topic}ning muhim jihatlari",
+            f"{topic}ning amaliy ahamiyati",
+        ]
+        while len(clean_plan) < plan_count:
+            idx = len(clean_plan)
+            clean_plan.append(f"{idx + 1}. {fallback_plan[idx]}")
+        result["plan"] = clean_plan[:plan_count]
         result["slide_titles"] = result.get("slide_titles", [])[:content_count]
         logging.info(f"1-bosqich tayyor: {len(result['plan'])} reja, {len(result['slide_titles'])} sarlavha")
         return result
