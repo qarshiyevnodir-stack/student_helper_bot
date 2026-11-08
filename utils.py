@@ -14462,10 +14462,13 @@ def build_slide_structure_32(prs, requested_slide_count):
     needed = requested_slide_count - len(content_slide_indices)
 
     if needed > 0:
-        for _ in range(needed):
-            src = content_slide_indices[len(content_slide_indices) % 5]
+        for extra in range(needed):
+            src = content_slide_indices[extra % len(content_slide_indices)]
             duplicate_slide(prs, src)
             content_slide_indices.append(len(prs.slides) - 1)
+        # 8-slayd (tayyor outro) nusxalangan kontent slaydlaridan keyin
+        # doim oxirgi slayd bo‘lib qolishi kerak.
+        move_slide(prs, 7, len(prs.slides) - 1)
     elif needed < 0:
         remove_count = -needed
         indices_to_remove = sorted(content_slide_indices[len(content_slide_indices) - remove_count:], reverse=True)
