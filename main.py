@@ -2946,7 +2946,7 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
                 f"📊 {slide_count} ta slayd | 📎 PPTX\n\n"
                 f"📚 Biz bilan ishingiz oson!\n"
                 f"🤖 @slidego\n"
-                f"📢 t.me/slidego"
+                f"📢 https://t.me/maktabgacha_va_maktab_yangilik"
             ),
         )
         await send_presentation_document_with_retry(
@@ -2954,7 +2954,10 @@ async def _send_final_presentation(update, context, chat_id, user_id, topic, sli
             chat_id=chat_id,
             file_bytes=pdf_bytes,
             filename=pdf_filename,
-            caption=f"📄 *{esc_md(topic)}* — PDF nusxa",
+            caption=(
+                f"📄 *{esc_md(topic)}* — PDF nusxa\n"
+                f"📢 https://t.me/maktabgacha_va_maktab_yangilik"
+            ),
         )
         _file_id = sent_msg.document.file_id if sent_msg and sent_msg.document else None
         _lang_name = context.user_data.get('language_name', context.user_data.get('language', 'uz'))
