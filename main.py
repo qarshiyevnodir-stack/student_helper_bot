@@ -1015,7 +1015,7 @@ def get_subscription_prompt() -> str:
         f"• {channel['chat_id']}" for channel in REQUIRED_CHANNELS
     )
     return (
-        "Botdan foydalanish uchun avval quyidagi kanallarga a'zo bo'lishingiz kerak:\n"
+        "Botdan foydalanish uchun avval quyidagi kanalga a'zo bo'lishingiz kerak:\n"
         f"{channel_lines}\n\n"
         "A'zo bo'lgandan so'ng \"✅ A'zo bo'ldim, tekshir\" tugmasini bosing:"
     )
@@ -7952,14 +7952,14 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     is_subscribed = await check_subscription(context.bot, user.id, force=True)
     if is_subscribed:
-        await query.answer(text="✅ Tabriklaymiz! Barcha majburiy kanallarga a'zo bo'ldingiz.", show_alert=False)
+        await query.answer(text="✅ Tabriklaymiz! Majburiy kanalga a'zo bo'ldingiz.", show_alert=False)
         if FINANCIAL_MAINTENANCE_MODE:
             await _send_financial_maintenance_notice(update)
             return
         # A'zo bo'ldi — start ni qayta ishga tushirish
         try:
             await query.edit_message_text(
-                f"✅ Rahmat, {user.first_name}! Barcha majburiy kanallarga a'zo bo'ldingiz.\n\n"
+                f"✅ Rahmat, {user.first_name}! Majburiy kanalga a'zo bo'ldingiz.\n\n"
                 f"Endi botdan to'liq foydalanishingiz mumkin!"
             )
         except Exception:
@@ -7992,7 +7992,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_new_user_topup_bonus_announcement(context.bot, user.id)
     else:
         await query.answer(
-            text="⚠️ Siz hali barcha majburiy kanallarga a'zo bo'lmagansiz! Avval kanalga a'zo bo'ling, so'ng qayta tekshiring.",
+            text="⚠️ Siz hali majburiy kanalga a'zo bo'lmagansiz! Avval kanalga a'zo bo'ling, so'ng qayta tekshiring.",
             show_alert=True
         )
 
