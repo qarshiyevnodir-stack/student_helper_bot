@@ -15337,6 +15337,30 @@ def _t34_get_col_text(slide_data, col_key):
     return ''
 
 
+def _t34_split_text_evenly(text):
+    """Ikki ustunli slayd uchun matnni ikkita bo'sh bo'lmagan qismga ajratadi."""
+    import re
+
+    text = str(text or '').strip()
+    parts = [part.strip() for part in text.splitlines() if part.strip()]
+    if len(parts) < 2:
+        parts = re.findall(r'\S+(?:\s+\S+){0,}', text)
+    if not parts:
+        return '', ''
+    if len(parts) == 1:
+        words = parts[0].split()
+        if len(words) < 2:
+            return parts[0], parts[0]
+        midpoint = max(1, len(words) // 2)
+        return ' '.join(words[:midpoint]), ' '.join(words[midpoint:])
+    midpoint = max(1, (len(parts) + 1) // 2)
+    left = '\n'.join(parts[:midpoint]).strip()
+    right = '\n'.join(parts[midpoint:]).strip()
+    if not right:
+        right = left
+    return left, right
+
+
 def generate_template_34_presentation(prs, topic, requested_slide_count, language,
                                        name_surname, plan, content_data_list,
                                        user_images=None):
@@ -15388,6 +15412,12 @@ def generate_template_34_presentation(prs, topic, requested_slide_count, languag
             col2 = _t34_get_col_text(data, 'col2')
             if not col1 and not col2:
                 col1 = _t34_get_body_text(data)
+            # 3- va 7-slaydlarda chap blok bo'linib, o'ng blok bo'sh qolmasin.
+            if slide_type in {0, 4} and col1 and not col2:
+                col1, col2 = _t34_split_text_evenly(col1)
+            # 4-slaydda aksincha, o'ng blok bo'linib, chap blok to'ldiriladi.
+            elif slide_type == 1 and col2 and not col1:
+                col1, col2 = _t34_split_text_evenly(col2)
             func(slide, title, col1, col2)
         elif slide_type in {2, 3}:  # img turlari
             body = _t34_get_body_text(data)
