@@ -15659,8 +15659,50 @@ def fill_oddiy1_slide_4_img_right(slide, title, body_text, image_path=None):
     # Rasm joylashtirishni keyinroq qo'shamiz
 
 
+def _oddiy1_split_text_evenly(text, parts):
+    """Matnni gap chegaralarida 2 yoki 3 ta deyarli teng qismga ajratadi."""
+    import re
 
-
+    text = str(text or '').strip()
+    if not text or parts < 2:
+        return tuple([text] * max(1, parts))
+    sentences = []
+    for paragraph in (part.strip() for part in text.splitlines() if part.strip()):
+        found = re.findall(r'.+?(?:[.!?]+(?=\s|$)|$)', paragraph)
+        sentences.extend(part.strip() for part in found if part.strip())
+    if len(sentences) < parts:
+        words = text.split()
+        if len(words) < parts:
+            chunks = [text] + [''] * (parts - 1)
+        else:
+            chunks = []
+            start = 0
+            for idx in range(parts):
+                remaining = len(words) - start
+                slots = parts - idx
+                take = max(1, remaining // slots)
+                chunks.append(' '.join(words[start:start + take]))
+                start += take
+    else:
+        chunks = []
+        start = 0
+        for idx in range(parts - 1):
+            target = sum(len(item) for item in sentences[start:]) / (parts - idx)
+            running = 0
+            end = start + 1
+            for candidate in range(start + 1, len(sentences) - (parts - idx - 1) + 1):
+                running += len(sentences[candidate - 1])
+                end = candidate
+                if running >= target:
+                    break
+            chunks.append(' '.join(sentences[start:end]).strip())
+            start = end
+        chunks.append(' '.join(sentences[start:]).strip())
+    normalized = []
+    for chunk in chunks:
+        chunk = chunk.strip() or (normalized[-1] if normalized else text)
+        normalized.append(chunk[:1].upper() + chunk[1:] if chunk else chunk)
+    return tuple(normalized)
 
 
 def fill_oddiy1_slide_5_three_col(slide, title, col1_text, col2_text, col3_text):
@@ -15670,7 +15712,13 @@ def fill_oddiy1_slide_5_three_col(slide, title, col1_text, col2_text, col3_text)
         _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
             {"text": title.upper() if title else "", "sz": 3200, "b": 1, "color": "003366", "algn": "ctr"}
         ])
-    for shape_idx, col_text in enumerate((col1_text, col2_text, col3_text), 1):
+    columns = (col1_text, col2_text, col3_text)
+    if any(not str(value or '').strip() for value in columns):
+        columns = _oddiy1_split_text_evenly(
+            ' '.join(str(value or '').strip() for value in columns if str(value or '').strip()),
+            3,
+        )
+    for shape_idx, col_text in enumerate(columns, 1):
         if len(text_shapes) <= shape_idx:
             continue
         col_str = col_text if isinstance(col_text, str) else str(col_text or "")
@@ -15690,7 +15738,13 @@ def fill_oddiy1_slide_6_two_col_bold(slide, title, col1_text, col2_text):
         _oddiy1_clear_and_write(text_shapes[0].text_frame._txBody, [
             {"text": title or "", "sz": 3200, "b": 1, "color": "003366", "algn": "ctr"}
         ])
-    for shape_idx, col_text in ((1, col1_text), (2, col2_text)):
+    columns = (col1_text, col2_text)
+    if any(not str(value or '').strip() for value in columns):
+        columns = _oddiy1_split_text_evenly(
+            ' '.join(str(value or '').strip() for value in columns if str(value or '').strip()),
+            2,
+        )
+    for shape_idx, col_text in enumerate(columns, 1):
         if len(text_shapes) <= shape_idx:
             continue
         lines = col_text.split("\n") if isinstance(col_text, str) else [str(col_text or "")]
