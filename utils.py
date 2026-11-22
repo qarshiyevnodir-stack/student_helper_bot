@@ -15159,7 +15159,7 @@ def fill_t34_slide_2_plan(slide, plan_items):
     # [0] sarlavha
     if len(shapes) >= 1:
         _t34_clear_and_write(shapes[0].text_frame._txBody, [
-            {'text': 'REJA', 'sz': 4000, 'b': 0, 'color': '0B3763', 'algn': 'ctr'}
+            {'text': 'REJA', 'sz': 4400, 'b': 1, 'color': '0B3763', 'algn': 'ctr'}
         ])
     # [1] body — raqamlangan ro'yxat
     if len(shapes) >= 2:
@@ -15338,26 +15338,41 @@ def _t34_get_col_text(slide_data, col_key):
 
 
 def _t34_split_text_evenly(text):
-    """Ikki ustunli slayd uchun matnni ikkita bo'sh bo'lmagan qismga ajratadi."""
+    """Ikki ustunli slayd uchun matnni gap chegaralarida tengroq ajratadi."""
     import re
 
     text = str(text or '').strip()
-    parts = [part.strip() for part in text.splitlines() if part.strip()]
-    if len(parts) < 2:
-        parts = re.findall(r'\S+(?:\s+\S+){0,}', text)
-    if not parts:
+    if not text:
         return '', ''
-    if len(parts) == 1:
-        words = parts[0].split()
+    # Avval mavjud abzatslarni, keyin har bir abzatsdagi gaplarni saqlab olamiz.
+    sentences = []
+    for paragraph in (part.strip() for part in text.splitlines() if part.strip()):
+        found = re.findall(r'.+?(?:[.!?]+(?=\s|$)|$)', paragraph)
+        sentences.extend(part.strip() for part in found if part.strip())
+    if len(sentences) < 2:
+        words = text.split()
         if len(words) < 2:
-            return parts[0], parts[0]
+            return text, text
         midpoint = max(1, len(words) // 2)
-        return ' '.join(words[:midpoint]), ' '.join(words[midpoint:])
-    midpoint = max(1, (len(parts) + 1) // 2)
-    left = '\n'.join(parts[:midpoint]).strip()
-    right = '\n'.join(parts[midpoint:]).strip()
+        left, right = ' '.join(words[:midpoint]), ' '.join(words[midpoint:])
+    else:
+        # Jami belgilar uzunligiga eng yaqin bo‘ladigan gap chegarasini tanlaymiz.
+        total = sum(len(sentence) for sentence in sentences)
+        running = 0
+        split_at = 1
+        best_gap = None
+        for idx, sentence in enumerate(sentences[:-1], 1):
+            running += len(sentence)
+            gap = abs(total / 2 - running)
+            if best_gap is None or gap < best_gap:
+                best_gap, split_at = gap, idx
+        left = ' '.join(sentences[:split_at]).strip()
+        right = ' '.join(sentences[split_at:]).strip()
     if not right:
         right = left
+    # Har ikki ustun yangi gap kabi bosh harf bilan boshlansin.
+    left = left[:1].upper() + left[1:] if left else left
+    right = right[:1].upper() + right[1:] if right else right
     return left, right
 
 
@@ -15412,12 +15427,9 @@ def generate_template_34_presentation(prs, topic, requested_slide_count, languag
             col2 = _t34_get_col_text(data, 'col2')
             if not col1 and not col2:
                 col1 = _t34_get_body_text(data)
-            # 3- va 7-slaydlarda chap blok bo'linib, o'ng blok bo'sh qolmasin.
-            if slide_type in {0, 4} and col1 and not col2:
-                col1, col2 = _t34_split_text_evenly(col1)
-            # 4-slaydda aksincha, o'ng blok bo'linib, chap blok to'ldiriladi.
-            elif slide_type == 1 and col2 and not col1:
-                col1, col2 = _t34_split_text_evenly(col2)
+            # Har qanday bo'sh ustunni mavjud matnni gap chegarasida bo'lish orqali to'ldiramiz.
+            if (not col1 or not col2) and (col1 or col2):
+                col1, col2 = _t34_split_text_evenly(col1 or col2)
             func(slide, title, col1, col2)
         elif slide_type in {2, 3}:  # img turlari
             body = _t34_get_body_text(data)
